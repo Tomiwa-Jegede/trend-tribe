@@ -296,7 +296,7 @@ const RegisterPage = () => {
                     value={formData.email}
                     onChange={handleChange}
                     error={errors.email}
-                    placeholder="you@university.edu"
+                    placeholder="you@run.edu.ng"
                     required
                   />
                 </div>

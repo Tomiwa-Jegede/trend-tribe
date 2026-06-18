@@ -78,7 +78,7 @@ const ForgotPasswordPage = () => {
                   setEmail(e.target.value);
                   if (error) setError("");
                 }}
-                placeholder="you@university.edu"
+                placeholder="you@run.edu.ng"
                 required
               />
 

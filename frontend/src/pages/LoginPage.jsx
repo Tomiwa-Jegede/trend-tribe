@@ -211,7 +211,7 @@ const LoginPage = () => {
                   value={formData.email}
                   onChange={handleChange}
                   error={errors.email}
-                  placeholder="you@university.edu"
+                  placeholder="you@run.edu.ng"
                   required
                 />
 
@@ -418,9 +418,7 @@ const LoginPage = () => {
             <motion.div
               variants={reduced ? {} : fadeSlideUp}
               className="flex flex-col gap-4 w-full"
-            >
-            
-            </motion.div>
+            ></motion.div>
           </motion.div>
         </div>
       </div>
