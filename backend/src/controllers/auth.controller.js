@@ -36,7 +36,8 @@ const buildTokenPayload = (user) => ({
 // ─────────────────────────────────────────────────────────────
 const register = async (req, res) => {
   try {
-    const { email, username, password, fullName, school, matricNumber, bio } = req.body;
+    const { email, username, password, fullName, school, matricNumber, bio } =
+      req.body;
 
     if (!school || !school.trim()) {
       return res.status(400).json({ error: "School is required" });
@@ -44,10 +45,14 @@ const register = async (req, res) => {
 
     const existingEmail = await prisma.user.findUnique({ where: { email } });
     if (existingEmail) {
-      return res.status(409).json({ error: "An account with this email already exists" });
+      return res
+        .status(409)
+        .json({ error: "An account with this email already exists" });
     }
 
-    const existingUsername = await prisma.user.findUnique({ where: { username } });
+    const existingUsername = await prisma.user.findUnique({
+      where: { username },
+    });
     if (existingUsername) {
       return res.status(409).json({ error: "This username is already taken" });
     }
@@ -57,7 +62,9 @@ const register = async (req, res) => {
         where: { matricNumber: matricNumber.trim() },
       });
       if (existingMatric) {
-        return res.status(409).json({ error: "This matric number is already registered" });
+        return res
+          .status(409)
+          .json({ error: "This matric number is already registered" });
       }
     }
 
@@ -153,6 +160,7 @@ const getMe = async (req, res) => {
         matricNumber: true,
         bio: true,
         avatar: true,
+        whatsapp: true,
         isVerified: true,
         createdAt: true,
         updatedAt: true,
@@ -353,6 +361,58 @@ const resetPassword = async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
+// ─────────────────────────────────────────────────────────────
+// PATCH /api/auth/profile ← PROTECTED
+// Handles avatar upload + profile field updates
+// ─────────────────────────────────────────────────────────────
+// PATCH /api/auth/profile ← PROTECTED
+// Handles avatar upload + profile field updates
+// ─────────────────────────────────────────────────────────────
+const updateProfile = async (req, res) => {
+  try {
+    const { fullName, bio, school, whatsapp } = req.body;
+
+    const updateData = {};
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (bio !== undefined) updateData.bio = bio;
+    if (school !== undefined) updateData.school = school;
+    if (whatsapp !== undefined) updateData.whatsapp = whatsapp;
+
+    // If multer + cloudinary processed an avatar file, use its URL
+    if (req.file) {
+      // Delete old avatar from Cloudinary if one exists
+      const existing = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { avatarPublicId: true },
+      });
+      if (existing?.avatarPublicId) {
+        const cloudinary = require("../config/cloudinary");
+        await cloudinary.uploader
+          .destroy(existing.avatarPublicId)
+          .catch(() => {});
+      }
+      updateData.avatar = req.file.path;
+      updateData.avatarPublicId = req.file.filename;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No fields provided to update" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+    });
+
+    return res.status(200).json({
+      message: "Profile updated successfully ✅",
+      user: sanitizeUser(updated),
+    });
+  } catch (err) {
+    console.error("[UPDATE PROFILE ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
 
 module.exports = {
   register,
@@ -362,4 +422,5 @@ module.exports = {
   resendOtp,
   forgotPassword,
   resetPassword,
+  updateProfile,
 };

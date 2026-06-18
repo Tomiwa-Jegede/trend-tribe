@@ -182,7 +182,9 @@ const Navbar = () => {
             <div className="hidden md:flex items-center gap-8">
               <NavLink path="/" label="Home" />
               <NavLink path="/marketplace" label="Marketplace" />
+              <NavLink path="/features" label="Features" />
               <NavLink path="/about" label="About" />
+
               {isAuthenticated && (
                 <NavLink path={`/profile/${user?.id}`} label="My Profile" />
               )}
@@ -212,7 +214,7 @@ const Navbar = () => {
                                  hover:text-primary-600 transition-colors"
                     >
                       <motion.div
-                        className="w-8 h-8 bg-sage-100 rounded-full flex items-center justify-center"
+                        className="w-8 h-8 bg-sage-100 rounded-full overflow-hidden flex items-center justify-center"
                         whileHover={reducedMotion ? {} : { scale: 1.1 }}
                         transition={{
                           type: "spring",
@@ -220,7 +222,15 @@ const Navbar = () => {
                           damping: 20,
                         }}
                       >
-                        <FiUser className="w-4 h-4 text-primary-600" />
+                        {user?.avatar ? (
+                          <img
+                            src={user.avatar}
+                            alt={user.username}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <FiUser className="w-4 h-4 text-primary-600" />
+                        )}
                       </motion.div>
                       <span className="font-medium">{user?.username}</span>
                     </Link>
@@ -307,7 +317,7 @@ const Navbar = () => {
                 label="Marketplace"
                 index={1}
               />
-              <MobileNavLink path="/about" label="About" index={2} />
+              <MobileNavLink path="/about" label="About" index={3} />
               {isAuthenticated && (
                 <MobileNavLink
                   path={`/profile/${user?.id}`}

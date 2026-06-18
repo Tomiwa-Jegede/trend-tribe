@@ -9,7 +9,7 @@ import Pagination from "../components/ui/Pagination";
 import Alert from "../components/ui/Alert";
 import { getListings } from "../services/listingService";
 import { FiInbox } from "react-icons/fi";
-
+import HomeTicker from "../components/home/HomeTicker";
 const ITEMS_PER_PAGE = 12;
 
 const MarketplacePage = () => {
@@ -127,131 +127,137 @@ const MarketplacePage = () => {
   const resultsKey = `${currentPage}-${JSON.stringify(filters)}`;
 
   return (
-    <div className="container-app py-10">
-      {/* ── Page Header ──────────────────────────────────── */}
-      <div className="mb-8">
-        <h1 className="text-gray-900">Marketplace</h1>
-        <p className="text-gray-500 mt-2">
-          {loading
-            ? "Loading listings…"
-            : `${pagination?.totalCount ?? 0} item${
-                pagination?.totalCount !== 1 ? "s" : ""
-              } available`}
-        </p>
-      </div>
+    <>
+      <HomeTicker variant="info" />
+      <div className="container-app py-10">
+        {/* ── Page Header ──────────────────────────────────── */}
+        <div className="mb-8">
+          <h1 className="text-gray-900">Marketplace</h1>
+          <p className="text-gray-500 mt-2">
+            {loading
+              ? "Loading listings…"
+              : `${pagination?.totalCount ?? 0} item${
+                  pagination?.totalCount !== 1 ? "s" : ""
+                } available`}
+          </p>
+        </div>
 
-      {/* ── Sticky, blurred Filter Bar ───────────────────── */}
-      <div className="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <motion.div
-          initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: prefersReducedMotion ? 0 : 0.4,
-            ease: "easeOut",
-          }}
-        >
-          <FilterBar
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            onReset={handleReset}
-          />
-        </motion.div>
-      </div>
-
-      {/* ── Error State ──────────────────────────────────── */}
-      {error && (
-        <Alert type="error" message={error} onDismiss={() => setError("")} />
-      )}
-
-      {/* ── Listings Grid / Loading / Empty (cross-fade) ──── */}
-      <AnimatePresence mode="wait">
-        {loading ? (
+        {/* ── Sticky, blurred Filter Bar ───────────────────── */}
+        <div className="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-white/80 backdrop-blur-md border-b border-gray-100">
           <motion.div
-            key="loading"
-            variants={fadeVariants}
-            initial="hidden"
-            animate="show"
-            exit="exit"
-            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: prefersReducedMotion ? 0 : 0.4,
+              ease: "easeOut",
+            }}
           >
-            {Array.from({ length: 6 }).map((_, i) => (
-              <ListingCardSkeleton key={i} />
-            ))}
+            <FilterBar
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onReset={handleReset}
+            />
           </motion.div>
-        ) : listings.length > 0 ? (
-          <motion.div
-            key={resultsKey}
-            variants={fadeVariants}
-            initial="hidden"
-            animate="show"
-            exit="exit"
-          >
+        </div>
+
+        {/* ── Error State ──────────────────────────────────── */}
+        {error && (
+          <Alert type="error" message={error} onDismiss={() => setError("")} />
+        )}
+
+        {/* ── Listings Grid / Loading / Empty (cross-fade) ──── */}
+        <AnimatePresence mode="wait">
+          {loading ? (
             <motion.div
-              className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
-              variants={gridVariants}
+              key="loading"
+              variants={fadeVariants}
               initial="hidden"
               animate="show"
+              exit="exit"
+              className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {listings.map((listing) => (
-                <motion.div key={listing.id} variants={cardVariants}>
-                  <ListingCard listing={listing} />
-                </motion.div>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ListingCardSkeleton key={i} />
               ))}
             </motion.div>
-
-            <AnimatePresence>
-              {pagination && pagination.totalPages > 1 && (
-                <motion.div
-                  key="pagination"
-                  initial={prefersReducedMotion ? false : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
-                >
-                  <Pagination
-                    currentPage={pagination.currentPage}
-                    totalPages={pagination.totalPages}
-                    onPageChange={handlePageChange}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        ) : !error ? (
-          <motion.div
-            key="empty"
-            variants={fadeVariants}
-            initial="hidden"
-            animate="show"
-            exit="exit"
-            className="flex flex-col items-center justify-center py-20 text-center"
-          >
+          ) : listings.length > 0 ? (
             <motion.div
-              initial={
-                prefersReducedMotion ? false : { scale: 0.8, opacity: 0 }
-              }
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{
-                duration: prefersReducedMotion ? 0 : 0.4,
-                ease: "easeOut",
-              }}
-              className="w-16 h-16 bg-gray-100 rounded-full flex items-center
-                          justify-center mb-4"
+              key={resultsKey}
+              variants={fadeVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
             >
-              <FiInbox className="w-7 h-7 text-gray-400" />
+              <motion.div
+                className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                variants={gridVariants}
+                initial="hidden"
+                animate="show"
+              >
+                {listings.map((listing) => (
+                  <motion.div key={listing.id} variants={cardVariants}>
+                    <ListingCard listing={listing} />
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              <AnimatePresence>
+                {pagination && pagination.totalPages > 1 && (
+                  <motion.div
+                    key="pagination"
+                    initial={prefersReducedMotion ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
+                  >
+                    <Pagination
+                      currentPage={pagination.currentPage}
+                      totalPages={pagination.totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
-            <h4 className="text-gray-700 mb-2">No listings found</h4>
-            <p className="text-gray-400 max-w-sm">
-              Try adjusting your filters or search term to find what you're
-              looking for.
-            </p>
-            <button onClick={handleReset} className="btn-secondary mt-6">
-              Clear all filters
-            </button>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
+          ) : !error ? (
+            <motion.div
+              key="empty"
+              variants={fadeVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <motion.div
+                initial={
+                  prefersReducedMotion ? false : { scale: 0.8, opacity: 0 }
+                }
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{
+                  duration: prefersReducedMotion ? 0 : 0.4,
+                  ease: "easeOut",
+                }}
+                className="w-16 h-16 bg-gray-100 rounded-full flex items-center
+                          justify-center mb-4"
+              >
+                <FiInbox className="w-7 h-7 text-gray-400" />
+              </motion.div>
+              <h4 className="text-gray-700 mb-2">No listings found</h4>
+              <p className="text-gray-400 max-w-sm">
+                Try adjusting your filters or search term to find what you're
+                looking for.
+              </p>
+              <button onClick={handleReset} className="btn-secondary mt-6">
+                Clear all filters
+              </button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+        <div className="mt-16">
+          <HomeTicker variant="marketplace" />
+        </div>
+      </div>
+    </>
   );
 };
 

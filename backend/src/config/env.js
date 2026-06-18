@@ -7,9 +7,12 @@ const REQUIRED_VARS = [
   "JWT_SECRET",
   "JWT_EXPIRES_IN",
   "CLIENT_URL",
-  "BREVO_API_KEY", // ← changed from RESEND_API_KEY
+  "BREVO_API_KEY",
   "EMAIL_FROM",
-  "EMAIL_FROM_NAME", // ← new
+  "EMAIL_FROM_NAME",
+  "CLOUDINARY_CLOUD_NAME", // ← new
+  "CLOUDINARY_API_KEY", // ← new
+  "CLOUDINARY_API_SECRET", // ← new
 ];
 
 const missing = REQUIRED_VARS.filter((key) => !process.env[key]);
@@ -39,6 +42,12 @@ const config = {
     brevoApiKey: process.env.BREVO_API_KEY,
     from: process.env.EMAIL_FROM,
     fromName: process.env.EMAIL_FROM_NAME,
+  },
+
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
 };
 

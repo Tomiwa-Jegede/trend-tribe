@@ -127,8 +127,10 @@ const ListingCard = ({ listing }) => {
               src={thumbnail}
               alt={title}
               className="w-full h-full object-cover"
+              style={{
+                objectPosition: `${listing.coverPosition?.x ?? 50}% ${listing.coverPosition?.y ?? 50}%`,
+              }}
               variants={reduced ? {} : imageVariants}
-              // Image loads with a blur-up feel
               initial={{ opacity: 0, filter: "blur(8px)" }}
               animate={{ opacity: 1, filter: "blur(0px)" }}
               transition={{ duration: 0.5, ease: "easeOut" }}

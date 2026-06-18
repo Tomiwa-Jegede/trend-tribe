@@ -1,27 +1,24 @@
 // src/pages/ProfilePage.jsx — Live API Version
 import { ProfileSkeleton } from "../components/ui/LoadingSpinner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ListingCard from "../components/listings/ListingCard";
-import ListingCardSkeleton from "../components/listings/ListingCardSkeleton";
 import { getListingsByUser } from "../services/listingService";
-import { FiUser, FiMapPin, FiCalendar, FiInbox, FiPlus } from "react-icons/fi";
-
-const formatDate = (dateStr) =>
-  new Date(dateStr).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+import { updateProfile } from "../services/authService";
+import { FiUser, FiMapPin, FiInbox, FiPlus, FiCamera, FiEdit2, FiPhone } from "react-icons/fi";
 
 const ProfilePage = () => {
   const { id } = useParams();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, setUser } = useAuth();
 
   const [seller, setSeller] = useState(null);
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const fileInputRef = useRef(null);
 
   const isOwnProfile = currentUser?.id === parseInt(id, 10);
 
@@ -34,20 +31,35 @@ const ProfilePage = () => {
         setSeller(data.seller);
         setListings(data.listings);
       } catch (err) {
-        if (err.response?.status === 404) {
-          setNotFound(true);
-        }
+        if (err.response?.status === 404) setNotFound(true);
       } finally {
         setLoading(false);
       }
     };
-
     fetchProfile();
   }, [id]);
 
-  if (loading) {
-    return <ProfileSkeleton />;
-  }
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarUploading(true);
+    try {
+      const updated = await updateProfile({ avatar: file });
+      setSeller((prev) => ({ ...prev, avatar: updated.avatar }));
+      // Keep auth context in sync
+      if (setUser) setUser((prev) => ({ ...prev, avatar: updated.avatar }));
+    } catch (err) {
+      console.error("Avatar upload failed", err);
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = "";
+    }
+  };
+
+
+
+  if (loading) return <ProfileSkeleton />;
 
   if (notFound) {
     return (
@@ -64,14 +76,58 @@ const ProfilePage = () => {
 
   return (
     <div className="container-app py-10">
-      {/* ── Profile Header ────────────────────────────── */}
+      {/* ── Profile Header ── */}
       <div className="card p-6 sm:p-8 mb-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          <div
-            className="w-20 h-20 bg-primary-100 rounded-full flex
-                          items-center justify-center flex-shrink-0"
-          >
-            <FiUser className="w-8 h-8 text-primary-600" />
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
+            <div
+              className="w-20 h-20 bg-primary-100 rounded-full overflow-hidden
+                            flex items-center justify-center"
+            >
+              {seller.avatar ? (
+                <img
+                  src={seller.avatar}
+                  alt={seller.fullName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <FiUser className="w-8 h-8 text-primary-600" />
+              )}
+            </div>
+
+            {/* Camera button — only visible on own profile */}
+            {isOwnProfile && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  aria-label="Change profile photo"
+                  className="absolute bottom-0 right-0 w-7 h-7 rounded-full
+                             bg-primary-600 text-white flex items-center justify-center
+                             border-2 border-white shadow-sm
+                             hover:bg-primary-700 transition-colors
+                             disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {avatarUploading ? (
+                    <span
+                      className="w-3 h-3 border-2 border-white/40
+                                     border-t-white rounded-full animate-spin"
+                    />
+                  ) : (
+                    <FiCamera className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </>
+            )}
           </div>
 
           <div className="flex-1">
@@ -98,23 +154,31 @@ const ProfilePage = () => {
                   {seller.school}
                 </span>
               )}
+              {seller.whatsapp && (
+                <span className="flex items-center gap-1.5">
+                  <FiPhone className="w-3.5 h-3.5" />
+                  {seller.whatsapp}
+                </span>
+              )}
             </div>
           </div>
 
           {isOwnProfile && (
-            <Link
-              to="/create-listing"
-              className="btn-primary flex items-center
-                                                    gap-2 whitespace-nowrap"
-            >
-              <FiPlus className="w-4 h-4" />
-              New Listing
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link to={`/profile/${id}/edit`} aria-label="Edit profile" className="btn-secondary flex items-center justify-center"><FiEdit2 className="w-4 h-4" /></Link>
+              <Link
+                to="/create-listing"
+                className="btn-primary flex items-center gap-2 whitespace-nowrap"
+              >
+                <FiPlus className="w-4 h-4" />
+                New Listing
+              </Link>
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── Listings Section ──────────────────────────── */}
+      {/* ── Listings ── */}
       <div className="mb-6">
         <h3 className="text-gray-900">
           {isOwnProfile ? "Your Listings" : `${seller.fullName}'s Listings`}
@@ -132,16 +196,12 @@ const ProfilePage = () => {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div
-            className="w-14 h-14 bg-gray-100 rounded-full flex items-center
-                          justify-center mb-4"
-          >
+          <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <FiInbox className="w-6 h-6 text-gray-400" />
           </div>
           <p className="text-gray-500">No listings posted yet.</p>
         </div>
-      )}
-    </div>
+      )}    </div>
   );
 };
 

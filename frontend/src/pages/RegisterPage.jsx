@@ -68,6 +68,13 @@ const STEPS = [
     desc: "Set your password",
     fields: ["password", "confirmPassword"],
   },
+  {
+    icon: FiCheckSquare,
+    label: "Agreements",
+    desc: "Terms & privacy",
+    fields: ["terms", "privacy"],
+    isAgreement: true, // ← flags that these fields live in `agreements`, not `formData`
+  },
 ];
 
 const RegisterPage = () => {
@@ -98,13 +105,18 @@ const RegisterPage = () => {
 
   // Derive active step from which fields are filled
   useEffect(() => {
-    const filled = (fields) =>
-      fields.every((f) => formData[f]?.trim?.() || formData[f]);
-    if (filled(STEPS[2].fields)) setActiveStep(2);
-    else if (filled(STEPS[1].fields)) setActiveStep(2);
-    else if (filled(STEPS[0].fields)) setActiveStep(1);
+    const filled = (step) =>
+      step.fields.every((f) => {
+        const value = step.isAgreement ? agreements[f] : formData[f];
+        return typeof value === "boolean" ? value : value?.trim?.() || value;
+      });
+
+    if (filled(STEPS[3])) setActiveStep(3);
+    else if (filled(STEPS[2])) setActiveStep(3);
+    else if (filled(STEPS[1])) setActiveStep(2);
+    else if (filled(STEPS[0])) setActiveStep(1);
     else setActiveStep(0);
-  }, [formData]);
+  }, [formData, agreements]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

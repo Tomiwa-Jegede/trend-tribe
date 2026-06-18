@@ -5,26 +5,35 @@
 @tailwind utilities;
 
 /* ─── Import Inter font ─────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 
 /* ─── Base styles ───────────────────────────────────────── */
 @layer base {
-  * { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+  }
 
   body {
     @apply bg-gray-50 text-gray-900 font-sans antialiased;
     min-height: 100vh;
   }
 
-  h1 { @apply text-4xl font-bold tracking-tight; }
-  h2 { @apply text-3xl font-bold tracking-tight; }
-  h3 { @apply text-2xl font-semibold; }
-  h4 { @apply text-xl font-semibold; }
+  h1 {
+    @apply text-4xl font-bold tracking-tight;
+  }
+  h2 {
+    @apply text-3xl font-bold tracking-tight;
+  }
+  h3 {
+    @apply text-2xl font-semibold;
+  }
+  h4 {
+    @apply text-xl font-semibold;
+  }
 }
 
 /* ─── Component classes ─────────────────────────────────── */
 @layer components {
-
   /* ── Buttons ── */
   .btn-primary {
     @apply bg-primary-600 hover:bg-primary-700 text-white
@@ -43,11 +52,11 @@
   }
 
   .btn-danger {
-    @apply bg-navy-900 hover:bg-primary-700 text-white
-           font-semibold px-5 py-2.5 rounded-xl
-           transition-all duration-200 ease-in-out
-           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-red-500 hover:bg-red-600 text-white
+         font-semibold px-5 py-2.5 rounded-xl
+         transition-all duration-200 ease-in-out
+         focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2
+         disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   /* ── Form inputs ── */
@@ -86,11 +95,11 @@
   .hero-gradient {
     background: linear-gradient(
       135deg,
-      #0F1F3D 0%,
-      #1340B8 30%,
-      #1A4FD6 55%,
-      #0F2E8A 80%,
-      #0F1F3D 100%
+      #0f1f3d 0%,
+      #1340b8 30%,
+      #1a4fd6 55%,
+      #0f2e8a 80%,
+      #0f1f3d 100%
     );
     background-size: 300% 300%;
     animation: gradient-shift 8s ease infinite;
@@ -100,7 +109,7 @@
   @media (prefers-reduced-motion: reduce) {
     .hero-gradient {
       animation: none;
-      background: #1340B8;
+      background: #1340b8;
       background-size: 100% 100%;
     }
 
@@ -117,16 +126,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #F4F9EE;
+  background: #f4f9ee;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #B5D0FF;
+  background: #b5d0ff;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1A4FD6;
+  background: #1a4fd6;
 }
 
 .no-scrollbar::-webkit-scrollbar {

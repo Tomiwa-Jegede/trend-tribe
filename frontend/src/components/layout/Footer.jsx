@@ -73,7 +73,7 @@ const Footer = () => {
             © {new Date().getFullYear()} TrendTribe. All rights reserved.
           </p>
           <p className="text-accent-400/60 text-xs font-medium">
-            Made with ❤️ for Nigerian students
+            Made with ❤️ for students
           </p>
         </div>
       </div>

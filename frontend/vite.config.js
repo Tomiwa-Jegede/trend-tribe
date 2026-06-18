@@ -14,10 +14,10 @@ const getLastCommitDate = (filePath) => {
       .toString()
       .trim();
 
-    if (!isoDate) return null; // file has no commits yet
+    if (!isoDate) return null;
 
     return new Date(isoDate).toLocaleDateString("en-US", {
-      year: "month",
+      year: "numeric", // ← fixed from "month"
       month: "long",
       day: "numeric",
     });
@@ -48,7 +48,3 @@ export default defineConfig({
     },
   },
 });
-console.log(
-  "TERMS DATE:",
-  getLastCommitDate("frontend/src/pages/TermsPage.jsx"),
-);

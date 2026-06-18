@@ -10,26 +10,25 @@ datasource db {
 }
 
 model User {
-  id          Int       @id @default(autoincrement())
-  email       String    @unique
-  username    String    @unique
-  password    String
-  fullName    String
-  school      String
-  matricNumber String?  @unique
-  bio         String?
-  avatar      String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  isVerified           Boolean   @default(false)
-  otpCode              String?
-  otpExpiresAt         DateTime?
-
-  resetToken           String?   @unique
-  resetTokenExpiresAt  DateTime?
-
-  listings    Listing[]
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  username            String    @unique
+  password            String
+  fullName            String
+  school              String
+  matricNumber        String?   @unique
+  bio                 String?
+  whatsapp            String?
+  avatar              String?
+  avatarPublicId      String?   
+  isVerified          Boolean   @default(false)
+  otpCode             String?
+  otpExpiresAt        DateTime?
+  resetToken          String?   @unique
+  resetTokenExpiresAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  listings            Listing[]
 
   @@map("users")
 }
@@ -42,6 +41,8 @@ model Listing {
   category     Category
   condition    Condition
   images       String[]       @default([])
+  imagePublicIds String[]       @default([]) 
+  coverPosition  Json?     @default("{\"x\": 50, \"y\": 50}")
   location     String?
   isAvailable  Boolean        @default(true)
   createdAt    DateTime       @default(now())

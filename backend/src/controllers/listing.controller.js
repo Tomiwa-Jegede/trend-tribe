@@ -1,6 +1,7 @@
 // src/controllers/listing.controller.js
 
 const prisma = require("../db");
+const cloudinary = require("../config/cloudinary");
 
 // ─── Helper: format listing for API response ──────────────────
 const formatListing = (listing) => ({
@@ -14,9 +15,7 @@ const findAndVerifyListing = async (listingId, userId) => {
     where: { id: listingId },
   });
 
-  if (!listing) {
-    return { error: "Listing not found", status: 404 };
-  }
+  if (!listing) return { error: "Listing not found", status: 404 };
 
   if (listing.sellerId !== userId) {
     return {
@@ -28,9 +27,16 @@ const findAndVerifyListing = async (listingId, userId) => {
   return { listing };
 };
 
+// ─── Helper: delete images from Cloudinary ───────────────────
+const deleteFromCloudinary = async (publicIds = []) => {
+  if (publicIds.length === 0) return;
+  await Promise.allSettled(
+    publicIds.map((id) => cloudinary.uploader.destroy(id)),
+  );
+};
+
 // ─────────────────────────────────────────────────────────────
 // GET /api/listings
-// Public — search, filter, paginate
 // ─────────────────────────────────────────────────────────────
 const getAllListings = async (req, res) => {
   try {
@@ -45,15 +51,13 @@ const getAllListings = async (req, res) => {
       sort = "newest",
     } = req.query;
 
-    // ── Pagination ─────────────────────────────────────────
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(48, Math.max(1, parseInt(limit, 10) || 12));
     const skip = (pageNum - 1) * limitNum;
 
-    // ── Build WHERE clause ─────────────────────────────────
     const where = { isAvailable: true };
 
-    if (search && search.trim()) {
+    if (search?.trim()) {
       where.OR = [
         { title: { contains: search.trim(), mode: "insensitive" } },
         { description: { contains: search.trim(), mode: "insensitive" } },
@@ -69,7 +73,6 @@ const getAllListings = async (req, res) => {
       if (maxPrice) where.price.lte = parseFloat(maxPrice);
     }
 
-    // ── Build ORDER BY ─────────────────────────────────────
     const orderByMap = {
       newest: { createdAt: "desc" },
       oldest: { createdAt: "asc" },
@@ -78,7 +81,6 @@ const getAllListings = async (req, res) => {
     };
     const orderBy = orderByMap[sort] || orderByMap.newest;
 
-    // ── Parallel queries ───────────────────────────────────
     const [listings, totalCount] = await Promise.all([
       prisma.listing.findMany({
         where,
@@ -93,6 +95,7 @@ const getAllListings = async (req, res) => {
               fullName: true,
               avatar: true,
               school: true,
+            whatsapp: true,
             },
           },
         },
@@ -121,26 +124,19 @@ const getAllListings = async (req, res) => {
         sort,
       },
     });
-  } catch (error) {
-    console.log("🔥 LISTING ERROR:", error);
-    return res.status(500).json({
-      message: error.message,
-      full: error,
-    });
+  } catch (err) {
+    console.error("[GET ALL LISTINGS ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/listings/:id
-// Public — single listing with full seller profile
 // ─────────────────────────────────────────────────────────────
 const getListingById = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-
-    if (isNaN(id)) {
-      return res.status(400).json({ error: "Invalid listing ID" });
-    }
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
 
     const listing = await prisma.listing.findUnique({
       where: { id },
@@ -153,29 +149,22 @@ const getListingById = async (req, res) => {
             avatar: true,
             school: true,
             bio: true,
+            whatsapp: true,
             createdAt: true,
-            listings: {
-              where: { isAvailable: true },
-              select: { id: true },
-            },
+            listings: { where: { isAvailable: true }, select: { id: true } },
           },
         },
       },
     });
 
-    if (!listing) {
-      return res.status(404).json({ error: "Listing not found" });
-    }
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
 
     const { listings: sellerListings, ...sellerFields } = listing.seller;
 
     return res.status(200).json({
       listing: {
         ...formatListing(listing),
-        seller: {
-          ...sellerFields,
-          activeListings: sellerListings.length,
-        },
+        seller: { ...sellerFields, activeListings: sellerListings.length },
       },
     });
   } catch (err) {
@@ -189,8 +178,17 @@ const getListingById = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 const createListing = async (req, res) => {
   try {
-    const { title, description, price, category, condition, images, location } =
-      req.body;
+    const {
+      title,
+      description,
+      price,
+      category,
+      condition,
+      images,
+      imagePublicIds,
+      coverPosition,
+      location,
+    } = req.body;
 
     const listing = await prisma.listing.create({
       data: {
@@ -200,6 +198,8 @@ const createListing = async (req, res) => {
         category,
         condition,
         images: images || [],
+        imagePublicIds: imagePublicIds || [],
+        coverPosition: coverPosition || { x: 50, y: 50 },
         location: location || null,
         sellerId: req.user.id,
       },
@@ -211,6 +211,7 @@ const createListing = async (req, res) => {
             fullName: true,
             avatar: true,
             school: true,
+          whatsapp: true,
           },
         },
       },
@@ -228,37 +229,30 @@ const createListing = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // PUT /api/listings/:id ← PROTECTED + OWNER ONLY
-// Partial update — only fields sent in body are changed
 // ─────────────────────────────────────────────────────────────
 const updateListing = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
 
-    if (isNaN(id)) {
-      return res.status(400).json({ error: "Invalid listing ID" });
-    }
-
-    // 1. Check listing exists + caller is the owner
     const { error, status, listing } = await findAndVerifyListing(
       id,
       req.user.id,
     );
+    if (error) return res.status(status).json({ error });
 
-    if (error) {
-      return res.status(status).json({ error });
-    }
-
-    // 2. Build update payload — only include fields that were sent
-    const {
-      title,
-      description,
-      price,
-      category,
-      condition,
-      images,
-      location,
-      isAvailable,
-    } = req.body;
+const {
+  title,
+  description,
+  price,
+  category,
+  condition,
+  images,
+  imagePublicIds,
+  coverPosition,
+  location,
+  isAvailable,
+} = req.body;
 
     const updateData = {};
     if (title !== undefined) updateData.title = title;
@@ -266,18 +260,26 @@ const updateListing = async (req, res) => {
     if (price !== undefined) updateData.price = price;
     if (category !== undefined) updateData.category = category;
     if (condition !== undefined) updateData.condition = condition;
-    if (images !== undefined) updateData.images = images;
     if (location !== undefined) updateData.location = location;
     if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
-
-    // 3. Reject empty update
+    if (images !== undefined) updateData.images = images;
+    if (imagePublicIds !== undefined)
+      updateData.imagePublicIds = imagePublicIds;
+    if (coverPosition !== undefined) updateData.coverPosition = coverPosition;
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        error: "No valid fields provided for update",
-      });
+      return res
+        .status(400)
+        .json({ error: "No valid fields provided for update" });
     }
 
-    // 4. Perform the update
+    // If images are being replaced, delete the old ones from Cloudinary
+    if (images !== undefined) {
+      const removedPublicIds = listing.imagePublicIds.filter(
+        (pid) => !(imagePublicIds || []).includes(pid),
+      );
+      await deleteFromCloudinary(removedPublicIds);
+    }
+
     const updated = await prisma.listing.update({
       where: { id },
       data: updateData,
@@ -289,6 +291,7 @@ const updateListing = async (req, res) => {
             fullName: true,
             avatar: true,
             school: true,
+          whatsapp: true,
           },
         },
       },
@@ -310,26 +313,20 @@ const updateListing = async (req, res) => {
 const deleteListing = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
 
-    if (isNaN(id)) {
-      return res.status(400).json({ error: "Invalid listing ID" });
-    }
+    const { error, status, listing } = await findAndVerifyListing(
+      id,
+      req.user.id,
+    );
+    if (error) return res.status(status).json({ error });
 
-    // 1. Check listing exists + caller is the owner
-    const { error, status } = await findAndVerifyListing(id, req.user.id);
+    // Delete images from Cloudinary first
+    await deleteFromCloudinary(listing.imagePublicIds);
 
-    if (error) {
-      return res.status(status).json({ error });
-    }
+    await prisma.listing.delete({ where: { id } });
 
-    // 2. Delete the listing
-    await prisma.listing.delete({
-      where: { id },
-    });
-
-    return res.status(200).json({
-      message: "Listing deleted successfully ✅",
-    });
+    return res.status(200).json({ message: "Listing deleted successfully ✅" });
   } catch (err) {
     console.error("[DELETE LISTING ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -338,18 +335,13 @@ const deleteListing = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/listings/user/:userId
-// Public — all listings by a specific user
-// Supports ?available=true|false and ?page= ?limit=
 // ─────────────────────────────────────────────────────────────
 const getListingsByUser = async (req, res) => {
   try {
     const userId = parseInt(req.params.userId, 10);
-
-    if (isNaN(userId)) {
+    if (isNaN(userId))
       return res.status(400).json({ error: "Invalid user ID" });
-    }
 
-    // 1. Confirm the user exists
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -362,25 +354,18 @@ const getListingsByUser = async (req, res) => {
       },
     });
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    // 2. Parse query params
     const { available, page = 1, limit = 12, sort = "newest" } = req.query;
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(48, Math.max(1, parseInt(limit, 10) || 12));
     const skip = (pageNum - 1) * limitNum;
 
-    // 3. Build WHERE clause
     const where = { sellerId: userId };
-
-    // Optional: filter by availability
     if (available === "true") where.isAvailable = true;
     if (available === "false") where.isAvailable = false;
 
-    // 4. Build ORDER BY
     const orderByMap = {
       newest: { createdAt: "desc" },
       oldest: { createdAt: "asc" },
@@ -389,14 +374,8 @@ const getListingsByUser = async (req, res) => {
     };
     const orderBy = orderByMap[sort] || orderByMap.newest;
 
-    // 5. Parallel queries
     const [listings, totalCount] = await Promise.all([
-      prisma.listing.findMany({
-        where,
-        orderBy,
-        skip,
-        take: limitNum,
-      }),
+      prisma.listing.findMany({ where, orderBy, skip, take: limitNum }),
       prisma.listing.count({ where }),
     ]);
 

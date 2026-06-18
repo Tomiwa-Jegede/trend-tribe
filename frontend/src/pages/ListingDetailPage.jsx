@@ -1,11 +1,12 @@
 // src/pages/ListingDetailPage.jsx — Live API Version
-import { DetailSkeleton } from "../components/ui/LoadingSpinner";
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import Alert from "../components/ui/Alert";
 import { getListingById, deleteListing } from "../services/listingService";
+import { useToast } from "../context/ToastContext";
 import {
   FiMapPin,
   FiUser,
@@ -13,6 +14,7 @@ import {
   FiEdit2,
   FiTrash2,
   FiMessageCircle,
+  FiPhone,
   FiClock,
   FiChevronRight,
 } from "react-icons/fi";
@@ -50,6 +52,7 @@ const ListingDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -103,7 +106,17 @@ const ListingDetailPage = () => {
   // ── Loading state ────────────────────────────────────────
   if (loading) {
     return (
-      <DetailSkeleton />
+      <div className="container-app py-10">
+        <div className="grid lg:grid-cols-2 gap-10 animate-pulse">
+          <div className="aspect-square bg-gray-200 rounded-2xl" />
+          <div className="flex flex-col gap-4">
+            <div className="h-4 bg-gray-200 rounded w-1/4" />
+            <div className="h-8 bg-gray-200 rounded w-3/4" />
+            <div className="h-10 bg-gray-200 rounded w-1/3" />
+            <div className="h-24 bg-gray-200 rounded w-full" />
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -177,6 +190,12 @@ const ListingDetailPage = () => {
                 src={images[activeImage]}
                 alt={listing.title}
                 className="w-full h-full object-cover"
+                style={{
+                  objectPosition:
+                    activeImage === 0
+                      ? `${listing.coverPosition?.x ?? 50}% ${listing.coverPosition?.y ?? 50}%`
+                      : "center",
+                }}
               />
             ) : (
               <div
@@ -319,9 +338,19 @@ const ListingDetailPage = () => {
                 if (!isAuthenticated) {
                   navigate("/login");
                 } else {
-                  alert(
-                    `Contact ${listing.seller.fullName} — messaging coming soon!`,
-                  );
+                if (listing.seller.whatsapp) {
+                  const message = encodeURIComponent(`Hi ${listing.seller.fullName}, I'm interested in your listing:
+
+📦 Item: ${listing.title}
+💰 Price: ₦${listing.price}
+
+🔗 Listing: ${window.location.origin}/listings/${listing.id}
+
+Is this still available?`);
+                  window.open(`https://wa.me/${listing.seller.whatsapp.replace(/\D/g, "")}?text=${message}`, "_blank");
+                } else {
+                  toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
+                }
                 }
               }}
               disabled={!listing.isAvailable}

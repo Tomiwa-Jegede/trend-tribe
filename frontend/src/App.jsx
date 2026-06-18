@@ -19,6 +19,9 @@ import ProfilePage from "./pages/ProfilePage";
 import VerifyOtpPage from "./pages/VerifyOtpPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ComingSoonPage from "./pages/ComingSoonPage";
+import FeaturesPage from "./pages/FeaturesPage";
+import EditProfilePage from "./pages/EditProfilePage";
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -55,29 +58,16 @@ const App = () => {
           <Routes>
             {/* Public */}
             <Route path="/" element={<HomePage />} />
-            <Route path="/marketplace" element={<MarketplacePage />} />
-            <Route path="/listings/:id" element={<ListingDetailPage />} />
+            <Route path="/marketplace" element={<ComingSoonPage />} />
+            <Route path="/listings/:id" element={<ComingSoonPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/profile/:id" element={<ProfilePage />} />
+            <Route path="/profile/:id" element={<ComingSoonPage />} />
+            <Route path="/profile/:id/edit" element={<ComingSoonPage />} />
 
             {/* Protected */}
-            <Route
-              path="/create-listing"
-              element={
-                <ProtectedRoute>
-                  <CreateListingPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/listings/:id/edit"
-              element={
-                <ProtectedRoute>
-                  <EditListingPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/create-listing" element={<ComingSoonPage />} />
+            <Route path="/listings/:id/edit" element={<ComingSoonPage />} />
 
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -95,6 +85,12 @@ const App = () => {
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/features" element={<ComingSoonPage />} />
+            <Route path="/coming-soon" element={<ComingSoonPage />} />
+            <Route path="/messages" element={<ComingSoonPage />} />
+            <Route path="/saved" element={<ComingSoonPage />} />
+            <Route path="/notifications" element={<ComingSoonPage />} />
+            <Route path="/my-listings" element={<ComingSoonPage />} />
           </Routes>
         </PageTransition>
       </main>
