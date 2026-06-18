@@ -30,10 +30,10 @@ export default defineConfig({
   plugins: [react()],
   define: {
     __TERMS_LAST_UPDATED__: JSON.stringify(
-      getLastCommitDate("src/pages/TermsPage.jsx"),
+      getLastCommitDate("frontend/src/pages/TermsPage.jsx"),
     ),
     __PRIVACY_LAST_UPDATED__: JSON.stringify(
-      getLastCommitDate("src/pages/PrivacyPage.jsx"),
+      getLastCommitDate("frontend/src/pages/PrivacyPage.jsx"),
     ),
   },
   server: {
