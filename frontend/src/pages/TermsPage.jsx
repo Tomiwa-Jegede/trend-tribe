@@ -145,7 +145,7 @@ const TermsPage = () => {
             variants={reduced ? {} : fadeUp}
             className="text-white/50 text-sm"
           >
-            Last updated: {__TERMS_LAST_UPDATED__|| "Not yet published"}
+            Last updated: {__TERMS_LAST_UPDATED__ || "Not yet published"}
           </motion.p>
         </motion.div>
       </div>

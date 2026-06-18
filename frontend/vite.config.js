@@ -30,12 +30,13 @@ export default defineConfig({
   plugins: [react()],
   define: {
     __TERMS_LAST_UPDATED__: JSON.stringify(
-      getLastCommitDate("frontend/src/pages/TermsPage.jsx"),
+      getLastCommitDate("src/pages/TermsPage.jsx"),
     ),
     __PRIVACY_LAST_UPDATED__: JSON.stringify(
-      getLastCommitDate("frontend/src/pages/PrivacyPage.jsx"),
+      getLastCommitDate("src/pages/PrivacyPage.jsx"),
     ),
   },
+
   server: {
     port: 5173,
     proxy: {
@@ -47,3 +48,7 @@ export default defineConfig({
     },
   },
 });
+console.log(
+  "TERMS DATE:",
+  getLastCommitDate("frontend/src/pages/TermsPage.jsx"),
+);
