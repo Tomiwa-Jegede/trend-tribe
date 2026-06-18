@@ -1,0 +1,74 @@
+// prisma/schema.prisma — Trend Tribe Full Schema (with verification + reset)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  username    String    @unique
+  password    String
+  fullName    String
+  school      String
+  matricNumber String?  @unique
+  bio         String?
+  avatar      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  isVerified           Boolean   @default(false)
+  otpCode              String?
+  otpExpiresAt         DateTime?
+
+  resetToken           String?   @unique
+  resetTokenExpiresAt  DateTime?
+
+  listings    Listing[]
+
+  @@map("users")
+}
+
+model Listing {
+  id           Int            @id @default(autoincrement())
+  title        String
+  description  String
+  price        Decimal        @db.Decimal(10, 2)
+  category     Category
+  condition    Condition
+  images       String[]       @default([])
+  location     String?
+  isAvailable  Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  sellerId     Int
+  seller       User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@map("listings")
+}
+
+enum Category {
+  BOOKS
+  ELECTRONICS
+  CLOTHING
+  FURNITURE
+  STATIONERY
+  SPORTS
+  FOOD
+  SERVICES
+  OTHER
+}
+
+enum Condition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  POOR
+}
