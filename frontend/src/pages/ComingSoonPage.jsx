@@ -44,17 +44,17 @@ const fadeSlideUp = {
 
 const CountdownCard = ({ title, countdown, accent }) => (
   <div
-    className="rounded-3xl border border-white/10 p-5 flex-1"
+    className="rounded-3xl border border-white/10 p-3 sm:p-5 flex-1"
     style={{ background: "rgba(255,255,255,0.06)" }}
   >
     <p
-      className="text-xs uppercase tracking-[0.25em] mb-4 font-semibold"
+      className="text-xs uppercase tracking-[0.25em] mb-4 font-semibold break-words"
       style={{ color: accent }}
     >
       {title}
     </p>
 
-    <div className="grid grid-cols-4 gap-3 text-center">
+    <div className="grid grid-cols-4 gap-1 sm:gap-3 text-center">
       {[
         { label: "Days", value: countdown.days },
         { label: "Hours", value: countdown.hours },
@@ -63,8 +63,8 @@ const CountdownCard = ({ title, countdown, accent }) => (
       ].map((item) => (
         <div key={item.label}>
           <div
-            className="text-2xl lg:text-3xl font-extrabold"
-            style={{ color: "#F5C518" }}
+            className="font-extrabold"
+            style={{ color: "#F5C518", fontSize: "clamp(1rem, 4vw, 1.875rem)" }}
           >
             {String(item.value).padStart(2, "0")}
           </div>
@@ -219,9 +219,9 @@ const ComingSoonPage = () => {
       />
 
       {/* Content */}
-      <div className="container-app relative z-10 py-24 flex justify-center">
+      <div className="container-app relative z-10 py-12 md:py-24 overflow-hidden">
         <motion.div
-          className="max-w-lg w-full text-center"
+          className="max-w-lg w-full text-center mx-auto overflow-hidden"
           variants={reduced ? {} : heroContainer}
           initial={reduced ? false : "hidden"}
           animate="visible"
@@ -247,7 +247,7 @@ const ComingSoonPage = () => {
               </span>
             </div>
           </motion.div>
-          <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-10">
+          <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-6 sm:mb-10">
             <p className="text-white/35 text-xs uppercase tracking-[0.25em] mb-4 text-center">
               Countdown to Launch
             </p>
@@ -282,7 +282,7 @@ const ComingSoonPage = () => {
           {/* Heading */}
           <motion.h1
             variants={reduced ? {} : fadeSlideUp}
-            className="text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight"
+            className="font-extrabold text-white mb-4 leading-tight" style={{ fontSize: "clamp(1.6rem, 5vw, 3rem)" }}
           >
             <>
               {meta.name}
@@ -296,13 +296,13 @@ const ComingSoonPage = () => {
           {/* Description */}
           <motion.p
             variants={reduced ? {} : fadeSlideUp}
-            className="text-white/65 text-lg leading-relaxed mb-10"
+            className="text-white/65 leading-relaxed mb-6 sm:mb-10" style={{ fontSize: "clamp(0.95rem, 3vw, 1.125rem)" }}
           >
             {meta.desc} This experience officially opens on{" "}
             <strong>{meta.launchDate}</strong>. Join the notification list and
             we'll let you know the moment it's live.
           </motion.p>
-          <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-10">
+          <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-6 sm:mb-10">
             <p className="text-white/30 text-xs uppercase tracking-widest mb-4">
               Meanwhile, here's what's trending on TrendTribe
             </p>
@@ -310,9 +310,9 @@ const ComingSoonPage = () => {
             <HomeTicker variant="marketplace" />
           </motion.div>
           {/* WhatsApp community */}
-          <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-10">
+          <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-6 sm:mb-10">
             <div
-              className="rounded-3xl border border-white/15 p-6 text-center"
+              className="rounded-3xl border border-white/15 p-4 sm:p-6 text-center"
               style={{ background: "rgba(255,255,255,0.07)" }}
             >
               <div className="text-4xl mb-4">💬</div>
