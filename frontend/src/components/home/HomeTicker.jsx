@@ -122,6 +122,7 @@ export const TickerRow = ({ items, direction = "left", duration = 30 }) => {
 
       <motion.div
         className="flex items-center"
+        style={{ willChange: "transform" }}
         animate={
           reduced
             ? {}
@@ -190,6 +191,7 @@ export const InfoBar = () => {
 
       <motion.div
         className="flex items-center"
+        style={{ willChange: "transform" }}
         animate={reduced ? {} : { x: ["0%", "-50%"] }}
         transition={{
           duration: 28,

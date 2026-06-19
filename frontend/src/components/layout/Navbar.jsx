@@ -30,18 +30,16 @@ const useReducedMotion = () => {
 
 // ── Animation variants ─────────────────────────────────────────
 const mobileMenuVariants = {
-  hidden: { opacity: 0, y: -8, height: 0 },
+  hidden: { opacity: 0, y: -8 },
   visible: {
     opacity: 1,
     y: 0,
-    height: "auto",
-    transition: { duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] },
   },
   exit: {
     opacity: 0,
     y: -6,
-    height: 0,
-    transition: { duration: 0.18, ease: "easeIn" },
+    transition: { duration: 0.15, ease: "easeIn" },
   },
 };
 
@@ -153,7 +151,6 @@ const Navbar = () => {
                 boxShadow: scrolled
                   ? "0 1px 20px rgba(0,0,0,0.08)"
                   : "0 1px 3px rgba(0,0,0,0.04)",
-                backdropFilter: scrolled ? "blur(12px)" : "blur(0px)",
                 backgroundColor: scrolled
                   ? "rgba(255,255,255,0.88)"
                   : "rgba(255,255,255,1)",
