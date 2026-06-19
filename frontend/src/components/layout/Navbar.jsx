@@ -314,6 +314,7 @@ const Navbar = () => {
                 label="Marketplace"
                 index={1}
               />
+              <MobileNavLink path="/features" label="Features" index={2} />
               <MobileNavLink path="/about" label="About" index={3} />
               {isAuthenticated && (
                 <MobileNavLink
