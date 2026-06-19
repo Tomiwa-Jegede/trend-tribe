@@ -67,11 +67,13 @@ const register = async (req, res) => {
           .json({ error: "This matric number is already registered" });
       }
     }
+    await prisma.pendingRegistration.deleteMany({
+      where: { otpExpiresAt: { lt: new Date() } },
+    });
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const otpCode = generateOTP();
     const otpExpiresAt = getOTPExpiry();
-
     await prisma.pendingRegistration.upsert({
       where: { email },
       update: {
