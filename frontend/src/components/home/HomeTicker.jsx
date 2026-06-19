@@ -1,6 +1,17 @@
 // src/components/home/HomeTicker.jsx
 
+import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler, { passive: true });
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
 
 // ── Ticker data ────────────────────────────────────────────────
 export const TICKER_ROW_1 = [
@@ -102,10 +113,26 @@ const TickerItem = ({ item }) => (
 // ── Ticker Row ────────────────────────────────────────────────
 export const TickerRow = ({ items, direction = "left", duration = 30 }) => {
   const reduced = useReducedMotion();
+  const isMobile = useIsMobile();
   const doubled = [...items, ...items];
+
+  const cssAnimation = reduced
+    ? "none"
+    : `ticker-${direction} ${duration}s linear infinite`;
 
   return (
     <div className="relative flex overflow-hidden py-1">
+      <style>{`
+        @keyframes ticker-left {
+          from { transform: translateX(0%); }
+          to { transform: translateX(-50%); }
+        }
+        @keyframes ticker-right {
+          from { transform: translateX(-50%); }
+          to { transform: translateX(0%); }
+        }
+      `}</style>
+
       <div
         className="absolute left-0 top-0 bottom-0 w-24 z-10 pointer-events-none"
         style={{
@@ -120,26 +147,37 @@ export const TickerRow = ({ items, direction = "left", duration = 30 }) => {
         }}
       />
 
-      <motion.div
-        className="flex items-center"
-        style={{ willChange: "transform" }}
-        animate={
-          reduced
-            ? {}
-            : {
-                x: direction === "left" ? ["0%", "-50%"] : ["-50%", "0%"],
-              }
-        }
-        transition={{
-          duration,
-          ease: "linear",
-          repeat: Infinity,
-        }}
-      >
-        {doubled.map((item, i) => (
-          <TickerItem key={i} item={item} />
-        ))}
-      </motion.div>
+      {isMobile ? (
+        <div
+          className="flex items-center"
+          style={{ willChange: "transform", animation: cssAnimation }}
+        >
+          {doubled.map((item, i) => (
+            <TickerItem key={i} item={item} />
+          ))}
+        </div>
+      ) : (
+        <motion.div
+          className="flex items-center"
+          style={{ willChange: "transform" }}
+          animate={
+            reduced
+              ? {}
+              : {
+                  x: direction === "left" ? ["0%", "-50%"] : ["-50%", "0%"],
+                }
+          }
+          transition={{
+            duration,
+            ease: "linear",
+            repeat: Infinity,
+          }}
+        >
+          {doubled.map((item, i) => (
+            <TickerItem key={i} item={item} />
+          ))}
+        </motion.div>
+      )}
     </div>
   );
 };
@@ -147,6 +185,7 @@ export const TickerRow = ({ items, direction = "left", duration = 30 }) => {
 // ── Info Bar ──────────────────────────────────────────────────
 export const InfoBar = () => {
   const reduced = useReducedMotion();
+  const isMobile = useIsMobile();
   const doubled = [...INFO_ITEMS, ...INFO_ITEMS];
 
   return (
@@ -189,46 +228,82 @@ export const InfoBar = () => {
         }}
       />
 
-      <motion.div
-        className="flex items-center"
-        style={{ willChange: "transform" }}
-        animate={reduced ? {} : { x: ["0%", "-50%"] }}
-        transition={{
-          duration: 28,
-          ease: "linear",
-          repeat: Infinity,
-        }}
-      >
-        {doubled.map((item, i) => (
-          <div key={i} className="inline-flex items-center flex-shrink-0">
-            <div className="inline-flex items-center gap-2 px-6">
-              <span style={{ fontSize: "15px" }}>{item.icon}</span>
-
+      {isMobile ? (
+        <div
+          className="flex items-center"
+          style={{
+            willChange: "transform",
+            animation: reduced ? "none" : "ticker-left 28s linear infinite",
+          }}
+        >
+          {doubled.map((item, i) => (
+            <div key={i} className="inline-flex items-center flex-shrink-0">
+              <div className="inline-flex items-center gap-2 px-6">
+                <span style={{ fontSize: "15px" }}>{item.icon}</span>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.55)",
+                    whiteSpace: "nowrap",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {item.text}
+                </span>
+              </div>
               <span
                 style={{
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: "rgba(255,255,255,0.55)",
-                  whiteSpace: "nowrap",
-                  letterSpacing: "0.01em",
+                  width: "3px",
+                  height: "3px",
+                  borderRadius: "50%",
+                  background: "rgba(245,197,24,0.4)",
+                  flexShrink: 0,
                 }}
-              >
-                {item.text}
-              </span>
+              />
             </div>
-
-            <span
-              style={{
-                width: "3px",
-                height: "3px",
-                borderRadius: "50%",
-                background: "rgba(245,197,24,0.4)",
-                flexShrink: 0,
-              }}
-            />
-          </div>
-        ))}
-      </motion.div>
+          ))}
+        </div>
+      ) : (
+        <motion.div
+          className="flex items-center"
+          style={{ willChange: "transform" }}
+          animate={reduced ? {} : { x: ["0%", "-50%"] }}
+          transition={{
+            duration: 28,
+            ease: "linear",
+            repeat: Infinity,
+          }}
+        >
+          {doubled.map((item, i) => (
+            <div key={i} className="inline-flex items-center flex-shrink-0">
+              <div className="inline-flex items-center gap-2 px-6">
+                <span style={{ fontSize: "15px" }}>{item.icon}</span>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.55)",
+                    whiteSpace: "nowrap",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {item.text}
+                </span>
+              </div>
+              <span
+                style={{
+                  width: "3px",
+                  height: "3px",
+                  borderRadius: "50%",
+                  background: "rgba(245,197,24,0.4)",
+                  flexShrink: 0,
+                }}
+              />
+            </div>
+          ))}
+        </motion.div>
+      )}
     </div>
   );
 };
