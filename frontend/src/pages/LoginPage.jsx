@@ -103,20 +103,22 @@ const FLOAT_CARDS = [
   },
 ];
 
-
-
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
   const reduced = useReducedMotion();
 
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({
+    identifier: "",
+    password: "",
+  });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const redirectTo = location.state?.from || "/";
+  const emailVerified = location.state?.emailVerified || false;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -126,7 +128,9 @@ const LoginPage = () => {
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.email.trim()) newErrors.email = "Email is required";
+    if (!formData.identifier.trim()) {
+      newErrors.identifier = "Email or username is required";
+    }
     if (!formData.password.trim()) newErrors.password = "Password is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -196,6 +200,13 @@ const LoginPage = () => {
               className="card p-8 shadow-lg"
             >
               <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                {emailVerified && (
+                  <Alert
+                    type="success"
+                    message="Email verified! Please log in to continue."
+                    onDismiss={() => {}}
+                  />
+                )}
                 {serverError && (
                   <Alert
                     type="error"
@@ -205,13 +216,13 @@ const LoginPage = () => {
                 )}
 
                 <FormInput
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
+                  label="Email or Username"
+                  name="identifier"
+                  type="text"
+                  value={formData.identifier}
                   onChange={handleChange}
-                  error={errors.email}
-                  placeholder="you@run.edu.ng"
+                  error={errors.identifier}
+                  placeholder="you@run.edu.ng or Username"
                   required
                 />
 

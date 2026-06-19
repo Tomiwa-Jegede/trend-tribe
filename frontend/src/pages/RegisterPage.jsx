@@ -79,7 +79,6 @@ const STEPS = [
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const reduced = useReducedMotion();
 
   const [formData, setFormData] = useState({
@@ -192,9 +191,8 @@ const RegisterPage = () => {
         school: formData.school.trim(),
         matricNumber: formData.matricNumber.trim(),
       };
-      const { data } = await api.post("/auth/register", payload);
-      login(data.token, data.user);
-      navigate("/verify-email", { replace: true });
+      await api.post("/auth/register", payload);
+      navigate("/verify-registration", { replace: true, state: { email: payload.email } });
     } catch (err) {
       if (err.response?.data?.details) {
         const backendErrors = {};
@@ -277,7 +275,7 @@ const RegisterPage = () => {
                     value={formData.fullName}
                     onChange={handleChange}
                     error={errors.fullName}
-                    placeholder="John Doe"
+                    placeholder="Tomiwa Jegede"
                     required
                   />
                   <FormInput
@@ -286,7 +284,7 @@ const RegisterPage = () => {
                     value={formData.username}
                     onChange={handleChange}
                     error={errors.username}
-                    placeholder="john_doe"
+                    placeholder="Jegede01"
                     required
                   />
                   <FormInput
@@ -318,7 +316,7 @@ const RegisterPage = () => {
                     value={formData.school}
                     onChange={handleChange}
                     error={errors.school}
-                    placeholder="University of Lagos"
+                    placeholder="Redeemer's University"
                     required
                   />
                   <FormInput
