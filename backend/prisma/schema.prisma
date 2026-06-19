@@ -31,6 +31,22 @@ model User {
   @@map("users")
 }
 
+model PendingRegistration {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  username     String   @unique
+  password     String
+  fullName     String
+  school       String
+  matricNumber String?
+  bio          String?
+  otpCode      String
+  otpExpiresAt DateTime
+  createdAt    DateTime @default(now())
+
+  @@map("pending_registrations")
+}
+
 model Listing {
   id             Int       @id @default(autoincrement())
   title          String

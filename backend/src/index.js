@@ -80,6 +80,20 @@ async function startServer() {
       console.log(`   → /api/auth`);
       console.log(`   → /api/listings`);
     });
+
+    // ─── Cleanup: delete expired pending registrations every 10 min ──
+    setInterval(async () => {
+      try {
+        const { count } = await prisma.pendingRegistration.deleteMany({
+          where: { otpExpiresAt: { lt: new Date() } },
+        });
+        if (count > 0) {
+          console.log(`🧹 Cleaned up ${count} expired pending registration(s)`);
+        }
+      } catch (err) {
+        console.error("❌ Pending registration cleanup error:", err.message);
+      }
+    }, 10 * 60 * 1000); // every 10 minutes
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);
     process.exit(1);

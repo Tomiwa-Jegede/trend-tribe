@@ -4,6 +4,7 @@ const {
   login,
   getMe,
   verifyEmail,
+  verifyRegistration,
   resendOtp,
   forgotPassword,
   resetPassword,
@@ -13,6 +14,7 @@ const {
   registerRules,
   loginRules,
   verifyEmailRules,
+  verifyRegistrationRules,
   forgotPasswordRules,
   resetPasswordRules,
 } = require("../validators/auth.validators");
@@ -24,6 +26,7 @@ const router = express.Router();
 
 // ─── Public ───────────────────────────────────────────────────
 router.post("/register", registerRules, validate, register);
+router.post("/verify-registration", verifyRegistrationRules, validate, verifyRegistration);
 router.post("/login", loginRules, validate, login);
 router.post("/forgot-password", forgotPasswordRules, validate, forgotPassword);
 router.post("/reset-password", resetPasswordRules, validate, resetPassword);

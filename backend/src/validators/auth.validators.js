@@ -10,7 +10,13 @@ const registerRules = [
     .withMessage("Email is required")
     .isEmail()
     .withMessage("Must be a valid email address")
-    .normalizeEmail(),
+    .normalizeEmail()
+    .custom((value) => {
+      if (!value.endsWith("@run.edu.ng")) {
+        throw new Error("Use Your Student Email (@run.edu.ng)");
+      }
+      return true;
+    }),
 
   body("username")
     .trim()
@@ -49,14 +55,10 @@ const registerRules = [
 
 // ─── Login Rules ──────────────────────────────────────────────
 const loginRules = [
-  body("email")
+  body("identifier")
     .trim()
     .notEmpty()
-    .withMessage("Email is required")
-    .isEmail()
-    .withMessage("Must be a valid email address")
-    .normalizeEmail(),
-
+    .withMessage("Email or username is required"),
   body("password").notEmpty().withMessage("Password is required"),
 ];
 const verifyEmailRules = [
@@ -89,11 +91,29 @@ const resetPasswordRules = [
     .withMessage("Password must be at least 6 characters"),
 ];
 
+const verifyRegistrationRules = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Must be a valid email address")
+    .normalizeEmail(),
+  body("otp")
+    .trim()
+    .notEmpty()
+    .withMessage("Verification code is required")
+    .isLength({ min: 6, max: 6 })
+    .withMessage("Verification code must be 6 digits")
+    .isNumeric()
+    .withMessage("Verification code must contain only numbers"),
+];
+
 module.exports = {
   registerRules,
   loginRules,
   verifyEmailRules,
   forgotPasswordRules,
   resetPasswordRules,
+  verifyRegistrationRules,
 };
-

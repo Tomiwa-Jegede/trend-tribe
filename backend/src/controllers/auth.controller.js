@@ -72,8 +72,19 @@ const register = async (req, res) => {
     const otpCode = generateOTP();
     const otpExpiresAt = getOTPExpiry();
 
-    const newUser = await prisma.user.create({
-      data: {
+    await prisma.pendingRegistration.upsert({
+      where: { email },
+      update: {
+        username,
+        password: hashedPassword,
+        fullName,
+        school: school.trim(),
+        matricNumber: matricNumber ? matricNumber.trim() : null,
+        bio: bio || null,
+        otpCode,
+        otpExpiresAt,
+      },
+      create: {
         email,
         username,
         password: hashedPassword,
@@ -87,21 +98,100 @@ const register = async (req, res) => {
     });
 
     try {
-      await sendOTPEmail(newUser.email, newUser.fullName, otpCode);
+      await sendOTPEmail(email, fullName, otpCode);
     } catch (emailErr) {
       console.error("[REGISTER → SEND OTP EMAIL ERROR]", emailErr);
+      return res.status(502).json({
+        error:
+          "Account details saved but we couldn't send the verification email. Please try again.",
+      });
     }
 
-    const token = signToken(buildTokenPayload(newUser));
-
     return res.status(201).json({
-      message: "Account created ✅ Check your email for a verification code.",
-      token,
-      user: sanitizeUser(newUser),
+      message: "Check your email for a 6-digit verification code.",
     });
   } catch (err) {
     console.error("[REGISTER ERROR]", err);
-    return res.status(500).json({ error: "Internal server error" });
+    if (err.code === "P2002") {
+      return res
+        .status(409)
+        .json({ error: "An account with those details already exists" });
+    }
+    if (err.code === "ECONNREFUSED" || err.code === "ETIMEDOUT") {
+      return res.status(503).json({
+        error: "Service temporarily unavailable. Please try again shortly.",
+      });
+    }
+    return res.status(500).json({
+      error:
+        "Something went wrong while creating your account. Please try again.",
+    });
+  }
+};
+
+const verifyRegistration = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const pending = await prisma.pendingRegistration.findUnique({
+      where: { email },
+    });
+    if (!pending) {
+      return res.status(404).json({
+        error:
+          "No pending registration found for this email. Please register again.",
+      });
+    }
+
+    if (new Date() > pending.otpExpiresAt) {
+      await prisma.pendingRegistration.delete({ where: { email } });
+      return res.status(400).json({
+        error: "Verification code has expired. Please register again.",
+      });
+    }
+
+    if (otp !== pending.otpCode) {
+      return res.status(400).json({ error: "Incorrect verification code" });
+    }
+
+    const existingEmail = await prisma.user.findUnique({
+      where: { email: pending.email },
+    });
+    if (existingEmail) {
+      await prisma.pendingRegistration.delete({ where: { email } });
+      return res.status(409).json({
+        error: "An account with this email already exists. Please log in.",
+      });
+    }
+
+    await prisma.user.create({
+      data: {
+        email: pending.email,
+        username: pending.username,
+        password: pending.password,
+        fullName: pending.fullName,
+        school: pending.school,
+        matricNumber: pending.matricNumber,
+        bio: pending.bio,
+        isVerified: true,
+      },
+    });
+
+    await prisma.pendingRegistration.delete({ where: { email } });
+
+    return res.status(200).json({
+      message: "Email verified successfully ✅ You can now log in.",
+    });
+  } catch (err) {
+    console.error("[VERIFY REGISTRATION ERROR]", err);
+    if (err.code === "P2002") {
+      return res.status(409).json({
+        error: "An account with those details already exists. Please log in.",
+      });
+    }
+    return res
+      .status(500)
+      .json({ error: "Something went wrong. Please try again." });
   }
 };
 
@@ -110,25 +200,26 @@ const register = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { email } });
-
-    if (!user) {
-      console.log(
-        "[DEBUG] User found?",
-        user ? `YES — ${user.email}` : "NO — no match for this email",
-      );
-      return res.status(200).json(genericResponse); // ← returns here, before any debug logs
-    }
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ email: identifier.toLowerCase() }, { username: identifier }],
+      },
+    });
 
     if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({
+        error: "Invalid username/email or password",
+      });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
+
     if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({
+        error: "Invalid username/email or password",
+      });
     }
 
     const token = signToken(buildTokenPayload(user));
@@ -140,7 +231,10 @@ const login = async (req, res) => {
     });
   } catch (err) {
     console.error("[LOGIN ERROR]", err);
-    return res.status(500).json({ error: "Internal server error" });
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
   }
 };
 
@@ -419,6 +513,7 @@ module.exports = {
   login,
   getMe,
   verifyEmail,
+  verifyRegistration,
   resendOtp,
   forgotPassword,
   resetPassword,
