@@ -131,6 +131,27 @@ const register = async (req, res) => {
   }
 };
 
+const resendRegistrationOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const pending = await prisma.pendingRegistration.findUnique({ where: { email } });
+    if (!pending) {
+      return res.status(404).json({ error: "No pending registration found. Please register again." });
+    }
+    const otpCode = generateOTP();
+    const otpExpiresAt = getOTPExpiry();
+    await prisma.pendingRegistration.update({
+      where: { email },
+      data: { otpCode, otpExpiresAt },
+    });
+    await sendOTPEmail(email, pending.fullName, otpCode);
+    return res.status(200).json({ message: "A new verification code has been sent to your email." });
+  } catch (err) {
+    console.error("[RESEND REGISTRATION OTP ERROR]", err);
+    return res.status(500).json({ error: "Something went wrong. Please try again." });
+  }
+};
+
 const verifyRegistration = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -516,6 +537,7 @@ module.exports = {
   getMe,
   verifyEmail,
   verifyRegistration,
+  resendRegistrationOtp,
   resendOtp,
   forgotPassword,
   resetPassword,

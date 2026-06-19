@@ -5,6 +5,7 @@ const {
   getMe,
   verifyEmail,
   verifyRegistration,
+  resendRegistrationOtp,
   resendOtp,
   forgotPassword,
   resetPassword,
@@ -27,6 +28,7 @@ const router = express.Router();
 // ─── Public ───────────────────────────────────────────────────
 router.post("/register", registerRules, validate, register);
 router.post("/verify-registration", verifyRegistrationRules, validate, verifyRegistration);
+router.post("/register/resend", resendRegistrationOtp);
 router.post("/login", loginRules, validate, login);
 router.post("/forgot-password", forgotPasswordRules, validate, forgotPassword);
 router.post("/reset-password", resetPasswordRules, validate, resetPassword);
