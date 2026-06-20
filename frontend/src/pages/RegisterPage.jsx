@@ -87,7 +87,7 @@ const RegisterPage = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    school: "",
+    school: "Redeemer's University",
     matricNumber: "",
   });
 
@@ -192,7 +192,10 @@ const RegisterPage = () => {
         matricNumber: formData.matricNumber.trim(),
       };
       await api.post("/auth/register", payload);
-      navigate("/verify-registration", { replace: true, state: { email: payload.email } });
+      navigate("/verify-registration", {
+        replace: true,
+        state: { email: payload.email },
+      });
     } catch (err) {
       if (err.response?.data?.details) {
         const backendErrors = {};
@@ -317,6 +320,7 @@ const RegisterPage = () => {
                     onChange={handleChange}
                     error={errors.school}
                     placeholder="Redeemer's University"
+                    disabled
                     required
                   />
                   <FormInput
