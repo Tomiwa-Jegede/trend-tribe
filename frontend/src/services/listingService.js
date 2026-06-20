@@ -59,3 +59,9 @@ export const getListingsByUser = async (userId, params = {}) => {
   const { data } = await api.get(`/listings/user/${userId}`, { params });
   return data; // { seller, listings, pagination }
 };
+
+// ─── POST /api/listings/:id/report ──────────────────────────────
+export const reportListing = async (id, reason) => {
+  const { data } = await api.post(`/listings/${id}/report`, { reason });
+  return data; // { message }
+};

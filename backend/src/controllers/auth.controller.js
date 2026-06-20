@@ -279,6 +279,7 @@ const getMe = async (req, res) => {
         avatar: true,
         whatsapp: true,
         isVerified: true,
+        role: true,
         createdAt: true,
         updatedAt: true,
         listings: { select: { id: true } },

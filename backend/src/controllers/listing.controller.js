@@ -399,6 +399,46 @@ const getListingsByUser = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// POST /api/listings/:id/report ← PROTECTED
+// ─────────────────────────────────────────────────────────────
+const reportListing = async (req, res) => {
+  try {
+    const listingId = parseInt(req.params.id, 10);
+    if (isNaN(listingId))
+      return res.status(400).json({ error: "Invalid listing ID" });
+
+    const { reason } = req.body;
+    const validReasons = ["SCAM", "FAKE_ITEM", "INAPPROPRIATE_CONTENT", "OTHER"];
+    if (!validReasons.includes(reason)) {
+      return res.status(400).json({ error: "Invalid report reason" });
+    }
+
+    const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+    if (listing.sellerId === req.user.id) {
+      return res.status(400).json({ error: "You cannot report your own listing" });
+    }
+
+    const existing = await prisma.report.findUnique({
+      where: { listingId_reporterId: { listingId, reporterId: req.user.id } },
+    });
+    if (existing) {
+      return res.status(409).json({ error: "You have already reported this listing" });
+    }
+
+    await prisma.report.create({
+      data: { listingId, reporterId: req.user.id, reason },
+    });
+
+    return res.status(201).json({ message: "Listing reported. Thank you for helping keep the marketplace safe." });
+  } catch (err) {
+    console.error("[REPORT LISTING ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   getAllListings,
   getListingById,
@@ -406,4 +446,5 @@ module.exports = {
   updateListing,
   deleteListing,
   getListingsByUser,
+  reportListing,
 };

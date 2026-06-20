@@ -11,6 +11,7 @@ const prisma = require("./db");
 const authRoutes = require("./routes/auth.routes");
 const listingRoutes = require("./routes/listing.routes");
 const uploadRoutes = require("./routes/upload.routes");
+const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.get("/api/health", async (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/listings", listingRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {

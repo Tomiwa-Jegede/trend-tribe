@@ -56,6 +56,7 @@ const user = await prisma.user.findUnique({
     bio: true,
     avatar: true,
     isVerified: true, // ← added
+    role: true,
     createdAt: true,
     updatedAt: true,
   },

@@ -185,6 +185,9 @@ const Navbar = () => {
               {isAuthenticated && (
                 <NavLink path={`/profile/${user?.id}`} label="My Profile" />
               )}
+              {user?.role === "ADMIN" && (
+                <NavLink path="/admin" label="Admin" />
+              )}
             </div>
 
             {/* ── Desktop Auth Buttons ──────────────────────── */}
@@ -323,6 +326,10 @@ const Navbar = () => {
                   index={3}
                 />
               )}
+              {user?.role === "ADMIN" && (
+                <MobileNavLink path="/admin" label="Admin" index={4} />
+              )}
+
               <div className="border-t border-sage-100 pt-4 flex flex-col gap-3">
                 {isAuthenticated ? (
                   <>

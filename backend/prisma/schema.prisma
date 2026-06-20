@@ -12,6 +12,7 @@ model User {
   email               String    @unique
   username            String    @unique
   password            String
+  role                Role      @default(USER)
   fullName            String
   school              String
   bio                 String?
@@ -27,6 +28,7 @@ model User {
   avatarPublicId      String?
   whatsapp            String?
   listings            Listing[]
+  reports             Report[]
 
   @@map("users")
 }
@@ -63,8 +65,41 @@ model Listing {
   imagePublicIds String[]  @default([])
   coverPosition  Json?     @default("{\"x\": 50, \"y\": 50}")
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  reports        Report[]
 
   @@map("listings")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ReportReason {
+  SCAM
+  FAKE_ITEM
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  IGNORED
+}
+
+model Report {
+  id         Int          @id @default(autoincrement())
+  reason     ReportReason
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  listingId  Int
+  listing    Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporterId Int
+  reporter   User         @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, reporterId])
+  @@index([status])
+  @@map("reports")
 }
 
 enum Category {

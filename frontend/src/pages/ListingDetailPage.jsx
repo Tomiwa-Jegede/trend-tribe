@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import ReportModal from "../components/ui/ReportModal";
 import Alert from "../components/ui/Alert";
-import { getListingById, deleteListing } from "../services/listingService";
+import { getListingById, deleteListing, reportListing } from "../services/listingService";
 import { useToast } from "../context/ToastContext";
 import {
   FiMapPin,
@@ -17,6 +18,7 @@ import {
   FiPhone,
   FiClock,
   FiChevronRight,
+  FiFlag,
 } from "react-icons/fi";
 
 const CONDITION_STYLES = {
@@ -61,6 +63,8 @@ const ListingDetailPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   // ── Fetch real listing ───────────────────────────────────
   useEffect(() => {
@@ -88,6 +92,19 @@ const ListingDetailPage = () => {
   }, [id]);
 
   const isOwner = isAuthenticated && listing && user?.id === listing.seller.id;
+
+  const handleReport = async (reason) => {
+    setReporting(true);
+    try {
+      await reportListing(listing.id, reason);
+      toast.success("Listing reported. Thank you for helping keep the marketplace safe.");
+      setShowReportModal(false);
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to report listing.");
+    } finally {
+      setReporting(false);
+    }
+  };
 
   // ── Real delete ───────────────────────────────────────────
   const handleDelete = async () => {
@@ -360,6 +377,17 @@ Is this still available?`);
               {listing.isAvailable ? "Contact Seller" : "No Longer Available"}
             </button>
           )}
+
+          {!isOwner && isAuthenticated && (
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="flex items-center justify-center gap-1.5 text-sm text-gray-400
+                         hover:text-red-500 transition-colors mt-3"
+            >
+              <FiFlag className="w-3.5 h-3.5" />
+              Report this listing
+            </button>
+          )}
         </div>
       </div>
 
@@ -371,6 +399,13 @@ Is this still available?`);
         danger
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteDialog(false)}
+      />
+
+      <ReportModal
+        isOpen={showReportModal}
+        submitting={reporting}
+        onSubmit={handleReport}
+        onCancel={() => setShowReportModal(false)}
       />
     </div>
   );

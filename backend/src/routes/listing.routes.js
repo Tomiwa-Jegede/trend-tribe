@@ -8,6 +8,7 @@ const {
   updateListing,
   deleteListing,
   getListingsByUser,
+  reportListing,
 } = require("../controllers/listing.controller");
 const { protect } = require("../middleware/auth.middleware");
 const { requireVerified } = require("../middleware/verified.middleware");
@@ -35,5 +36,6 @@ router.post(
 );
 router.put("/:id", protect, updateListingRules, validate, updateListing);
 router.delete("/:id", protect, deleteListing);
+router.post("/:id/report", protect, reportListing);
 
 module.exports = router;

@@ -22,6 +22,10 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import FeaturesPage from "./pages/FeaturesPage";
 import EditProfilePage from "./pages/EditProfilePage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
+import AdminListingsPage from "./pages/AdminListingsPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
+import AdminReportsPage from "./pages/AdminReportsPage";
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -45,6 +49,27 @@ const ProtectedRoute = ({ children }) => {
   }
 
   return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
+
+// ─── Admin Route Wrapper ──────────────────────────────────────
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div
+          className="w-8 h-8 border-4 border-primary-600
+                        border-t-transparent rounded-full animate-spin"
+        />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== "ADMIN") return <Navigate to="/" replace />;
+
+  return children;
 };
 
 // ─── App ──────────────────────────────────────────────────────
@@ -78,6 +103,38 @@ const App = () => {
                 <ProtectedRoute>
                   <VerifyOtpPage />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboardPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/listings"
+              element={
+                <AdminRoute>
+                  <AdminListingsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminRoute>
+                  <AdminUsersPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/reports"
+              element={
+                <AdminRoute>
+                  <AdminReportsPage />
+                </AdminRoute>
               }
             />
             {/* 404 */}
