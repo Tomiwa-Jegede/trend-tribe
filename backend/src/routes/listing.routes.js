@@ -11,7 +11,7 @@ const {
   reportListing,
 } = require("../controllers/listing.controller");
 const { protect } = require("../middleware/auth.middleware");
-const { requireVerified } = require("../middleware/verified.middleware");
+const { requireVerified, requireSeller } = require("../middleware/verified.middleware");
 const {
   createListingRules,
   updateListingRules,
@@ -30,12 +30,13 @@ router.post(
   "/",
   protect,
   requireVerified,
+  requireSeller,
   createListingRules,
   validate,
   createListing,
 );
-router.put("/:id", protect, updateListingRules, validate, updateListing);
-router.delete("/:id", protect, deleteListing);
+router.put("/:id", protect, requireSeller, updateListingRules, validate, updateListing);
+router.delete("/:id", protect, requireSeller, deleteListing);
 router.post("/:id/report", protect, reportListing);
 
 module.exports = router;

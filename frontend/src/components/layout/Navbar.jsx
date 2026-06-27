@@ -192,47 +192,75 @@ const Navbar = () => {
 
             {/* ── Desktop Auth Buttons ──────────────────────── */}
             <div className="hidden md:flex items-center gap-3">
+              
               {isAuthenticated ? (
                 <>
-                  <motion.div
-                    whileHover={reducedMotion ? {} : { scale: 1.03 }}
-                    whileTap={reducedMotion ? {} : { scale: 0.97 }}
-                  >
-                    <Link
-                      to="/create-listing"
-                      className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
+                  {user?.role !== "BUYER" && (
+                    <motion.div
+                      whileHover={reducedMotion ? {} : { scale: 1.03 }}
+                      whileTap={reducedMotion ? {} : { scale: 0.97 }}
                     >
-                      <FiPlus className="w-4 h-4" />
-                      Sell Item
-                    </Link>
-                  </motion.div>
+                      <Link
+                        to="/create-listing"
+                        className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
+                      >
+                        <FiPlus className="w-4 h-4" />
+                        Sell Item
+                      </Link>
+                    </motion.div>
+                  )}
 
                   <div className="flex items-center gap-2 pl-3 border-l border-sage-100">
                     <Link
+
                       to={`/profile/${user?.id}`}
+
                       className="flex items-center gap-2 text-sm text-gray-700
+
                                  hover:text-primary-600 transition-colors"
+
                     >
+
                       <motion.div
+
                         className="w-8 h-8 bg-sage-100 rounded-full overflow-hidden flex items-center justify-center"
+
                         whileHover={reducedMotion ? {} : { scale: 1.1 }}
+
                         transition={{
+
                           type: "spring",
+
                           stiffness: 400,
+
                           damping: 20,
+
                         }}
+
                       >
+
                         {user?.avatar ? (
+
                           <img
+
                             src={user.avatar}
+
                             alt={user.username}
+
                             className="w-full h-full object-cover"
+
                           />
+
                         ) : (
+
                           <FiUser className="w-4 h-4 text-primary-600" />
+
                         )}
+
                       </motion.div>
+
                       <span className="font-medium">{user?.username}</span>
+
                     </Link>
 
                     <motion.button
@@ -319,6 +347,8 @@ const Navbar = () => {
               />
               <MobileNavLink path="/features" label="Features" index={2} />
               <MobileNavLink path="/about" label="About" index={3} />
+
+
               {isAuthenticated && (
                 <MobileNavLink
                   path={`/profile/${user?.id}`}
@@ -331,23 +361,25 @@ const Navbar = () => {
               )}
 
               <div className="border-t border-sage-100 pt-4 flex flex-col gap-3">
-                {isAuthenticated ? (
+               {isAuthenticated ? (
                   <>
-                    <motion.div
-                      custom={3}
-                      variants={reducedMotion ? {} : mobileItemVariants}
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      <Link
-                        to="/create-listing"
-                        onClick={() => setMenuOpen(false)}
-                        className="btn-primary flex items-center justify-center gap-2"
+                    {user?.role !== "BUYER" && (
+                      <motion.div
+                        custom={3}
+                        variants={reducedMotion ? {} : mobileItemVariants}
+                        initial="hidden"
+                        animate="visible"
                       >
-                        <FiPlus className="w-4 h-4" />
-                        Sell Item
-                      </Link>
-                    </motion.div>
+                        <Link
+                          to="/create-listing"
+                          onClick={() => setMenuOpen(false)}
+                          className="btn-primary flex items-center justify-center gap-2"
+                        >
+                          <FiPlus className="w-4 h-4" />
+                          Sell Item
+                        </Link>
+                      </motion.div>
+                    )}
 
                     <motion.div
                       custom={4}

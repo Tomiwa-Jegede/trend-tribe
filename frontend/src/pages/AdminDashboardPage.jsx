@@ -14,13 +14,37 @@ const STAT_CONFIG = [
 ];
 
 const AdminDashboardPage = () => {
+  
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    getAdminStats()
-      .then(setStats)
-      .catch(() => setError("Failed to load dashboard stats."));
+    let cancelled = false;
+    let attempt = 0;
+    const MAX_ATTEMPTS = 20;
+    const RETRY_DELAY = 3000;
+
+    const fetchWithRetry = async () => {
+      while (!cancelled && attempt < MAX_ATTEMPTS) {
+        try {
+          const data = await getAdminStats();
+          if (!cancelled) setStats(data);
+          return;
+        } catch (err) {
+          attempt += 1;
+          const isNetworkError = !err.response;
+          const isServerError = err.response?.status >= 500;
+          if ((!isNetworkError && !isServerError) || attempt >= MAX_ATTEMPTS) {
+            if (!cancelled) setError("Failed to load dashboard stats.");
+            return;
+          }
+          await new Promise((res) => setTimeout(res, RETRY_DELAY));
+        }
+      }
+    };
+
+    fetchWithRetry();
+    return () => { cancelled = true; };
   }, []);
 
   return (

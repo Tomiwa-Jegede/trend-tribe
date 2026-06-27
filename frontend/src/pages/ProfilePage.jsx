@@ -6,7 +6,8 @@ import { useAuth } from "../context/AuthContext";
 import ListingCard from "../components/listings/ListingCard";
 import { getListingsByUser } from "../services/listingService";
 import { updateProfile } from "../services/authService";
-import { FiUser, FiMapPin, FiInbox, FiPlus, FiCamera, FiEdit2, FiPhone } from "react-icons/fi";
+import { FiUser, FiMapPin, FiInbox, FiPlus, FiCamera, FiEdit2, FiPhone, FiArrowRight } from "react-icons/fi";
+import api from "../api/axios";
 
 const ProfilePage = () => {
   const { id } = useParams();
@@ -17,8 +18,48 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [upgradeStep, setUpgradeStep] = useState("idle"); // idle | form | verify
+  const [upgradeData, setUpgradeData] = useState({ runEmail: "", matricNumber: "", otp: "" });
+  const [upgradeError, setUpgradeError] = useState("");
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   const fileInputRef = useRef(null);
+
+  const handleRequestUpgrade = async () => {
+    setUpgradeError("");
+    if (!upgradeData.runEmail.endsWith("@run.edu.ng")) {
+      setUpgradeError("Must be a valid RUN school email (@run.edu.ng)");
+      return;
+    }
+    setUpgradeLoading(true);
+    try {
+      await api.post("/auth/upgrade-to-seller", { runEmail: upgradeData.runEmail });
+      setUpgradeStep("verify");
+    } catch (err) {
+      setUpgradeError(err.response?.data?.error || "Something went wrong. Please try again.");
+    } finally {
+      setUpgradeLoading(false);
+    }
+  };
+
+  const handleVerifyUpgrade = async () => {
+    setUpgradeError("");
+    setUpgradeLoading(true);
+    try {
+      const res = await api.post("/auth/upgrade-to-seller/verify", {
+        runEmail: upgradeData.runEmail,
+        otp: upgradeData.otp,
+        matricNumber: upgradeData.matricNumber,
+      });
+      if (setUser) setUser(res.data.user);
+      setSeller((prev) => ({ ...prev, role: "SELLER" }));
+      setUpgradeStep("idle");
+    } catch (err) {
+      setUpgradeError(err.response?.data?.error || "Something went wrong. Please try again.");
+    } finally {
+      setUpgradeLoading(false);
+    }
+  };
 
   const isOwnProfile = currentUser?.id === parseInt(id, 10);
 
@@ -138,6 +179,22 @@ const ProfilePage = () => {
                   You
                 </span>
               )}
+              {seller.role === "BUYER" && (
+                <span className="badge bg-blue-50 text-blue-600 border border-blue-200">
+                  🛍️ Buyer
+                </span>
+              )}
+              {seller.role === "SELLER" && (
+                <span className="badge bg-green-50 text-green-700 border border-green-200">
+                  🏪 Seller
+                </span>
+              )}
+              {seller.role === "ADMIN" && (
+                <span className="badge border"
+                  style={{ background: "#fffbeb", color: "#92400e", borderColor: "#D4AF37" }}>
+                  👑 Admin
+                </span>
+              )}
             </div>
             <p className="text-gray-400 text-sm mb-3">@{seller.username}</p>
 
@@ -176,7 +233,78 @@ const ProfilePage = () => {
             </div>
           )}
         </div>
-      </div>
+
+        {/* Become a Seller — buyers only, own profile */}
+        {isOwnProfile && seller.role === "BUYER" && (
+          <div className="mt-6 pt-6 border-t border-gray-100">
+            {upgradeStep === "idle" && (
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Want to sell on TrendTribe?</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Verify your RUN student email to become a seller.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUpgradeStep("form")}
+                  className="btn-primary flex items-center gap-2 whitespace-nowrap"
+                >
+                  Become a Seller
+                  <FiArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {upgradeStep === "form" && (
+              <div className="flex flex-col gap-3 max-w-md">
+                <p className="text-sm font-semibold text-gray-800">Enter your RUN school email</p>
+                {upgradeError && <p className="text-xs text-red-500">{upgradeError}</p>}
+                <input
+                  type="email"
+                  placeholder="you@run.edu.ng"
+                  value={upgradeData.runEmail}
+                  onChange={(e) => setUpgradeData((p) => ({ ...p, runEmail: e.target.value }))}
+                  className="input"
+                />
+                <input
+                  type="text"
+                  placeholder="Matric number (optional)"
+                  value={upgradeData.matricNumber}
+                  onChange={(e) => setUpgradeData((p) => ({ ...p, matricNumber: e.target.value }))}
+                  className="input"
+                />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setUpgradeStep("idle"); setUpgradeError(""); }} className="btn-secondary flex-1">Cancel</button>
+                  <button type="button" onClick={handleRequestUpgrade} disabled={upgradeLoading} className="btn-primary flex-1">
+                    {upgradeLoading ? "Sending..." : "Send Code"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {upgradeStep === "verify" && (
+              <div className="flex flex-col gap-3 max-w-md">
+                <p className="text-sm font-semibold text-gray-800">Enter the 6-digit code sent to {upgradeData.runEmail}</p>
+                {upgradeError && <p className="text-xs text-red-500">{upgradeError}</p>}
+                <input
+                  type="text"
+                  placeholder="000000"
+                  maxLength={6}
+                  value={upgradeData.otp}
+                  onChange={(e) => setUpgradeData((p) => ({ ...p, otp: e.target.value }))}
+                  className="input"
+                />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setUpgradeStep("form"); setUpgradeError(""); }} className="btn-secondary flex-1">Back</button>
+                  <button type="button" onClick={handleVerifyUpgrade} disabled={upgradeLoading} className="btn-primary flex-1">
+                    {upgradeLoading ? "Verifying..." : "Verify & Upgrade"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        </div>
 
       {/* ── Listings ── */}
       <div className="mb-6">

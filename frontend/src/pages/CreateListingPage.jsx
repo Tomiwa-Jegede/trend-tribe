@@ -10,6 +10,26 @@ const CreateListingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // ── Block buyer accounts ─────────────────────────────────────
+  if (user && user.role === "BUYER") {
+    return (
+      <div className="container-app py-10 max-w-2xl">
+        <div className="card p-8 text-center">
+          <Alert
+            type="error"
+            message="Only seller accounts can create listings."
+          />
+          <Link
+            to={`/profile/${user.id}`}
+            className="text-primary-600 font-semibold mt-4 inline-block"
+          >
+            Upgrade to Seller →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // ── Block unverified users before they ever see the form ────
   if (user && !user.isVerified) {
     return (

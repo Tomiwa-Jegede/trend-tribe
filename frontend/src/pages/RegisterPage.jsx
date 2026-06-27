@@ -73,13 +73,30 @@ const STEPS = [
     label: "Agreements",
     desc: "Terms & privacy",
     fields: ["terms", "privacy"],
-    isAgreement: true, // ← flags that these fields live in `agreements`, not `formData`
+    isAgreement: true,
+  },
+];
+
+const ROLE_OPTIONS = [
+  {
+    value: "BUYER",
+    label: "Buyer",
+    emoji: "🛍️",
+    desc: "Browse and purchase items using any email",
+  },
+  {
+    value: "SELLER",
+    label: "Seller",
+    emoji: "🎓",
+    desc: "List and sell items — RUN students only",
   },
 ];
 
 const RegisterPage = () => {
   const navigate = useNavigate();
   const reduced = useReducedMotion();
+
+  const [role, setRole] = useState("BUYER");
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -151,6 +168,8 @@ const RegisterPage = () => {
     if (!formData.email.trim()) newErrors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(formData.email))
       newErrors.email = "Must be a valid email address";
+    else if (role === "SELLER" && !formData.email.endsWith("@run.edu.ng"))
+      newErrors.email = "Sellers must use a RUN school email (@run.edu.ng)";
 
     if (!formData.password) newErrors.password = "Password is required";
     else if (formData.password.length < 6)
@@ -161,9 +180,11 @@ const RegisterPage = () => {
     else if (formData.password !== formData.confirmPassword)
       newErrors.confirmPassword = "Passwords do not match";
 
-    if (!formData.school.trim()) newErrors.school = "School is required";
-    if (!formData.matricNumber.trim())
-      newErrors.matricNumber = "Matric number is required";
+    if (role === "SELLER") {
+      if (!formData.school.trim()) newErrors.school = "School is required";
+      if (!formData.matricNumber.trim())
+        newErrors.matricNumber = "Matric number is required";
+    }
 
     // ── New: required agreement checks ─────────────────────────
     if (!agreements.terms) {
@@ -188,8 +209,9 @@ const RegisterPage = () => {
         username: formData.username.trim(),
         email: formData.email.trim(),
         password: formData.password,
-        school: formData.school.trim(),
-        matricNumber: formData.matricNumber.trim(),
+        role,
+        school: role === "SELLER" ? formData.school.trim() : "",
+        matricNumber: role === "SELLER" ? formData.matricNumber.trim() : "",
       };
       await api.post("/auth/register", payload);
       navigate("/verify-registration", {
@@ -261,6 +283,35 @@ const RegisterPage = () => {
                   />
                 )}
 
+                {/* Role selector */}
+                <div className="flex flex-col gap-3">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    I want to
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {ROLE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setRole(opt.value)}
+                        className={`flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                          role === opt.value
+                            ? "border-primary-600 bg-primary-50"
+                            : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                      >
+                        <span className="text-xl">{opt.emoji}</span>
+                        <span className={`text-sm font-semibold ${role === opt.value ? "text-primary-700" : "text-gray-700"}`}>
+                          {opt.label}
+                        </span>
+                        <span className="text-xs text-gray-400 leading-snug">
+                          {opt.desc}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Section 1 — Profile */}
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
@@ -297,42 +348,44 @@ const RegisterPage = () => {
                     value={formData.email}
                     onChange={handleChange}
                     error={errors.email}
-                    placeholder="you@run.edu.ng"
+                    placeholder={role === "SELLER" ? "you@run.edu.ng" : "you@gmail.com"}
                     required
                   />
                 </div>
 
-                {/* Section 2 — School */}
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
-                    <div className="w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
-                      <FiBook className="text-white w-3 h-3" />
+                {/* Section 2 — School (sellers only) */}
+                {role === "SELLER" && (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
+                      <div className="w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
+                        <FiBook className="text-white w-3 h-3" />
+                      </div>
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        School Details
+                      </span>
                     </div>
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      School Details
-                    </span>
-                  </div>
 
-                  <FormInput
-                    label="School"
-                    name="school"
-                    value={formData.school}
-                    onChange={handleChange}
-                    error={errors.school}
-                    placeholder="Redeemer's University"
-                    disabled
-                    required
-                  />
-                  <FormInput
-                    label="Matric Number"
-                    name="matricNumber"
-                    value={formData.matricNumber}
-                    onChange={handleChange}
-                    error={errors.matricNumber}
-                    placeholder="e.g. Run/***/**/17200"
-                    required
-                  />
-                </div>
+                    <FormInput
+                      label="School"
+                      name="school"
+                      value={formData.school}
+                      onChange={handleChange}
+                      error={errors.school}
+                      placeholder="Redeemer's University"
+                      disabled
+                      required
+                    />
+                    <FormInput
+                      label="Matric Number"
+                      name="matricNumber"
+                      value={formData.matricNumber}
+                      onChange={handleChange}
+                      error={errors.matricNumber}
+                      placeholder="e.g. Run/***/**/17200"
+                      required
+                    />
+                  </div>
+                )}
 
                 {/* Section 3 — Password */}
                 <div className="flex flex-col gap-4">

@@ -10,13 +10,13 @@ const registerRules = [
     .withMessage("Email is required")
     .isEmail()
     .withMessage("Must be a valid email address")
-    .normalizeEmail()
-    .custom((value) => {
-      if (!value.endsWith("@run.edu.ng")) {
-        throw new Error("Use Your Student Email (@run.edu.ng)");
-      }
-      return true;
-    }),
+    .normalizeEmail(),
+
+  body("role")
+    .notEmpty()
+    .withMessage("Account type is required")
+    .isIn(["BUYER", "SELLER"])
+    .withMessage("Account type must be BUYER or SELLER"),
 
   body("username")
     .trim()

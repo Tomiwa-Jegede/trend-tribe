@@ -42,10 +42,10 @@ model PendingRegistration {
   school       String
   matricNumber String?
   bio          String?
+  role         Role     @default(BUYER)
   otpCode      String
   otpExpiresAt DateTime
   createdAt    DateTime @default(now())
-
   @@map("pending_registrations")
 }
 
@@ -73,6 +73,8 @@ model Listing {
 enum Role {
   USER
   ADMIN
+  BUYER
+  SELLER
 }
 
 enum ReportReason {

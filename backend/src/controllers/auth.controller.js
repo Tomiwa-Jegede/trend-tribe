@@ -36,11 +36,21 @@ const buildTokenPayload = (user) => ({
 // ─────────────────────────────────────────────────────────────
 const register = async (req, res) => {
   try {
-    const { email, username, password, fullName, school, matricNumber, bio } =
+    const { email, username, password, fullName, school, matricNumber, bio, role } =
       req.body;
 
-    if (!school || !school.trim()) {
-      return res.status(400).json({ error: "School is required" });
+    const accountRole = role === "SELLER" ? "SELLER" : "BUYER";
+
+    if (accountRole === "SELLER") {
+      if (!email.endsWith("@run.edu.ng")) {
+        return res.status(400).json({ error: "Sellers must use a valid RUN school email (@run.edu.ng)" });
+      }
+      if (!matricNumber || !matricNumber.trim()) {
+        return res.status(400).json({ error: "Matric number is required for seller accounts" });
+      }
+      if (!school || !school.trim()) {
+        return res.status(400).json({ error: "School is required for seller accounts" });
+      }
     }
 
     const existingEmail = await prisma.user.findUnique({ where: { email } });
@@ -80,9 +90,10 @@ const register = async (req, res) => {
         username,
         password: hashedPassword,
         fullName,
-        school: school.trim(),
+        school: school ? school.trim() : "",
         matricNumber: matricNumber ? matricNumber.trim() : null,
         bio: bio || null,
+        role: accountRole,
         otpCode,
         otpExpiresAt,
       },
@@ -91,9 +102,10 @@ const register = async (req, res) => {
         username,
         password: hashedPassword,
         fullName,
-        school: school.trim(),
+        school: school ? school.trim() : "",
         matricNumber: matricNumber ? matricNumber.trim() : null,
         bio: bio || null,
+        role: accountRole,
         otpCode,
         otpExpiresAt,
       },
@@ -196,6 +208,7 @@ const verifyRegistration = async (req, res) => {
         school: pending.school,
         matricNumber: pending.matricNumber,
         bio: pending.bio,
+        role: pending.role,
         isVerified: true,
       },
     });
@@ -532,6 +545,96 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// POST /api/auth/upgrade-to-seller ← PROTECTED (BUYER only)
+// Body: { email (RUN email) }
+// Sends OTP to the provided RUN email, stores it for verification
+// ─────────────────────────────────────────────────────────────
+const requestSellerUpgrade = async (req, res) => {
+  try {
+    const { runEmail } = req.body;
+
+    if (!runEmail || !runEmail.trim()) {
+      return res.status(400).json({ error: "RUN school email is required" });
+    }
+    if (!runEmail.endsWith("@run.edu.ng")) {
+      return res.status(400).json({ error: "Must be a valid RUN school email (@run.edu.ng)" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role === "SELLER") {
+      return res.status(400).json({ error: "Your account is already a seller account" });
+    }
+
+    const otpCode = generateOTP();
+    const otpExpiresAt = getOTPExpiry();
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { otpCode, otpExpiresAt },
+    });
+
+    await sendOTPEmail(runEmail, user.fullName, otpCode);
+
+    return res.status(200).json({
+      message: "A verification code has been sent to your RUN email.",
+      runEmail,
+    });
+  } catch (err) {
+    console.error("[REQUEST SELLER UPGRADE ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/auth/upgrade-to-seller/verify ← PROTECTED (BUYER only)
+// Body: { runEmail, otp, matricNumber }
+// ─────────────────────────────────────────────────────────────
+const verifySellerUpgrade = async (req, res) => {
+  try {
+    const { runEmail, otp, matricNumber } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role === "SELLER") {
+      return res.status(400).json({ error: "Your account is already a seller account" });
+    }
+
+    if (!user.otpCode || !user.otpExpiresAt) {
+      return res.status(400).json({ error: "No verification code found. Please request a new one." });
+    }
+    if (new Date() > user.otpExpiresAt) {
+      return res.status(400).json({ error: "Verification code has expired. Please request a new one." });
+    }
+    if (otp !== user.otpCode) {
+      return res.status(400).json({ error: "Incorrect verification code" });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        role: "SELLER",
+        email: runEmail.trim(),
+        matricNumber: matricNumber ? matricNumber.trim() : user.matricNumber,
+        otpCode: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Your account has been upgraded to a seller account ✅",
+      user: sanitizeUser(updatedUser),
+    });
+  } catch (err) {
+    console.error("[VERIFY SELLER UPGRADE ERROR]", err);
+    if (err.code === "P2002") {
+      return res.status(409).json({ error: "This RUN email is already linked to another account" });
+    }
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -543,4 +646,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   updateProfile,
+  requestSellerUpgrade,
+  verifySellerUpgrade,
 };

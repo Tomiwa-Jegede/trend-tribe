@@ -11,4 +11,14 @@ const requireVerified = (req, res, next) => {
   next();
 };
 
-module.exports = { requireVerified };
+const requireSeller = (req, res, next) => {
+  if (req.user.role === "BUYER") {
+    return res.status(403).json({
+      error: "Only seller accounts can perform this action.",
+      code: "SELLER_ONLY",
+    });
+  }
+  next();
+};
+
+module.exports = { requireVerified, requireSeller };

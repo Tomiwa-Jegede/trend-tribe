@@ -10,6 +10,8 @@ const {
   forgotPassword,
   resetPassword,
   updateProfile,
+  requestSellerUpgrade,
+  verifySellerUpgrade,
 } = require("../controllers/auth.controller");
 const {
   registerRules,
@@ -38,5 +40,7 @@ router.get("/me", protect, getMe);
 router.post("/verify-email", protect, verifyEmailRules, validate, verifyEmail);
 router.post("/resend-otp", protect, resendOtp);
 router.patch("/profile", protect, uploadAvatar.single("avatar"), updateProfile);
+router.post("/upgrade-to-seller", protect, requestSellerUpgrade);
+router.post("/upgrade-to-seller/verify", protect, verifySellerUpgrade);
 
 module.exports = router;
