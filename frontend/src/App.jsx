@@ -143,7 +143,7 @@ const App = () => {
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
-            <Route path="/features" element={<ComingSoonPage />} />
+            <Route path="/features" element={<FeaturesPage />} />
             <Route path="/coming-soon" element={<ComingSoonPage />} />
             <Route path="/messages" element={<ComingSoonPage />} />
             <Route path="/saved" element={<ComingSoonPage />} />

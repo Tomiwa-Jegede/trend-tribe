@@ -131,18 +131,12 @@ const PAGE_META = {
 const ComingSoonPage = () => {
   const reduced = useReducedMotion();
   const { pathname } = useLocation();
-  const [phaseOneCountdown, setPhaseOneCountdown] = useState(
-    getCountdown("2026-07-12T00:00:00+01:00"),
-  );
-
   const [phaseTwoCountdown, setPhaseTwoCountdown] = useState(
     getCountdown("2026-08-23T00:00:00+01:00"),
   );
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setPhaseOneCountdown(getCountdown("2026-07-12T00:00:00+01:00"));
-
       setPhaseTwoCountdown(getCountdown("2026-08-23T00:00:00+01:00"));
     }, 1000);
 
@@ -252,13 +246,7 @@ const ComingSoonPage = () => {
               Countdown to Launch
             </p>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <CountdownCard
-                title="🚀 Core Marketplace Launch • July 12"
-                countdown={phaseOneCountdown}
-                accent="#7BB8F0"
-              />
-
+            <div className="grid gap-4">
               <CountdownCard
                 title="🌟 Full Experience Launch • August 23"
                 countdown={phaseTwoCountdown}
