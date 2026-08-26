@@ -18,19 +18,21 @@ const EditListingPage = () => {
   const [notFound, setNotFound] = useState(false);
   const [notOwner, setNotOwner] = useState(false);
 
-  useEffect(() => {
+    useEffect(() => {
     const timer = setTimeout(async () => {
-      const res = await axios.get(`http://localhost:5050/api/listings/${id}`);
-      const found = res.data.listing;
-
-      if (!found) {
+      try {
+        const res = await axios.get(`http://localhost:5050/api/listings/${id}`);
+        const found = res.data.listing;
+        if (!found) {
+          setNotFound(true);
+        } else if (found.seller.id !== user?.id) {
+          setNotOwner(true);
+        } else {
+          setListing(found);
+        }
+      } catch (err) {
         setNotFound(true);
-      } else if (found.seller.id !== user?.id) {
-        setNotOwner(true);
-      } else {
-        setListing(found);
       }
-
       setLoading(false);
     }, 400);
     return () => clearTimeout(timer);

@@ -83,17 +83,31 @@ const App = () => {
           <Routes>
             {/* Public */}
             <Route path="/" element={<HomePage />} />
-            <Route path="/marketplace" element={<ComingSoonPage />} />
-            <Route path="/listings/:id" element={<ComingSoonPage />} />
+            <Route path="/marketplace" element={<MarketplacePage />} />
+            <Route path="/listings/:id" element={<ListingDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/verify-registration" element={<VerifyOtpPage />} />
-            <Route path="/profile/:id" element={<ComingSoonPage />} />
-            <Route path="/profile/:id/edit" element={<ComingSoonPage />} />
+            <Route path="/profile/:id" element={<ProfilePage />} />
+            <Route path="/profile/:id/edit" element={<EditProfilePage />} />
 
             {/* Protected */}
-            <Route path="/create-listing" element={<ComingSoonPage />} />
-            <Route path="/listings/:id/edit" element={<ComingSoonPage />} />
+            <Route
+              path="/create-listing"
+              element={
+                <ProtectedRoute>
+                  <CreateListingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/listings/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <EditListingPage />
+                </ProtectedRoute>
+              }
+            />
 
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
