@@ -253,9 +253,6 @@ const MarketplacePage = () => {
             </motion.div>
           ) : null}
         </AnimatePresence>
-        <div className="mt-16">
-          <HomeTicker variant="marketplace" />
-        </div>
       </div>
     </>
   );
