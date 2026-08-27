@@ -40,7 +40,3 @@ export const updateProfile = async (fields) => {
   return data.user;
 };
 
-export const markTutorialSeen = async () => {
-  const { data } = await api.patch("/auth/tutorial-seen");
-  return data.user;
-};

@@ -544,25 +544,7 @@ const updateProfile = async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
-// ─────────────────────────────────────────────────────────────
-// PATCH /api/auth/tutorial-seen ← PROTECTED
-// Marks the logged-in user's onboarding tutorial as completed/dismissed.
-// ─────────────────────────────────────────────────────────────
-const markTutorialSeen = async (req, res) => {
-  try {
-    const updated = await prisma.user.update({
-      where: { id: req.user.id },
-      data: { hasSeenTutorial: true },
-    });
-    return res.status(200).json({
-      message: "Tutorial marked as seen",
-      user: sanitizeUser(updated),
-    });
-  } catch (err) {
-    console.error("[MARK TUTORIAL SEEN ERROR]", err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-};
+
 // ─────────────────────────────────────────────────────────────
 // POST /api/auth/upgrade-to-seller ← PROTECTED (BUYER only)
 // Body: { email (RUN email) }
@@ -666,5 +648,4 @@ module.exports = {
   updateProfile,
   requestSellerUpgrade,
   verifySellerUpgrade,
-  markTutorialSeen,
 };

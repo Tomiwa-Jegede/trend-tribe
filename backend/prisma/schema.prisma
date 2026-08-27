@@ -27,7 +27,7 @@ model User {
   matricNumber        String?   @unique
   avatarPublicId      String?
   whatsapp            String?
-  hasSeenTutorial     Boolean   @default(false)
+
   listings            Listing[]
   reports             Report[]
 

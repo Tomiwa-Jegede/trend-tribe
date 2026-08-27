@@ -12,6 +12,7 @@ const authRoutes = require("./routes/auth.routes");
 const listingRoutes = require("./routes/listing.routes");
 const uploadRoutes = require("./routes/upload.routes");
 const adminRoutes = require("./routes/admin.routes");
+const frederickRoutes = require("./routes/frederick.routes");
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/listings", listingRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/frederick", frederickRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {

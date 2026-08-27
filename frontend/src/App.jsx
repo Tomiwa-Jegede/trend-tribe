@@ -5,9 +5,9 @@ import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import { TutorialProvider } from "./context/TutorialContext";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
+import FrederickWidget from "./components/frederick/FrederickWidget";
 import PageTransition from "./components/layout/PageTransition";
 import HomePage from "./pages/HomePage";
 import MarketplacePage from "./pages/MarketplacePage";
@@ -76,7 +76,6 @@ const AdminRoute = ({ children }) => {
 // ─── App ──────────────────────────────────────────────────────
 const App = () => {
   return (
-    <TutorialProvider>
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
@@ -170,8 +169,8 @@ const App = () => {
       </main>
 
       <Footer />
+      <FrederickWidget />
     </div>
-    </TutorialProvider>
   );
 };
 

@@ -12,7 +12,7 @@ const {
   updateProfile,
   requestSellerUpgrade,
   verifySellerUpgrade,
-  markTutorialSeen,
+
 } = require("../controllers/auth.controller");
 const {
   registerRules,
@@ -43,6 +43,6 @@ router.post("/resend-otp", protect, resendOtp);
 router.patch("/profile", protect, uploadAvatar.single("avatar"), updateProfile);
 router.post("/upgrade-to-seller", protect, requestSellerUpgrade);
 router.post("/upgrade-to-seller/verify", protect, verifySellerUpgrade);
-router.patch("/tutorial-seen", protect, markTutorialSeen);
+
 
 module.exports = router;
