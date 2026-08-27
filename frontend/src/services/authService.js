@@ -37,6 +37,10 @@ export const updateProfile = async (fields) => {
     headers: { "Content-Type": "multipart/form-data" },
     timeout: 60000,
   });
+  return data.user;
+};
 
+export const markTutorialSeen = async () => {
+  const { data } = await api.patch("/auth/tutorial-seen");
   return data.user;
 };

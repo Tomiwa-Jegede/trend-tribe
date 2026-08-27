@@ -351,6 +351,7 @@ const getListingsByUser = async (req, res) => {
         avatar: true,
         school: true,
         bio: true,
+        role: true,
       },
     });
 

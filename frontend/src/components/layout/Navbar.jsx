@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
+import { useTutorial } from "../../context/TutorialContext";
 import {
   FiShoppingBag,
   FiMenu,
@@ -12,6 +13,7 @@ import {
   FiPlus,
   FiUser,
   FiLogOut,
+  FiHelpCircle,
 } from "react-icons/fi";
 
 // ── Reduced-motion helper ──────────────────────────────────────
@@ -54,6 +56,7 @@ const mobileItemVariants = {
 
 const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
+  const { startTutorial } = useTutorial();
   const navigate = useNavigate();
   const location = useLocation();
   const reducedMotion = useReducedMotion();
@@ -85,9 +88,10 @@ const Navbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  const NavLink = ({ path, label }) => (
+  const NavLink = ({ path, label, tourId }) => (
     <Link
       to={path}
+      data-tour={tourId}
       className="relative text-sm font-medium transition-colors duration-150 pb-1 group"
       style={{
         color: isActive(path) ? "var(--color-primary, #1340B8)" : undefined,
@@ -119,7 +123,7 @@ const Navbar = () => {
     </Link>
   );
 
-  const MobileNavLink = ({ path, label, index }) => (
+  const MobileNavLink = ({ path, label, index, tourId }) => (
     <motion.div
       custom={index}
       variants={reducedMotion ? {} : mobileItemVariants}
@@ -128,6 +132,7 @@ const Navbar = () => {
     >
       <Link
         to={path}
+        data-tour={tourId}
         onClick={() => setMenuOpen(false)}
         className={`block text-sm font-medium py-1 transition-colors duration-150 ${
           isActive(path)
@@ -178,12 +183,20 @@ const Navbar = () => {
             {/* ── Desktop Nav Links ─────────────────────────── */}
             <div className="hidden md:flex items-center gap-8">
               <NavLink path="/" label="Home" />
-              <NavLink path="/marketplace" label="Marketplace" />
+              <NavLink
+                path="/marketplace"
+                label="Marketplace"
+                tourId="tour-marketplace-desktop"
+              />
               <NavLink path="/features" label="Features" />
               <NavLink path="/about" label="About" />
 
               {isAuthenticated && (
-                <NavLink path={`/profile/${user?.id}`} label="My Profile" />
+                <NavLink
+                  path={`/profile/${user?.id}`}
+                  label="My Profile"
+                  tourId="tour-profile-desktop"
+                />
               )}
               {user?.role === "ADMIN" && (
                 <NavLink path="/admin" label="Admin" />
@@ -202,6 +215,7 @@ const Navbar = () => {
                     >
                       <Link
                         to="/create-listing"
+                        data-tour="tour-sell-item-desktop"
                         className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
                       >
                         <FiPlus className="w-4 h-4" />
@@ -209,6 +223,18 @@ const Navbar = () => {
                       </Link>
                     </motion.div>
                   )}
+
+                  <motion.button
+                    onClick={startTutorial}
+                    className="p-2 text-gray-400 hover:text-primary-600
+                               transition-colors rounded-lg hover:bg-primary-50"
+                    title="Replay Tutorial"
+                    whileHover={reducedMotion ? {} : { scale: 1.1 }}
+                    whileTap={reducedMotion ? {} : { scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  >
+                    <FiHelpCircle className="w-4 h-4" />
+                  </motion.button>
 
                   <div className="flex items-center gap-2 pl-3 border-l border-sage-100">
                     <Link
@@ -344,6 +370,7 @@ const Navbar = () => {
                 path="/marketplace"
                 label="Marketplace"
                 index={1}
+                tourId="tour-marketplace-mobile"
               />
               <MobileNavLink path="/features" label="Features" index={2} />
               <MobileNavLink path="/about" label="About" index={3} />
@@ -354,6 +381,7 @@ const Navbar = () => {
                   path={`/profile/${user?.id}`}
                   label="My Profile"
                   index={3}
+                  tourId="tour-profile-mobile"
                 />
               )}
               {user?.role === "ADMIN" && (
@@ -373,6 +401,7 @@ const Navbar = () => {
                         <Link
                           to="/create-listing"
                           onClick={() => setMenuOpen(false)}
+                          data-tour="tour-sell-item-mobile"
                           className="btn-primary flex items-center justify-center gap-2"
                         >
                           <FiPlus className="w-4 h-4" />
@@ -383,6 +412,24 @@ const Navbar = () => {
 
                     <motion.div
                       custom={4}
+                      variants={reducedMotion ? {} : mobileItemVariants}
+                      initial="hidden"
+                      animate="visible"
+                    >
+                      <button
+                        onClick={() => {
+                          startTutorial();
+                          setMenuOpen(false);
+                        }}
+                        className="w-full btn-secondary flex items-center justify-center gap-2"
+                      >
+                        <FiHelpCircle className="w-4 h-4" />
+                        Replay Tutorial
+                      </button>
+                    </motion.div>
+
+                    <motion.div
+                      custom={5}
                       variants={reducedMotion ? {} : mobileItemVariants}
                       initial="hidden"
                       animate="visible"
