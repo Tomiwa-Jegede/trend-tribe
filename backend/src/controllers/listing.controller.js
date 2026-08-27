@@ -95,7 +95,6 @@ const getAllListings = async (req, res) => {
               fullName: true,
               avatar: true,
               school: true,
-            whatsapp: true,
             },
           },
         },
@@ -149,7 +148,6 @@ const getListingById = async (req, res) => {
             avatar: true,
             school: true,
             bio: true,
-            whatsapp: true,
             createdAt: true,
             listings: { where: { isAvailable: true }, select: { id: true } },
           },
@@ -176,6 +174,8 @@ const getListingById = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // POST /api/listings ← PROTECTED
 // ─────────────────────────────────────────────────────────────
+const FREE_LISTING_LIMIT = 3;
+
 const createListing = async (req, res) => {
   try {
     const {
@@ -190,38 +190,84 @@ const createListing = async (req, res) => {
       location,
     } = req.body;
 
-    const listing = await prisma.listing.create({
-      data: {
-        title,
-        description,
-        price,
-        category,
-        condition,
-        images: images || [],
-        imagePublicIds: imagePublicIds || [],
-        coverPosition: coverPosition || { x: 50, y: 50 },
-        location: location || null,
-        sellerId: req.user.id,
-      },
-      include: {
-        seller: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-            avatar: true,
-            school: true,
+    // ── Enforce free-slot limit, then fall back to token spend ──
+    const activeListingCount = await prisma.listing.count({
+      where: { sellerId: req.user.id, isAvailable: true },
+    });
+
+    let usingFreeSlot = activeListingCount < FREE_LISTING_LIMIT;
+    let seller = null;
+
+    if (!usingFreeSlot) {
+      seller = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { tokenBalance: true },
+      });
+
+      if (!seller || seller.tokenBalance < 1) {
+        return res.status(403).json({
+          error: "You've used all your free listing slots and have no tokens left. Buy tokens to post another listing.",
+          limitReached: true,
+          currentCount: activeListingCount,
+          freeSlotLimit: FREE_LISTING_LIMIT,
+          tokenBalance: seller?.tokenBalance ?? 0,
+        });
+      }
+    }
+
+    const listingData = {
+      title,
+      description,
+      price,
+      category,
+      condition,
+      images: images || [],
+      imagePublicIds: imagePublicIds || [],
+      coverPosition: coverPosition || { x: 50, y: 50 },
+      location: location || null,
+      sellerId: req.user.id,
+      isFreeSlot: usingFreeSlot,
+    };
+
+    const listingInclude = {
+      seller: {
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          avatar: true,
+          school: true,
           whatsapp: true,
-          },
         },
       },
-    });
+    };
+
+    const listing = usingFreeSlot
+      ? await prisma.listing.create({ data: listingData, include: listingInclude })
+      : await prisma.$transaction(async (tx) => {
+          const updatedSeller = await tx.user.updateMany({
+            where: { id: req.user.id, tokenBalance: { gte: 1 } },
+            data: { tokenBalance: { decrement: 1 } },
+          });
+
+          if (updatedSeller.count === 0) {
+            throw new Error("TOKEN_BALANCE_RACE");
+          }
+
+          return tx.listing.create({ data: listingData, include: listingInclude });
+        });
 
     return res.status(201).json({
       message: "Listing created successfully ✅",
       listing: formatListing(listing),
     });
   } catch (err) {
+    if (err.message === "TOKEN_BALANCE_RACE") {
+      return res.status(403).json({
+        error: "Your token balance changed before this could complete. Please check your balance and try again.",
+        limitReached: true,
+      });
+    }
     console.error("[CREATE LISTING ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
   }
@@ -240,6 +286,13 @@ const updateListing = async (req, res) => {
       req.user.id,
     );
     if (error) return res.status(status).json({ error });
+
+    if (!listing.isFreeSlot && listing.editCount >= 2) {
+      return res.status(403).json({
+        error: "This listing has reached its edit limit (2). Delete it and repost with a new token to make further changes.",
+        editLimitReached: true,
+      });
+    }
 
 const {
   title,
@@ -278,6 +331,10 @@ const {
         (pid) => !(imagePublicIds || []).includes(pid),
       );
       await deleteFromCloudinary(removedPublicIds);
+    }
+
+    if (!listing.isFreeSlot) {
+      updateData.editCount = { increment: 1 };
     }
 
     const updated = await prisma.listing.update({
@@ -440,6 +497,76 @@ const reportListing = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// GET /api/listings/:id/contact ← PROTECTED
+// Reveals the seller's WhatsApp/phone number, gated by token credits.
+// 1 token = 4 views, every view counts (no caching of "already viewed").
+// ─────────────────────────────────────────────────────────────
+const revealContact = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
+
+    const listing = await prisma.listing.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        sellerId: true,
+        seller: { select: { whatsapp: true } },
+      },
+    });
+
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+    if (listing.sellerId === req.user.id) {
+      return res.status(200).json({ whatsapp: listing.seller.whatsapp });
+    }
+
+    const { confirmSpend } = req.body;
+    const viewer = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { numberViewsRemaining: true, tokenBalance: true },
+    });
+
+    if (!viewer) return res.status(401).json({ error: "Account not found." });
+
+    if (viewer.numberViewsRemaining <= 0) {
+      if (!confirmSpend) {
+        return res.status(402).json({
+          needsTokenConfirm: true,
+          tokenBalance: viewer.tokenBalance,
+          error: viewer.tokenBalance >= 1
+            ? "This will use 1 token for 4 number views. Confirm to continue."
+            : "You're out of tokens. Buy more to view seller numbers.",
+        });
+      }
+
+      const spend = await prisma.user.updateMany({
+        where: { id: req.user.id, tokenBalance: { gte: 1 } },
+        data: { tokenBalance: { decrement: 1 }, numberViewsRemaining: 3 },
+      });
+
+      if (spend.count === 0) {
+        return res.status(402).json({
+          needsTokenConfirm: true,
+          tokenBalance: 0,
+          error: "You're out of tokens. Buy more to view seller numbers.",
+        });
+      }
+    } else {
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { numberViewsRemaining: { decrement: 1 } },
+      });
+    }
+
+    return res.status(200).json({ whatsapp: listing.seller.whatsapp });
+  } catch (err) {
+    console.error("[REVEAL CONTACT ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   getAllListings,
   getListingById,
@@ -448,4 +575,5 @@ module.exports = {
   deleteListing,
   getListingsByUser,
   reportListing,
+  revealContact,
 };

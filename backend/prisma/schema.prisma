@@ -26,9 +26,11 @@ model User {
   resetTokenExpiresAt DateTime?
   matricNumber        String?   @unique
   avatarPublicId      String?
-  whatsapp            String?
-
-  listings            Listing[]
+  whatsapp             String?
+  tokenBalance         Int       @default(5)
+  aiUsesRemaining      Int       @default(0)
+  numberViewsRemaining Int       @default(0)
+  listings             Listing[]
   reports             Report[]
 
   @@map("users")
@@ -64,6 +66,8 @@ model Listing {
   updatedAt      DateTime  @updatedAt
   sellerId       Int
   imagePublicIds String[]  @default([])
+  isFreeSlot     Boolean   @default(true)
+  editCount      Int       @default(0)
   coverPosition  Json?     @default("{\"x\": 50, \"y\": 50}")
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   reports        Report[]

@@ -17,6 +17,46 @@ const chat = async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
+    const { confirmSpend } = req.body;
+    let seller = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { aiUsesRemaining: true, tokenBalance: true },
+    });
+
+    if (!seller) {
+      return res.status(401).json({ error: "Account not found." });
+    }
+
+    if (seller.aiUsesRemaining <= 0) {
+      if (!confirmSpend) {
+        return res.status(402).json({
+          needsTokenConfirm: true,
+          tokenBalance: seller.tokenBalance,
+          error: seller.tokenBalance >= 1
+            ? "This will use 1 token for 4 AI replies. Confirm to continue."
+            : "You're out of tokens. Buy more to keep chatting with Jegede.",
+        });
+      }
+
+      const spend = await prisma.user.updateMany({
+        where: { id: req.user.id, tokenBalance: { gte: 1 } },
+        data: { tokenBalance: { decrement: 1 }, aiUsesRemaining: 3 },
+      });
+
+      if (spend.count === 0) {
+        return res.status(402).json({
+          needsTokenConfirm: true,
+          tokenBalance: 0,
+          error: "You're out of tokens. Buy more to keep chatting with Jegede.",
+        });
+      }
+    } else {
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { aiUsesRemaining: { decrement: 1 } },
+      });
+    }
+
     const listings = await prisma.listing.findMany({
       where: { isAvailable: true },
       select: {
@@ -44,11 +84,11 @@ const chat = async (req, res) => {
       location: l.location,
     }));
 
-    const shopperName = req.user?.username || "Guest";
+    const shopperName = req.user.username;
 
     const prompt = `You are Jegede, TrendTribe's AI shopping assistant — a campus marketplace where students buy and sell items (books, electronics, clothing, etc).
 
-You are speaking with: ${shopperName}${shopperName === "Guest" ? " (not logged in — address them as Guest, don't ask them to log in)" : " (a logged-in shopper — you may address them by this name)"}.
+You are speaking with: ${shopperName} (a logged-in shopper — you may address them by this name).
 
 TONE & PERSONALITY
 - Greet casually, Nigerian-style — e.g. "How far? 👋" — then speak normally/properly for the rest of your reply.
