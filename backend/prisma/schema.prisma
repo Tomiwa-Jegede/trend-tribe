@@ -27,7 +27,8 @@ model User {
   matricNumber        String?   @unique
   avatarPublicId      String?
   whatsapp             String?
-  tokenBalance         Int       @default(5)
+  tokenBalance         Int       @default(20) // stored in quarter-token units; 20 = 5 tokens
+  tokenPurchases TokenPurchase[]
   aiUsesRemaining      Int       @default(0)
   numberViewsRemaining Int       @default(0)
   listings             Listing[]
@@ -50,6 +51,29 @@ model PendingRegistration {
   otpExpiresAt DateTime
   createdAt    DateTime @default(now())
   @@map("pending_registrations")
+}
+
+model TokenPurchase {
+  id        String   @id @default(cuid())
+  userId    Int
+  reference String   @unique // Paystack transaction reference
+  quantity  Int      // display tokens purchased (not raw units)
+  amount    Int      // amount in kobo, Paystack's unit
+  status    String   @default("PENDING") // PENDING | SUCCESS | FAILED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model FrederickSession {
+  id        String   @id @default(cuid())
+  userId    Int
+  sessionId String
+  cost      Int      // quarter-token units, same convention as tokenFormat.js
+  createdAt DateTime @default(now())
+
+  @@unique([userId, sessionId])
 }
 
 model Listing {

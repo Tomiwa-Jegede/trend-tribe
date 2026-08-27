@@ -23,6 +23,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import FeaturesPage from "./pages/FeaturesPage";
 import EditProfilePage from "./pages/EditProfilePage";
+import TokenCallbackPage from "./pages/TokenCallbackPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminListingsPage from "./pages/AdminListingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
@@ -101,7 +102,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-            <Route
+           <Route
               path="/listings/:id/edit"
               element={
                 <ProtectedRoute>
@@ -109,7 +110,14 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-
+            <Route
+              path="/tokens/callback"
+              element={
+                <ProtectedRoute>
+                  <TokenCallbackPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route

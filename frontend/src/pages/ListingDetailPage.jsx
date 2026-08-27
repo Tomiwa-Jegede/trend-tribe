@@ -1,6 +1,7 @@
 // src/pages/ListingDetailPage.jsx — Live API Version
 
 import { useState, useEffect } from "react";
+import { revealContact } from "../services/contactService";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -53,7 +54,7 @@ const formatDate = (dateStr) =>
 const ListingDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUser } = useAuth();
   const { toast } = useToast();
 
   const [listing, setListing] = useState(null);
@@ -65,6 +66,8 @@ const ListingDetailPage = () => {
   const [error, setError] = useState("");
   const [showReportModal, setShowReportModal] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [contactConfirm, setContactConfirm] = useState(null); // { tokenBalance } | null
+  const [contactLoading, setContactLoading] = useState(false);
 
   // ── Fetch real listing ───────────────────────────────────
   useEffect(() => {
@@ -350,32 +353,72 @@ const ListingDetailPage = () => {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  navigate("/login");
-                } else {
-                if (listing.seller.whatsapp) {
-                  const message = encodeURIComponent(`Hi ${listing.seller.fullName}, I'm interested in your listing:
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={async () => {
+                  if (!isAuthenticated) {
+                    navigate("/login");
+                    return;
+                  }
+                  setContactLoading(true);
+                  const result = await revealContact(listing.id);
+                  setContactLoading(false);
 
+                  if (!result.ok && result.needsTokenConfirm) {
+                    if (result.tokenBalance >= 1) {
+                      setContactConfirm({ tokenBalance: result.tokenBalance });
+                    } else {
+                      toast.info(result.error);
+                    }
+                    return;
+                  }
+
+                  setContactConfirm(null);
+
+                  if (result.whatsapp) {
+                    const message = encodeURIComponent(`Hi ${listing.seller.fullName}, I'm interested in your listing:
 📦 Item: ${listing.title}
 💰 Price: ₦${listing.price}
-
 🔗 Listing: ${window.location.origin}/listings/${listing.id}
-
 Is this still available?`);
-                  window.open(`https://wa.me/${listing.seller.whatsapp.replace(/\D/g, "")}?text=${message}`, "_blank");
-                } else {
-                  toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
-                }
-                }
-              }}
-              disabled={!listing.isAvailable}
-              className="btn-primary flex items-center justify-center gap-2 py-3.5"
-            >
-              <FiMessageCircle className="w-5 h-5" />
-              {listing.isAvailable ? "Contact Seller" : "No Longer Available"}
-            </button>
+                    window.open(`https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`, "_blank");
+                  } else {
+                    toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
+                  }
+                }}
+                disabled={!listing.isAvailable || contactLoading}
+                className="btn-primary flex items-center justify-center gap-2 py-3.5"
+              >
+                <FiMessageCircle className="w-5 h-5" />
+                {listing.isAvailable ? "Contact Seller" : "No Longer Available"}
+              </button>
+              {contactConfirm && (
+                <button
+                  onClick={async () => {
+                    setContactLoading(true);
+                    const result = await revealContact(listing.id, true);
+                    refreshUser();
+                    setContactLoading(false);
+                    setContactConfirm(null);
+
+                    if (result.whatsapp) {
+                      const message = encodeURIComponent(`Hi ${listing.seller.fullName}, I'm interested in your listing:
+📦 Item: ${listing.title}
+💰 Price: ₦${listing.price}
+🔗 Listing: ${window.location.origin}/listings/${listing.id}
+Is this still available?`);
+                      window.open(`https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`, "_blank");
+                    } else {
+                      toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
+                    }
+                  }}
+                  disabled={contactLoading}
+                  className="text-xs font-medium text-primary-700 bg-white border border-primary-200 rounded-full px-3 py-1.5 hover:bg-primary-50 disabled:opacity-50 self-start"
+                >
+                  0.25 tokens — click to confirm
+                </button>
+              )}
+            </div>
           )}
 
           {!isOwner && isAuthenticated && (

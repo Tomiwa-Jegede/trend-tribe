@@ -1,6 +1,7 @@
 // src/routes/listing.routes.js
 
 const express = require("express");
+const multer = require("multer");
 const {
   getAllListings,
   getListingById,
@@ -10,6 +11,7 @@ const {
   getListingsByUser,
   reportListing,
   revealContact,
+  searchListingsByImage,
 } = require("../controllers/listing.controller");
 const { protect } = require("../middleware/auth.middleware");
 const { requireVerified, requireSeller } = require("../middleware/verified.middleware");
@@ -18,15 +20,26 @@ const {
   updateListingRules,
 } = require("../validators/listing.validators");
 const validate = require("../middleware/validate");
-
 const router = express.Router();
+
+// In-memory only — this route never touches Cloudinary or disk,
+// the image is used once for Gemini vision then discarded.
+const imageSearchUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
+});
 
 // ─── Public ───────────────────────────────────────────────────
 router.get("/", getAllListings);
 router.get("/user/:userId", getListingsByUser);
 router.get("/:id", getListingById);
-
 // ─── Protected ────────────────────────────────────────────────
+router.post(
+  "/image-search",
+  protect,
+  imageSearchUpload.single("image"),
+  searchListingsByImage,
+);
 router.post(
   "/",
   protect,
@@ -39,6 +52,6 @@ router.post(
 router.put("/:id", protect, requireSeller, updateListingRules, validate, updateListing);
 router.delete("/:id", protect, requireSeller, deleteListing);
 router.post("/:id/report", protect, reportListing);
-router.get("/:id/contact", protect, revealContact);
+router.post("/:id/contact", protect, revealContact);
 
 module.exports = router;

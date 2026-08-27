@@ -6,8 +6,9 @@ import { useAuth } from "../context/AuthContext";
 import ListingCard from "../components/listings/ListingCard";
 import { getListingsByUser } from "../services/listingService";
 import { updateProfile } from "../services/authService";
-import { FiUser, FiMapPin, FiInbox, FiPlus, FiCamera, FiEdit2, FiPhone, FiArrowRight } from "react-icons/fi";
+import { FiUser, FiMapPin, FiInbox, FiPlus, FiCamera, FiEdit2, FiPhone, FiArrowRight, FiZap } from "react-icons/fi";
 import api from "../api/axios";
+import BuyTokens from "../components/ui/BuyTokens";
 
 const ProfilePage = () => {
   const { id } = useParams();
@@ -22,6 +23,7 @@ const ProfilePage = () => {
   const [upgradeData, setUpgradeData] = useState({ runEmail: "", matricNumber: "", otp: "" });
   const [upgradeError, setUpgradeError] = useState("");
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [buyTokensOpen, setBuyTokensOpen] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -222,8 +224,15 @@ const ProfilePage = () => {
 
           {isOwnProfile && (
             <div className="flex items-center gap-2">
-              <Link to={`/profile/${id}/edit`} aria-label="Edit profile" className="btn-secondary flex items-center justify-center"><FiEdit2 className="w-4 h-4" /></Link>
-              <Link
+              <button
+                type="button"
+                onClick={() => setBuyTokensOpen(true)}
+                className="badge bg-primary-50 text-primary-700 border border-primary-200 flex items-center gap-1.5 hover:bg-primary-100 transition-colors"
+              >
+                <FiZap className="w-3.5 h-3.5" />
+                {currentUser?.tokenBalance ?? 0} tokens
+              </button>
+              <Link to={`/profile/${id}/edit`} aria-label="Edit profile" className="btn-secondary flex items-center justify-center"><FiEdit2 className="w-4 h-4" /></Link>              <Link
                 to="/create-listing"
                 className="btn-primary flex items-center gap-2 whitespace-nowrap"
               >
@@ -326,10 +335,12 @@ const ProfilePage = () => {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <FiInbox className="w-6 h-6 text-gray-400" />
-          </div>
-          <p className="text-gray-500">No listings posted yet.</p>
+          </div><p className="text-gray-500">No listings posted yet.</p>
         </div>
-      )}    </div>
+      )}
+
+      <BuyTokens isOpen={buyTokensOpen} onClose={() => setBuyTokensOpen(false)} />
+    </div>
   );
 };
 

@@ -1,6 +1,8 @@
 // src/controllers/listing.controller.js
 
 const prisma = require("../db");
+const { toDisplayTokens } = require("../utils/tokenFormat");
+const { askGeminiVision } = require("../utils/gemini");
 const cloudinary = require("../config/cloudinary");
 
 // ─── Helper: format listing for API response ──────────────────
@@ -128,7 +130,60 @@ const getAllListings = async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
+// ─────────────────────────────────────────────────────────────
+// POST /api/listings/image-search
+// ─────────────────────────────────────────────────────────────
+const searchListingsByImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No image uploaded" });
+    }
 
+    const imageBase64 = req.file.buffer.toString("base64");
+    const mimeType = req.file.mimetype;
+
+    const prompt =
+      "Look at this photo of an item someone wants to sell or find on a campus marketplace. " +
+      'Respond ONLY with JSON in this exact shape: {"keywords": "a few short search words describing the item, e.g. category + notable features"}. ' +
+      "No extra text, no markdown.";
+
+    let keywords;
+    try {
+      const raw = await askGeminiVision(prompt, imageBase64, mimeType);
+      const parsed = JSON.parse(raw);
+      keywords = parsed?.keywords?.trim();
+    } catch (geminiErr) {
+      console.error("[IMAGE SEARCH GEMINI ERROR]", geminiErr);
+      return res.status(502).json({ error: "Could not analyze the image. Try again." });
+    }
+
+    if (!keywords) {
+      return res.status(422).json({ error: "Could not identify anything searchable in that photo." });
+    }
+
+    const where = {
+      isAvailable: true,
+      OR: [
+        { title: { contains: keywords, mode: "insensitive" } },
+        { description: { contains: keywords, mode: "insensitive" } },
+      ],
+    };
+
+    const listings = await prisma.listing.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 24,
+    });
+
+    return res.status(200).json({
+      keywords,
+      listings: listings.map(formatListing),
+    });
+  } catch (err) {
+    console.error("[IMAGE SEARCH ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
 // ─────────────────────────────────────────────────────────────
 // GET /api/listings/:id
 // ─────────────────────────────────────────────────────────────
@@ -195,22 +250,31 @@ const createListing = async (req, res) => {
       where: { sellerId: req.user.id, isAvailable: true },
     });
 
-    let usingFreeSlot = activeListingCount < FREE_LISTING_LIMIT;
-    let seller = null;
+    const isAdmin = req.user.role === "ADMIN";
+    let usingFreeSlot = isAdmin || activeListingCount < FREE_LISTING_LIMIT;
+    const { confirmSpend } = req.body;
 
-    if (!usingFreeSlot) {
-      seller = await prisma.user.findUnique({
+    if (!isAdmin && !usingFreeSlot) {
+      const seller = await prisma.user.findUnique({
         where: { id: req.user.id },
         select: { tokenBalance: true },
       });
 
-      if (!seller || seller.tokenBalance < 1) {
+      if (!seller || seller.tokenBalance < 4) {
         return res.status(403).json({
           error: "You've used all your free listing slots and have no tokens left. Buy tokens to post another listing.",
           limitReached: true,
           currentCount: activeListingCount,
           freeSlotLimit: FREE_LISTING_LIMIT,
-          tokenBalance: seller?.tokenBalance ?? 0,
+          tokenBalance: toDisplayTokens(seller?.tokenBalance ?? 0),
+        });
+      }
+
+      if (!confirmSpend) {
+        return res.status(402).json({
+          needsTokenConfirm: true,
+          tokenBalance: toDisplayTokens(seller.tokenBalance),
+          error: "This will use 1 token to post beyond your 3 free listings. Confirm to continue.",
         });
       }
     }
@@ -246,8 +310,8 @@ const createListing = async (req, res) => {
       ? await prisma.listing.create({ data: listingData, include: listingInclude })
       : await prisma.$transaction(async (tx) => {
           const updatedSeller = await tx.user.updateMany({
-            where: { id: req.user.id, tokenBalance: { gte: 1 } },
-            data: { tokenBalance: { decrement: 1 } },
+            where: { id: req.user.id, tokenBalance: { gte: 4 } },
+            data: { tokenBalance: { decrement: 4 } },
           });
 
           if (updatedSeller.count === 0) {
@@ -287,7 +351,7 @@ const updateListing = async (req, res) => {
     );
     if (error) return res.status(status).json({ error });
 
-    if (!listing.isFreeSlot && listing.editCount >= 2) {
+    if (req.user.role !== "ADMIN" && !listing.isFreeSlot && listing.editCount >= 2) {
       return res.status(403).json({
         error: "This listing has reached its edit limit (2). Delete it and repost with a new token to make further changes.",
         editLimitReached: true,
@@ -525,25 +589,33 @@ const revealContact = async (req, res) => {
     const { confirmSpend } = req.body;
     const viewer = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { numberViewsRemaining: true, tokenBalance: true },
+      select: { tokenBalance: true },
     });
 
     if (!viewer) return res.status(401).json({ error: "Account not found." });
 
-    if (viewer.numberViewsRemaining <= 0) {
+    const isAdmin = req.user.role === "ADMIN";
+
+    if (!isAdmin) {
+      if (viewer.tokenBalance < 1) {
+        return res.status(403).json({
+          error: "You're out of tokens. Buy more to view seller numbers.",
+          limitReached: true,
+          tokenBalance: toDisplayTokens(viewer.tokenBalance),
+        });
+      }
+
       if (!confirmSpend) {
         return res.status(402).json({
           needsTokenConfirm: true,
-          tokenBalance: viewer.tokenBalance,
-          error: viewer.tokenBalance >= 1
-            ? "This will use 1 token for 4 number views. Confirm to continue."
-            : "You're out of tokens. Buy more to view seller numbers.",
+          tokenBalance: toDisplayTokens(viewer.tokenBalance),
+          error: "This will use 0.25 tokens. Confirm to continue.",
         });
       }
 
       const spend = await prisma.user.updateMany({
         where: { id: req.user.id, tokenBalance: { gte: 1 } },
-        data: { tokenBalance: { decrement: 1 }, numberViewsRemaining: 3 },
+        data: { tokenBalance: { decrement: 1 } },
       });
 
       if (spend.count === 0) {
@@ -553,11 +625,6 @@ const revealContact = async (req, res) => {
           error: "You're out of tokens. Buy more to view seller numbers.",
         });
       }
-    } else {
-      await prisma.user.update({
-        where: { id: req.user.id },
-        data: { numberViewsRemaining: { decrement: 1 } },
-      });
     }
 
     return res.status(200).json({ whatsapp: listing.seller.whatsapp });
@@ -576,4 +643,5 @@ module.exports = {
   getListingsByUser,
   reportListing,
   revealContact,
+  searchListingsByImage,
 };

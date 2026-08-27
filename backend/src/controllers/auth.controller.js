@@ -1,5 +1,6 @@
 // src/controllers/auth.controller.js
 
+// src/controllers/auth.controller.js
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const prisma = require("../db");
@@ -7,7 +8,7 @@ const { signToken } = require("../utils/jwt");
 const { generateOTP, getOTPExpiry } = require("../utils/otp");
 const { sendOTPEmail, sendPasswordResetEmail } = require("../utils/email");
 const config = require("../config/env");
-
+const { toDisplayTokens } = require("../utils/tokenFormat");
 // ─── Helper: strip sensitive fields from user object ──────────
 const sanitizeUser = (user) => {
   const {
@@ -18,7 +19,13 @@ const sanitizeUser = (user) => {
     resetTokenExpiresAt,
     ...safeUser
   } = user;
-  return safeUser;
+  return {
+    ...safeUser,
+    tokenBalance:
+      typeof safeUser.tokenBalance === "number"
+        ? toDisplayTokens(safeUser.tokenBalance)
+        : safeUser.tokenBalance,
+  };
 };
 
 // ─── Helper: build token payload ─────────────────────────────
@@ -293,20 +300,25 @@ const getMe = async (req, res) => {
         whatsapp: true,
         isVerified: true,
         role: true,
+        tokenBalance: true,
+        aiUsesRemaining: true,
+        numberViewsRemaining: true,
         createdAt: true,
         updatedAt: true,
         listings: { select: { id: true } },
       },
     });
-
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const { listings, ...userFields } = user;
-
+     const { listings, ...userFields } = user;
     return res.status(200).json({
-      user: { ...userFields, listingCount: listings.length },
+      user: {
+        ...userFields,
+        tokenBalance: toDisplayTokens(userFields.tokenBalance),
+        listingCount: listings.length,
+      },
     });
   } catch (err) {
     console.error("[GET ME ERROR]", err);

@@ -3,13 +3,21 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiMessageCircle, FiX, FiSend, FiShoppingBag } from "react-icons/fi";
+import { FiMessageCircle, FiX, FiSend, FiShoppingBag, FiPaperclip } from "react-icons/fi";
 import { askFrederick } from "../../services/frederickService";
+import { useAuth } from "../../context/AuthContext";
+import BuyTokens from "../ui/BuyTokens";
 
 const FrederickWidget = () => {
+  const { refreshUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingImage, setPendingImage] = useState(null); // File object
+  const [pendingImagePreview, setPendingImagePreview] = useState(null); // object URL
+ const [sessionId, setSessionId] = useState(null); // regenerated each time the widget is opened
+  const [buyTokensOpen, setBuyTokensOpen] = useState(false);
+  const fileInputRef = useRef(null);
   const [messages, setMessages] = useState([
     {
       role: "frederick",
@@ -25,17 +33,96 @@ const FrederickWidget = () => {
     }
   }, [messages, open]);
 
+  const clearPendingImage = () => {
+    if (pendingImagePreview) {
+      URL.revokeObjectURL(pendingImagePreview);
+    }
+    setPendingImage(null);
+    setPendingImagePreview(null);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      e.target.value = "";
+      return;
+    }
+
+    if (pendingImagePreview) {
+      URL.revokeObjectURL(pendingImagePreview);
+    }
+
+    setPendingImage(file);
+    setPendingImagePreview(URL.createObjectURL(file));
+    e.target.value = ""; // allow re-selecting the same file later
+  };
+
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
 
-    setMessages((prev) => [...prev, { role: "user", text: trimmed, products: [] }]);
+    const imageToSend = pendingImage;
+    const imagePreviewToSend = pendingImagePreview;
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: trimmed, products: [], imagePreview: imagePreviewToSend },
+    ]);
     setInput("");
+    setPendingImage(null);
+    setPendingImagePreview(null); // don't revoke — the message list now owns this URL
     setLoading(true);
 
     try {
-      const { reply, products } = await askFrederick(trimmed);
-      setMessages((prev) => [...prev, { role: "frederick", text: reply, products }]);
+      const result = await askFrederick(trimmed, false, imageToSend, sessionId);
+
+      if (!result.ok && result.needsTokenConfirm) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "frederick",
+            text: result.error,
+            products: [],
+                       tokenConfirm:
+              result.tokenBalance >= 0.25
+                ? {
+                    pendingMessage: trimmed,
+                    pendingImage: imageToSend,
+                    cost: imageToSend ? 0.5 : 0.25,
+                  }
+                : null,
+            needsTokens: result.tokenBalance < 0.25,
+          },
+        ]);      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: "frederick", text: result.reply, products: result.products },
+        ]);
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "frederick",
+          text: "Sorry, I'm having trouble right now. Please try again in a moment.",
+          products: [],
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmSpend = async (pendingMessage, pendingImage) => {
+    setLoading(true);
+    try {
+      const result = await askFrederick(pendingMessage, true, pendingImage, sessionId);
+      refreshUser();
+      setMessages((prev) => [
+        ...prev,
+        { role: "frederick", text: result.reply, products: result.products || [] },
+      ]);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -74,7 +161,13 @@ const FrederickWidget = () => {
           )}
         </AnimatePresence>
              <motion.button
-          onClick={() => setOpen((o) => !o)}
+          onClick={() =>
+            setOpen((o) => {
+              const next = !o;
+              if (next) setSessionId(crypto.randomUUID());
+              return next;
+            })
+          }
           className="relative w-14 h-14 rounded-full text-white flex items-center justify-center
                      overflow-hidden transition-colors"
           style={{
@@ -156,7 +249,33 @@ const FrederickWidget = () => {
                         : "bg-sage-50 text-gray-700 rounded-bl-sm"
                     }`}
                   >
+                    {m.imagePreview && (
+                      <img
+                        src={m.imagePreview}
+                        alt="Sent attachment"
+                        className="mb-1 max-h-32 rounded-lg object-cover"
+                      />
+                    )}
                     <p>{m.text}</p>
+                   {m.tokenConfirm && (
+                      <button
+                        onClick={() =>
+                          handleConfirmSpend(m.tokenConfirm.pendingMessage, m.tokenConfirm.pendingImage)
+                        }
+                        disabled={loading}
+                        className="mt-2 text-xs font-medium text-primary-700 bg-white border border-primary-200 rounded-full px-3 py-1.5 hover:bg-primary-50 disabled:opacity-50"
+                      >
+                        {`Use ${m.tokenConfirm.cost} tokens — continue`}
+                      </button>
+                    )}
+                    {m.needsTokens && (
+                      <button
+                        onClick={() => setBuyTokensOpen(true)}
+                        className="mt-2 text-xs font-medium text-primary-700 bg-white border border-primary-200 rounded-full px-3 py-1.5 hover:bg-primary-50"
+                      >
+                        Buy more tokens
+                      </button>
+                    )}
                     {m.products?.length > 0 && (
                       <div className="mt-2 space-y-2">
                         {m.products.map((p) => (
@@ -207,7 +326,42 @@ const FrederickWidget = () => {
               )}
             </div>
 
+            {pendingImagePreview && (
+              <div className="px-3 pt-2 flex items-center gap-2">
+                <div className="relative inline-block">
+                  <img
+                    src={pendingImagePreview}
+                    alt="Attached preview"
+                    className="h-14 w-14 rounded-lg object-cover border border-sage-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={clearPendingImage}
+                    aria-label="Remove image"
+                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-700 text-white text-xs flex items-center justify-center hover:bg-gray-900"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="border-t border-sage-100 p-2 flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Attach image"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-sage-100 transition-colors flex-shrink-0"
+              >
+                <FiPaperclip className="w-4 h-4" />
+              </button>
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -220,7 +374,7 @@ const FrederickWidget = () => {
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
                 className="w-9 h-9 rounded-full bg-primary-600 text-white flex items-center
-                           justify-center disabled:opacity-40 hover:bg-primary-700 transition-colors"
+                           justify-center disabled:opacity-40 hover:bg-primary-700 transition-colors flex-shrink-0"
                 aria-label="Send"
               >
                 <FiSend className="w-4 h-4" />
@@ -229,6 +383,8 @@ const FrederickWidget = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <BuyTokens isOpen={buyTokensOpen} onClose={() => setBuyTokensOpen(false)} />
     </>
   );
 };

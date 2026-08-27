@@ -1,3 +1,10 @@
+process.on("unhandledRejection", (reason) => {
+  console.error("[UNHANDLED REJECTION]", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[UNCAUGHT EXCEPTION]", err);
+});
+
 // src/index.js — Trend Tribe Backend Entry Point
 
 const express = require("express");
@@ -13,6 +20,8 @@ const listingRoutes = require("./routes/listing.routes");
 const uploadRoutes = require("./routes/upload.routes");
 const adminRoutes = require("./routes/admin.routes");
 const frederickRoutes = require("./routes/frederick.routes");
+const paymentRoutes = require("./routes/payment.routes");
+const { handleWebhook } = require("./controllers/payment.controller");
 
 const app = express();
 
@@ -27,6 +36,11 @@ app.use(
 );
 
 app.use(morgan(config.isDev ? "dev" : "combined")); // verbose in dev, compact in prod
+
+// ─── Paystack Webhook (raw body required for signature verification) ──
+// Must be mounted BEFORE express.json() so the raw buffer is preserved.
+app.post("/api/payments/webhook", express.raw({ type: "application/json" }), handleWebhook);
+
 app.use(express.json());
 
 // ─── Health Check ─────────────────────────────────────────────
@@ -55,6 +69,7 @@ app.use("/api/listings", listingRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/frederick", frederickRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {

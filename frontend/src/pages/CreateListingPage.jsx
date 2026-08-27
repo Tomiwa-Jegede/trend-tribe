@@ -1,14 +1,18 @@
 // src/pages/CreateListingPage.jsx — Live API Version
 
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ListingForm from "../components/listings/ListingForm";
 import { createListing } from "../services/listingService";
 import Alert from "../components/ui/Alert";
-
+import BuyTokens from "../components/ui/BuyTokens";
 const CreateListingPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+const [pendingListing, setPendingListing] = useState(null); // { formData, tokenBalance } | null
+  const [confirming, setConfirming] = useState(false);
+  const [buyTokensOpen, setBuyTokensOpen] = useState(false);
 
   // ── Block buyer accounts ─────────────────────────────────────
   if (user && user.role === "BUYER") {
@@ -51,8 +55,31 @@ const CreateListingPage = () => {
   }
 
   const handleSubmit = async (formData) => {
-    const listing = await createListing(formData);
-    navigate(`/listings/${listing.id}`);
+    const result = await createListing(formData);
+
+    if (!result.ok) {
+      if (result.needsTokenConfirm) {
+        setPendingListing({ formData, tokenBalance: result.tokenBalance });
+      }
+      throw { response: { data: { error: result.error } } };
+    }
+
+    refreshUser();
+    navigate(`/listings/${result.listing.id}`);
+  };
+
+  const handleConfirmSpend = async () => {
+    if (!pendingListing) return;
+    setConfirming(true);
+    try {
+      const result = await createListing(pendingListing.formData, true);
+      if (result.ok) {
+        refreshUser();
+        navigate(`/listings/${result.listing.id}`);
+      }
+    } finally {
+      setConfirming(false);
+    }
   };
 
   return (
@@ -70,6 +97,25 @@ const CreateListingPage = () => {
           submitLabel="Post Listing"
           loadingLabel="Posting..."
         />
+        {pendingListing && (
+          pendingListing.tokenBalance >= 1 ? (
+            <button
+              onClick={handleConfirmSpend}
+              disabled={confirming}
+              className="mt-3 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-4 py-2 hover:bg-primary-100 disabled:opacity-50"
+            >
+              {confirming ? "Posting..." : "This will use 1 token — confirm & post"}
+            </button>
+          ) : (
+            <button
+              onClick={() => setBuyTokensOpen(true)}
+              className="mt-3 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-4 py-2 hover:bg-primary-100"
+            >
+              Out of tokens — buy more
+            </button>
+          )
+        )}
+        <BuyTokens isOpen={buyTokensOpen} onClose={() => setBuyTokensOpen(false)} />
       </div>
     </div>
   );

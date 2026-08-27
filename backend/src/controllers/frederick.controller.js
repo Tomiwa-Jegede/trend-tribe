@@ -1,7 +1,9 @@
 // src/controllers/frederick.controller.js
 
 const prisma = require("../db");
-const { askGemini } = require("../utils/gemini");
+const { askGemini, askGeminiVision } = require("../utils/gemini");
+const { toDisplayTokens } = require("../utils/tokenFormat");
+
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/frederick/chat ← PUBLIC
@@ -17,30 +19,55 @@ const chat = async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const { confirmSpend } = req.body;
+    if (!req.user) {
+      return res.status(401).json({ error: "Please log in to chat with Jegede." });
+    }
+
+    // form-data sends booleans as strings
+    const confirmSpend = req.body.confirmSpend === "true" || req.body.confirmSpend === true;
+ const hasImage = !!req.file;
+const { sessionId } = req.body;
+
+if (!sessionId) {
+  return res.status(400).json({ error: "Missing session id" });
+}
+
+const existingSession = await prisma.frederickSession.findUnique({
+  where: { userId_sessionId: { userId: req.user.id, sessionId } },
+});
+
+const cost = existingSession ? 0 : (hasImage ? 2 : 1); // units (1 unit = 0.25 tokens); image search = 0.5 tokens flat
     let seller = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { aiUsesRemaining: true, tokenBalance: true },
+      select: { tokenBalance: true },
     });
 
     if (!seller) {
       return res.status(401).json({ error: "Account not found." });
     }
 
-    if (seller.aiUsesRemaining <= 0) {
+    const isAdmin = req.user.role === "ADMIN";
+
+    if (!isAdmin && cost > 0) {
+      if (seller.tokenBalance < cost) {
+        return res.status(403).json({
+          error: "You're out of tokens. Buy more to keep chatting with Jegede.",
+          limitReached: true,
+          tokenBalance: toDisplayTokens(seller.tokenBalance),
+        });
+      }
+
       if (!confirmSpend) {
         return res.status(402).json({
           needsTokenConfirm: true,
-          tokenBalance: seller.tokenBalance,
-          error: seller.tokenBalance >= 1
-            ? "This will use 1 token for 4 AI replies. Confirm to continue."
-            : "You're out of tokens. Buy more to keep chatting with Jegede.",
+          tokenBalance: toDisplayTokens(seller.tokenBalance),
+          error: `This will use ${toDisplayTokens(cost)} tokens. Confirm to continue.`,
         });
       }
 
       const spend = await prisma.user.updateMany({
-        where: { id: req.user.id, tokenBalance: { gte: 1 } },
-        data: { tokenBalance: { decrement: 1 }, aiUsesRemaining: 3 },
+        where: { id: req.user.id, tokenBalance: { gte: cost } },
+        data: { tokenBalance: { decrement: cost } },
       });
 
       if (spend.count === 0) {
@@ -50,10 +77,9 @@ const chat = async (req, res) => {
           error: "You're out of tokens. Buy more to keep chatting with Jegede.",
         });
       }
-    } else {
-      await prisma.user.update({
-        where: { id: req.user.id },
-        data: { aiUsesRemaining: { decrement: 1 } },
+
+      await prisma.frederickSession.create({
+        data: { userId: req.user.id, sessionId, cost },
       });
     }
 
@@ -86,9 +112,13 @@ const chat = async (req, res) => {
 
     const shopperName = req.user.username;
 
+    const imageInstruction = hasImage
+      ? `\n\nThe shopper also attached a photo along with their message. First, identify what the item in the photo is (type, color, material, style — whatever's visually clear). Then use that identification together with their typed message to find matches in the catalog below.`
+      : "";
+
     const prompt = `You are Jegede, TrendTribe's AI shopping assistant — a campus marketplace where students buy and sell items (books, electronics, clothing, etc).
 
-You are speaking with: ${shopperName} (a logged-in shopper — you may address them by this name).
+You are speaking with: ${shopperName} (a logged-in shopper — you may address them by this name).${imageInstruction}
 
 TONE & PERSONALITY
 - Greet casually, Nigerian-style — e.g. "How far? 👋" — then speak normally/properly for the rest of your reply.
@@ -136,7 +166,9 @@ Respond with ONLY valid JSON in exactly this shape, no other text, no markdown f
   "matchedIds": [array of matching listing ids, ordered best match first, empty array if none]
 }`;
 
-    const rawText = await askGemini(prompt);
+    const rawText = hasImage
+      ? await askGeminiVision(prompt, req.file.buffer.toString("base64"), req.file.mimetype)
+      : await askGemini(prompt);
 
     let parsed;
     try {

@@ -36,18 +36,20 @@ export const getListingById = async (id) => {
   return data.listing;
 };
 
+
+
 // ─── POST /api/listings ─────────────────────────────────────────
-export const createListing = async (listingData) => {
-  const { data } = await api.post("/listings", listingData);
-  return data.listing;
+export const createListing = async (listingData, confirmSpend = false) => {
+  try {
+    const { data } = await api.post("/listings", { ...listingData, confirmSpend });
+    return { ok: true, listing: data.listing };
+  } catch (err) {
+    if (err.response?.status === 402 || err.response?.status === 403) {
+      return { ok: false, needsTokenConfirm: err.response.status === 402, ...err.response.data };
+    }
+    throw err;
+  }
 };
-
-// ─── PUT /api/listings/:id ───────────────────────────────────────
-export const updateListing = async (id, listingData) => {
-  const { data } = await api.put(`/listings/${id}`, listingData);
-  return data.listing;
-};
-
 // ─── DELETE /api/listings/:id ────────────────────────────────────
 export const deleteListing = async (id) => {
   const { data } = await api.delete(`/listings/${id}`);
@@ -64,4 +66,18 @@ export const getListingsByUser = async (userId, params = {}) => {
 export const reportListing = async (id, reason) => {
   const { data } = await api.post(`/listings/${id}/report`, { reason });
   return data; // { message }
+};
+// ─── PUT /api/listings/:id ───────────────────────────────────────
+export const updateListing = async (id, formData) => {
+  const { data } = await api.put(`/listings/${id}`, formData);
+  return data.listing;
+};
+// ─── POST /api/listings/image-search ─────────────────────────────
+export const searchByImage = async (file) => {
+  const form = new FormData();
+  form.append("image", file);
+  const { data } = await api.post("/listings/image-search", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data; // { keywords, listings }
 };

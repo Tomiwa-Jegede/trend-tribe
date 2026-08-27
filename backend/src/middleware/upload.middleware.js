@@ -39,11 +39,15 @@ const upload = multer({
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024, files: 5 },
 });
-
 const uploadAvatar = multer({
   storage: avatarStorage,
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
 });
-
-module.exports = { upload, uploadAvatar };
+// ─── In-memory storage (Frederick image search — not persisted) ──
+const uploadMemory = multer({
+  storage: multer.memoryStorage(),
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+});
+module.exports = { upload, uploadAvatar, uploadMemory };
