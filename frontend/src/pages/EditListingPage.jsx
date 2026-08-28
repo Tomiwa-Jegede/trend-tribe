@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ListingForm from "../components/listings/ListingForm";
-import { updateListing } from "../services/listingService";
+import { updateListing, getListingById } from "../services/listingService";
 import { FiAlertCircle } from "react-icons/fi";
-import axios from "axios";
 
 const EditListingPage = () => {
   const { id } = useParams();
@@ -21,8 +20,7 @@ const EditListingPage = () => {
     useEffect(() => {
     const timer = setTimeout(async () => {
       try {
-        const res = await axios.get(`http://localhost:5050/api/listings/${id}`);
-        const found = res.data.listing;
+        const found = await getListingById(id);
         if (!found) {
           setNotFound(true);
         } else if (found.seller.id !== user?.id) {
