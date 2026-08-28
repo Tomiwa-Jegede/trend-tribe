@@ -60,7 +60,7 @@ const STEPS = [
     icon: FiBook,
     label: "School Details",
     desc: "School & matric number",
-    fields: ["school", "matricNumber"],
+    fields: ["school", "matricNumber", "whatsapp"],
   },
   {
     icon: FiLock,
@@ -106,6 +106,7 @@ const RegisterPage = () => {
     confirmPassword: "",
     school: "Redeemer's University",
     matricNumber: "",
+    whatsapp: "",
   });
 
   // ── Separate state for the two agreement checkboxes ─────────
@@ -184,6 +185,11 @@ const RegisterPage = () => {
       if (!formData.school.trim()) newErrors.school = "School is required";
       if (!formData.matricNumber.trim())
         newErrors.matricNumber = "Matric number is required";
+      if (!formData.whatsapp.trim())
+        newErrors.whatsapp = "WhatsApp number is required";
+      else if (!/^(\+234|0)[789][01]\d{8}$/.test(formData.whatsapp.trim()))
+        newErrors.whatsapp =
+          "Enter a valid Nigerian phone number (e.g. 08012345678)";
     }
 
     // ── New: required agreement checks ─────────────────────────
@@ -212,6 +218,7 @@ const RegisterPage = () => {
         role,
         school: role === "SELLER" ? formData.school.trim() : "",
         matricNumber: role === "SELLER" ? formData.matricNumber.trim() : "",
+        whatsapp: role === "SELLER" ? formData.whatsapp.trim() : "",
       };
       await api.post("/auth/register", payload);
       navigate("/verify-registration", {
@@ -382,6 +389,15 @@ const RegisterPage = () => {
                       onChange={handleChange}
                       error={errors.matricNumber}
                       placeholder="e.g. Run/***/**/17200"
+                      required
+                    />
+                    <FormInput
+                      label="WhatsApp Number"
+                      name="whatsapp"
+                      value={formData.whatsapp}
+                      onChange={handleChange}
+                      error={errors.whatsapp}
+                      placeholder="e.g. 08012345678"
                       required
                     />
                   </div>

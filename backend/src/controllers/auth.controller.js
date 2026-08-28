@@ -43,7 +43,7 @@ const buildTokenPayload = (user) => ({
 // ─────────────────────────────────────────────────────────────
 const register = async (req, res) => {
   try {
-    const { email, username, password, fullName, school, matricNumber, bio, role } =
+    const { email, username, password, fullName, school, matricNumber, whatsapp, bio, role } =
       req.body;
 
     const accountRole = role === "SELLER" ? "SELLER" : "BUYER";
@@ -57,6 +57,9 @@ const register = async (req, res) => {
       }
       if (!school || !school.trim()) {
         return res.status(400).json({ error: "School is required for seller accounts" });
+      }
+      if (!whatsapp || !whatsapp.trim()) {
+        return res.status(400).json({ error: "WhatsApp number is required for seller accounts" });
       }
     }
 
@@ -99,6 +102,7 @@ const register = async (req, res) => {
         fullName,
         school: school ? school.trim() : "",
         matricNumber: matricNumber ? matricNumber.trim() : null,
+        whatsapp: whatsapp ? whatsapp.trim() : null,
         bio: bio || null,
         role: accountRole,
         otpCode,
@@ -111,6 +115,7 @@ const register = async (req, res) => {
         fullName,
         school: school ? school.trim() : "",
         matricNumber: matricNumber ? matricNumber.trim() : null,
+        whatsapp: whatsapp ? whatsapp.trim() : null,
         bio: bio || null,
         role: accountRole,
         otpCode,
@@ -214,6 +219,7 @@ const verifyRegistration = async (req, res) => {
         fullName: pending.fullName,
         school: pending.school,
         matricNumber: pending.matricNumber,
+        whatsapp: pending.whatsapp,
         bio: pending.bio,
         role: pending.role,
         isVerified: true,

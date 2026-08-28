@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import ListingCard from "../components/listings/ListingCard";
 import { getListingsByUser } from "../services/listingService";
 import { updateProfile } from "../services/authService";
+import Alert from "../components/ui/Alert";
 import { FiUser, FiMapPin, FiInbox, FiPlus, FiCamera, FiEdit2, FiPhone, FiArrowRight, FiZap } from "react-icons/fi";
 import api from "../api/axios";
 import BuyTokens from "../components/ui/BuyTokens";
@@ -119,6 +120,12 @@ const ProfilePage = () => {
 
   return (
     <div className="container-app py-10">
+      {isOwnProfile && seller.role === "SELLER" && !seller.whatsapp && (
+        <Alert
+          type="info"
+          message="Add your WhatsApp number so buyers can reach you — go to Edit Profile to add it."
+        />
+      )}
       {/* ── Profile Header ── */}
       <div className="card p-6 sm:p-8 mb-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">

@@ -45,6 +45,7 @@ model PendingRegistration {
   fullName     String
   school       String
   matricNumber String?
+  whatsapp     String?
   bio          String?
   role         Role     @default(BUYER)
   otpCode      String

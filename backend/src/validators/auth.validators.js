@@ -46,6 +46,14 @@ const registerRules = [
     .isLength({ max: 100 })
     .withMessage("School name must be under 100 characters"),
 
+  body("whatsapp")
+    .if((value, { req }) => req.body.role === "SELLER")
+    .trim()
+    .notEmpty()
+    .withMessage("WhatsApp number is required for seller accounts")
+    .matches(/^(\+234|0)[789][01]\d{8}$/)
+    .withMessage("Enter a valid Nigerian phone number (e.g. 08012345678 or +2348012345678)"),
+
   body("bio")
     .optional()
     .trim()
