@@ -3,8 +3,8 @@ import AboutPage from "./pages/AboutPage";
 import FAQPage from "./pages/FAQPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
-import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
@@ -77,8 +77,24 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+// ─── Analytics: track pageviews on route change (SPA navigation
+// doesn't trigger a full reload, so GA4's base snippet only fires
+// once on first load without this) ──────────────────────────────
+const usePageviewTracking = () => {
+  const location = useLocation();
+  useEffect(() => {
+    if (typeof window.gtag !== "function") return;
+    window.gtag("event", "page_view", {
+      page_path: location.pathname + location.search,
+      page_location: window.location.href,
+      page_title: document.title,
+    });
+  }, [location]);
+};
+
 // ─── App ──────────────────────────────────────────────────────
 const App = () => {
+  usePageviewTracking();
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
