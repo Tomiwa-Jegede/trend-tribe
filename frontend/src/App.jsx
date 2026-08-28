@@ -3,6 +3,7 @@ import AboutPage from "./pages/AboutPage";
 import FAQPage from "./pages/FAQPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Navbar from "./components/layout/Navbar";
@@ -14,20 +15,22 @@ import MarketplacePage from "./pages/MarketplacePage";
 import ListingDetailPage from "./pages/ListingDetailPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import CreateListingPage from "./pages/CreateListingPage";
-import EditListingPage from "./pages/EditListingPage";
 import ProfilePage from "./pages/ProfilePage";
 import VerifyOtpPage from "./pages/VerifyOtpPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import FeaturesPage from "./pages/FeaturesPage";
-import EditProfilePage from "./pages/EditProfilePage";
 import TokenCallbackPage from "./pages/TokenCallbackPage";
-import AdminDashboardPage from "./pages/AdminDashboardPage";
-import AdminListingsPage from "./pages/AdminListingsPage";
-import AdminUsersPage from "./pages/AdminUsersPage";
-import AdminReportsPage from "./pages/AdminReportsPage";
+
+// ─── Lazy-loaded (heavier / less-frequently-visited pages) ────
+const CreateListingPage = lazy(() => import("./pages/CreateListingPage"));
+const EditListingPage = lazy(() => import("./pages/EditListingPage"));
+const EditProfilePage = lazy(() => import("./pages/EditProfilePage"));
+const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
+const AdminListingsPage = lazy(() => import("./pages/AdminListingsPage"));
+const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
+const AdminReportsPage = lazy(() => import("./pages/AdminReportsPage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -82,6 +85,16 @@ const App = () => {
 
       <main className="flex-1">
         <PageTransition>
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-screen">
+                <div
+                  className="w-8 h-8 border-4 border-primary-600
+                                border-t-transparent rounded-full animate-spin"
+                />
+              </div>
+            }
+          >
           <Routes>
             {/* Public */}
             <Route path="/" element={<HomePage />} />
@@ -173,6 +186,7 @@ const App = () => {
             <Route path="/notifications" element={<ComingSoonPage />} />
             <Route path="/my-listings" element={<ComingSoonPage />} />
           </Routes>
+          </Suspense>
         </PageTransition>
       </main>
 
