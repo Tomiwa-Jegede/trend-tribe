@@ -189,6 +189,13 @@ const ListingDetailPage = () => {
           property="og:url"
           content={`https://trendtribee.netlify.app/listings/${listing.id}`}
         />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${listing.title} — Trend Tribe`} />
+        <meta
+          name="twitter:description"
+          content={listing.description?.slice(0, 155) || "View this listing on Trend Tribe."}
+        />
+        {images[0] && <meta name="twitter:image" content={images[0]} />}
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
