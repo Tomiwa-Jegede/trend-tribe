@@ -9,7 +9,7 @@ import { useAuth } from "../../context/AuthContext";
 import BuyTokens from "../ui/BuyTokens";
 
 const FrederickWidget = () => {
-  const { refreshUser } = useAuth();
+  const { refreshUser, isAuthenticated } = useAuth();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,20 +18,36 @@ const FrederickWidget = () => {
  const [sessionId, setSessionId] = useState(null); // regenerated each time the widget is opened
   const [buyTokensOpen, setBuyTokensOpen] = useState(false);
   const fileInputRef = useRef(null);
-  const [messages, setMessages] = useState([
+    const INITIAL_MESSAGES = [
     {
       role: "frederick",
       text: "How far, I'm Jegede 👋 Tell me what you're looking for and I'll find it for you.",
       products: [],
     },
-  ]);
+  ];
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const scrollRef = useRef(null);
-
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, open]);
+  // ─── Close + reset session (used by every close trigger) ──────
+  const closeWidget = () => {
+    setOpen(false);
+    setMessages(INITIAL_MESSAGES);
+    setSessionId(null);
+    setInput("");
+    clearPendingImage();
+  };
+  // ─── Reset chat when the user logs out ─────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setOpen(false);
+      setMessages(INITIAL_MESSAGES);
+      setSessionId(null);
+    }
+  }, [isAuthenticated]);
 
   const clearPendingImage = () => {
     if (pendingImagePreview) {
@@ -161,13 +177,14 @@ const FrederickWidget = () => {
           )}
         </AnimatePresence>
              <motion.button
-          onClick={() =>
-            setOpen((o) => {
-              const next = !o;
-              if (next) setSessionId(crypto.randomUUID());
-              return next;
-            })
-          }
+          onClick={() => {
+            if (open) {
+              closeWidget();
+            } else {
+              setOpen(true);
+              setSessionId(crypto.randomUUID());
+            }
+          }}
           className="relative w-14 h-14 rounded-full text-white flex items-center justify-center
                      overflow-hidden transition-colors"
           style={{
@@ -206,8 +223,8 @@ const FrederickWidget = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+            onClick={closeWidget}
+            className="fixed inset-0 z-[55] bg-black/20 backdrop-blur-sm"
           />
         )}
       </AnimatePresence>
@@ -219,7 +236,7 @@ const FrederickWidget = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 z-50 w-full h-full
+            className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 z-[56] w-full h-full
                        sm:w-[92vw] sm:max-w-sm sm:h-[70vh] sm:max-h-[560px]
                        bg-white rounded-none sm:rounded-2xl shadow-2xl border-0 sm:border border-sage-100
                        flex flex-col overflow-hidden"
@@ -231,7 +248,7 @@ const FrederickWidget = () => {
                 <p className="text-xs text-primary-100 leading-tight">Your personal shopper</p>
               </div>
               <button
-                onClick={() => setOpen(false)}
+                onClick={closeWidget}
                 className="sm:hidden w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
                 aria-label="Close Jegede"
               >
@@ -282,7 +299,7 @@ const FrederickWidget = () => {
                           <Link
                             key={p.id}
                             to={`/listings/${p.id}`}
-                            onClick={() => setOpen(false)}
+                            onClick={closeWidget}
                             className="flex items-center gap-2 bg-white rounded-lg p-2 hover:bg-sage-100 transition-colors"
                           >
                             <div className="w-10 h-10 rounded-md bg-sage-100 overflow-hidden flex-shrink-0">
