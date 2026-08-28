@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 import { FiEye, FiUsers, FiHeart, FiZap, FiLink } from "react-icons/fi";
 
 const fadeUp = {
@@ -99,9 +100,16 @@ const TICKER_ITEMS = [
 
 const AboutPage = () => {
   const reduced = useReducedMotion();
-
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col">
+      <Helmet>
+        <title>About Us — Trend Tribe</title>
+        <meta
+          name="description"
+          content="Learn about Trend Tribe, the student-only marketplace built for campus communities."
+        />
+        <link rel="canonical" href="https://trendtribee.netlify.app/about" />
+      </Helmet>
       {/* ── Hero ───────────────────────────────────────────── */}
       <div
         className="relative overflow-hidden flex items-center justify-center py-24 px-6"

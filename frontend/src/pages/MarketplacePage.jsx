@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 import ListingCard from "../components/listings/ListingCard";
 import ListingCardSkeleton from "../components/listings/ListingCardSkeleton";
 import FilterBar from "../components/listings/FilterBar";
@@ -128,6 +129,14 @@ const MarketplacePage = () => {
 
   return (
     <>
+      <Helmet>
+        <title>Marketplace — Trend Tribe</title>
+        <meta
+          name="description"
+          content="Browse books, electronics, clothing, and more for sale by students on your campus."
+        />
+        <link rel="canonical" href="https://trendtribee.netlify.app/marketplace" />
+      </Helmet>
       <HomeTicker variant="info" />
       <div className="container-app py-10">
         {/* ── Page Header ──────────────────────────────────── */}

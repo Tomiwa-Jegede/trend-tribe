@@ -6,6 +6,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import ReportModal from "../components/ui/ReportModal";
+import { Helmet } from "react-helmet-async";
 import Alert from "../components/ui/Alert";
 import { getListingById, deleteListing, reportListing } from "../services/listingService";
 import { useToast } from "../context/ToastContext";
@@ -166,9 +167,29 @@ const ListingDetailPage = () => {
   }
 
   const images = listing.images?.length > 0 ? listing.images : [null];
-
   return (
     <div className="container-app py-8">
+      <Helmet>
+        <title>{listing.title} — Trend Tribe</title>
+        <meta
+          name="description"
+          content={listing.description?.slice(0, 155) || "View this listing on Trend Tribe, the student marketplace."}
+        />
+        <link
+          rel="canonical"
+          href={`https://trendtribee.netlify.app/listings/${listing.id}`}
+        />
+        <meta property="og:title" content={`${listing.title} — Trend Tribe`} />
+        <meta
+          property="og:description"
+          content={listing.description?.slice(0, 155) || "View this listing on Trend Tribe."}
+        />
+        {images[0] && <meta property="og:image" content={images[0]} />}
+        <meta
+          property="og:url"
+          content={`https://trendtribee.netlify.app/listings/${listing.id}`}
+        />
+      </Helmet>
       {/* ── Breadcrumb ────────────────────────────────── */}
       <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
         <Link

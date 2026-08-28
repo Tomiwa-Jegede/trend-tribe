@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   motion,
   useInView,
@@ -156,6 +157,14 @@ const FAQPage = () => {
   const reduced = useReducedMotion();
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col">
+      <Helmet>
+        <title>FAQ — Trend Tribe</title>
+        <meta
+          name="description"
+          content="Frequently asked questions about buying, selling, and using Trend Tribe on your campus."
+        />
+        <link rel="canonical" href="https://trendtribee.netlify.app/faq" />
+      </Helmet>
       {/* ── Hero ───────────────────────────────────────────── */}
       <div
         className="relative overflow-hidden flex items-center justify-center py-24 px-6"

@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 
 import HomeTicker from "../components/home/HomeTicker";
+import { Helmet } from "react-helmet-async";
 
 // ── Static data ────────────────────────────────────────────────
 const CATEGORIES = [
@@ -126,9 +127,22 @@ const RevealSection = ({ children, className = "", delay = 0 }) => {
 const HomePage = () => {
   const { isAuthenticated } = useAuth();
   const reduced = useReducedMotion();
-
   return (
     <div className="flex flex-col">
+      <Helmet>
+        <title>Trend Tribe — Student Marketplace</title>
+        <meta
+          name="description"
+          content="Trend Tribe — the student-only marketplace to buy, sell, and trade within your campus community."
+        />
+        <link rel="canonical" href="https://trendtribee.netlify.app/" />
+        <meta property="og:title" content="Trend Tribe — Student Marketplace" />
+        <meta
+          property="og:description"
+          content="The student-only marketplace to buy, sell, and trade within your campus community."
+        />
+        <meta property="og:url" content="https://trendtribee.netlify.app/" />
+      </Helmet>
       {/* ══ HERO ══════════════════════════════════════════════ */}
       <section
         className="relative text-white overflow-hidden min-h-[88vh] flex items-center"

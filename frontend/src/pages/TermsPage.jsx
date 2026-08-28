@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -86,6 +87,14 @@ const TermsPage = () => {
   const reduced = useReducedMotion();
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col">
+      <Helmet>
+        <title>Terms of Service — Trend Tribe</title>
+        <meta
+          name="description"
+          content="Read the terms of service for using Trend Tribe, the student marketplace."
+        />
+        <link rel="canonical" href="https://trendtribee.netlify.app/terms" />
+      </Helmet>
       {/* ── Hero ───────────────────────────────────────────── */}
       <div
         className="relative overflow-hidden flex items-center justify-center py-20 px-6"

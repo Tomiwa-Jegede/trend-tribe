@@ -9,8 +9,8 @@ const Footer = () => {
           {/* Brand */}
           <div className="max-w-xs">
             <Link to="/" className="flex items-center gap-2 mb-3">
-              <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-600/30">
-                <FiShoppingBag className="text-white w-4 h-4" />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center">
+                <img src="/trendtribe_logo.png" alt="TrendTribe" className="w-full h-full object-contain rounded-xl" />
               </div>
               <span className="font-bold text-lg text-white">
                 Trend<span className="text-accent-400">Tribe</span>

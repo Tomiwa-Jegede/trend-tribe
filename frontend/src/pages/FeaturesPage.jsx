@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { motion, useReducedMotion, useInView } from "framer-motion";
 import {
   FiSearch,
@@ -135,9 +136,16 @@ const CATEGORIES = [
 // ── Main component ────────────────────────────────────────────
 const FeaturesPage = () => {
   const reduced = useReducedMotion();
-
   return (
     <div className="flex flex-col">
+      <Helmet>
+        <title>Features — Trend Tribe</title>
+        <meta
+          name="description"
+          content="Explore Trend Tribe's features for buying, selling, and trading within your campus community."
+        />
+        <link rel="canonical" href="https://trendtribee.netlify.app/features" />
+      </Helmet>
       {/* ══ HERO ══════════════════════════════════════════════ */}
       <section
         className="relative text-white overflow-hidden"

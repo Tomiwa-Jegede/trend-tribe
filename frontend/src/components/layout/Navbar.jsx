@@ -166,12 +166,12 @@ const Navbar = () => {
             {/* ── Logo ─────────────────────────────────────── */}
             <Link to="/" className="flex items-center gap-2 group">
               <motion.div
-                className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center"
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
                 whileHover={reducedMotion ? {} : { scale: 1.08, rotate: -6 }}
                 whileTap={reducedMotion ? {} : { scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 400, damping: 20 }}
               >
-                <FiShoppingBag className="text-white w-4 h-4" />
+                <img src="/trendtribe_logo.png" alt="TrendTribe" className="w-full h-full object-contain rounded-lg" />
               </motion.div>
               <span className="font-bold text-lg text-navy-900">
                 Trend<span className="text-accent-400">Tribe</span>
