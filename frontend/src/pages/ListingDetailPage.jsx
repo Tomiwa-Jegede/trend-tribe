@@ -189,6 +189,24 @@ const ListingDetailPage = () => {
           property="og:url"
           content={`https://trendtribee.netlify.app/listings/${listing.id}`}
         />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: listing.title,
+            description: listing.description,
+            image: images[0] || undefined,
+            offers: {
+              "@type": "Offer",
+              price: listing.price,
+              priceCurrency: "NGN",
+              availability: listing.isAvailable
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
+              url: `https://trendtribee.netlify.app/listings/${listing.id}`,
+            },
+          })}
+        </script>
       </Helmet>
       {/* ── Breadcrumb ────────────────────────────────── */}
       <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">

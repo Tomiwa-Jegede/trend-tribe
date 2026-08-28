@@ -164,6 +164,22 @@ const FAQPage = () => {
           content="Frequently asked questions about buying, selling, and using Trend Tribe on your campus."
         />
         <link rel="canonical" href="https://trendtribee.netlify.app/faq" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: FAQS.flatMap((category) =>
+              category.items.map((item) => ({
+                "@type": "Question",
+                name: item.q,
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: item.a,
+                },
+              })),
+            ),
+          })}
+        </script>
       </Helmet>
       {/* ── Hero ───────────────────────────────────────────── */}
       <div
