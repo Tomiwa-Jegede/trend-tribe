@@ -24,8 +24,8 @@ const TokenCallbackPage = () => {
         if (cancelled) return;
 
         if (result.status === "SUCCESS") {
+          await refreshUser();
           setStatus("success");
-          refreshUser();
         } else if (result.status === "FAILED") {
           setStatus("failed");
         } else if (attempt < 5) {
