@@ -3,36 +3,37 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id                  Int       @id @default(autoincrement())
-  email               String    @unique
-  username            String    @unique
-  password            String
-  role                Role      @default(USER)
-  fullName            String
-  school              String
-  bio                 String?
-  avatar              String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  isVerified          Boolean   @default(false)
-  otpCode             String?
-  otpExpiresAt        DateTime?
-  resetToken          String?   @unique
-  resetTokenExpiresAt DateTime?
-  matricNumber        String?   @unique
-  avatarPublicId      String?
+  id                   Int             @id @default(autoincrement())
+  email                String          @unique
+  username             String          @unique
+  password             String
+  fullName             String
+  school               String
+  bio                  String?
+  avatar               String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  isVerified           Boolean         @default(false)
+  otpCode              String?
+  otpExpiresAt         DateTime?
+  resetToken           String?         @unique
+  resetTokenExpiresAt  DateTime?
+  matricNumber         String?         @unique
+  avatarPublicId       String?
   whatsapp             String?
-  tokenBalance         Int       @default(20) // stored in quarter-token units; 20 = 5 tokens
-  tokenPurchases TokenPurchase[]
-  aiUsesRemaining      Int       @default(0)
-  numberViewsRemaining Int       @default(0)
+  role                 Role            @default(USER)
+  aiUsesRemaining      Int             @default(0)
+  numberViewsRemaining Int             @default(0)
+  tokenBalance         Int             @default(20)
+  tokenPurchases       TokenPurchase[]
   listings             Listing[]
-  reports             Report[]
+  reports              Report[]
 
   @@map("users")
 }
@@ -45,34 +46,36 @@ model PendingRegistration {
   fullName     String
   school       String
   matricNumber String?
-  whatsapp     String?
   bio          String?
-  role         Role     @default(BUYER)
   otpCode      String
   otpExpiresAt DateTime
   createdAt    DateTime @default(now())
+  role         Role     @default(BUYER)
+  whatsapp     String?
+
   @@map("pending_registrations")
 }
 
 model TokenPurchase {
-  id        String   @id @default(cuid())
-  userId    Int
-  reference String   @unique // Paystack transaction reference
-  quantity  Int      // display tokens purchased (not raw units)
-  amount    Int      // amount in kobo, Paystack's unit
-  status    String   @default("PENDING") // PENDING | SUCCESS | FAILED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                       String   @id @default(cuid())
+  userId                   Int
+  reference                String   @unique // our tx_ref sent to Flutterwave
+  flutterwaveTransactionId String?  @unique // Flutterwave's numeric transaction ID (received after redirect)
+  quantity                 Int      // display tokens purchased (not raw units)
+  amount                   Int      // amount in kobo/subunit
+  status                   String   @default("PENDING") // PENDING | SUCCESS | FAILED
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model FrederickSession {
   id        String   @id @default(cuid())
-  userId    Int
   sessionId String
-  cost      Int      // quarter-token units, same convention as tokenFormat.js
+  cost      Int
   createdAt DateTime @default(now())
+  userId    Int
 
   @@unique([userId, sessionId])
 }
@@ -91,13 +94,28 @@ model Listing {
   updatedAt      DateTime  @updatedAt
   sellerId       Int
   imagePublicIds String[]  @default([])
-  isFreeSlot     Boolean   @default(true)
-  editCount      Int       @default(0)
   coverPosition  Json?     @default("{\"x\": 50, \"y\": 50}")
+  editCount      Int       @default(0)
+  isFreeSlot     Boolean   @default(true)
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   reports        Report[]
 
   @@map("listings")
+}
+
+model Report {
+  id         Int          @id @default(autoincrement())
+  reason     ReportReason
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  listingId  Int
+  reporterId Int
+  listing    Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporter   User         @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, reporterId])
+  @@index([status])
+  @@map("reports")
 }
 
 enum Role {
@@ -117,21 +135,6 @@ enum ReportReason {
 enum ReportStatus {
   PENDING
   IGNORED
-}
-
-model Report {
-  id         Int          @id @default(autoincrement())
-  reason     ReportReason
-  status     ReportStatus @default(PENDING)
-  createdAt  DateTime     @default(now())
-  listingId  Int
-  listing    Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  reporterId Int
-  reporter   User         @relation(fields: [reporterId], references: [id], onDelete: Cascade)
-
-  @@unique([listingId, reporterId])
-  @@index([status])
-  @@map("reports")
 }
 
 enum Category {
