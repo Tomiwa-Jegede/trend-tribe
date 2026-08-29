@@ -37,7 +37,7 @@ app.use(
 
 app.use(morgan(config.isDev ? "dev" : "combined")); // verbose in dev, compact in prod
 
-// ─── Paystack Webhook (raw body required for signature verification) ──
+// ─── Flutterwave Webhook (raw body required for hash verification) ──
 // Must be mounted BEFORE express.json() so the raw buffer is preserved.
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), handleWebhook);
 

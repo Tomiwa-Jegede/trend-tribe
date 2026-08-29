@@ -6,21 +6,20 @@ import { FiCheckCircle, FiXCircle, FiLoader } from "react-icons/fi";
 
 const TokenCallbackPage = () => {
   const [searchParams] = useSearchParams();
-  const reference = searchParams.get("reference");
+  const reference = searchParams.get("tx_ref");
+  const transactionId = searchParams.get("transaction_id");
   const { refreshUser } = useAuth();
   const [status, setStatus] = useState("checking"); // checking | success | failed | pending | error
 
   useEffect(() => {
-    if (!reference) {
+    if (!reference || !transactionId) {
       setStatus("error");
       return;
     }
-
     let cancelled = false;
-
     const poll = async (attempt = 0) => {
       try {
-        const result = await verifyTokenPurchase(reference);
+        const result = await verifyTokenPurchase(reference, transactionId);
         if (cancelled) return;
 
         if (result.status === "SUCCESS") {
@@ -42,7 +41,7 @@ const TokenCallbackPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [reference]);
+  }, [reference, transactionId]);
 
   return (
     <div className="container-app py-24 text-center max-w-md mx-auto">

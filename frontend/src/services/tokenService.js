@@ -5,7 +5,9 @@ export const initTokenPurchase = async (quantity) => {
   return data; // { authorizationUrl, reference }
 };
 
-export const verifyTokenPurchase = async (reference) => {
-  const { data } = await api.get("/payments/verify", { params: { reference } });
+export const verifyTokenPurchase = async (reference, transactionId) => {
+  const { data } = await api.get("/payments/verify", {
+    params: { reference, transaction_id: transactionId },
+  });
   return data; // { ok, status, quantity }
 };

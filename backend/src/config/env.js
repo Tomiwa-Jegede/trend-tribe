@@ -50,10 +50,11 @@ const config = {
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
 
-  paystack: {
-    secretKey: process.env.PAYSTACK_SECRET_KEY,
-    publicKey: process.env.PAYSTACK_PUBLIC_KEY,
-    callbackUrl: process.env.PAYSTACK_CALLBACK_URL,
+  flutterwave: {
+    secretKey: process.env.FLUTTERWAVE_SECRET_KEY,
+    publicKey: process.env.FLUTTERWAVE_PUBLIC_KEY,
+    secretHash: process.env.FLUTTERWAVE_SECRET_HASH,
+    redirectUrl: process.env.FLUTTERWAVE_REDIRECT_URL,
   },
 };
 
