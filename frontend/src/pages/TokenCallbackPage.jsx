@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { verifyTokenPurchase } from "../services/tokenService";
 import { FiCheckCircle, FiXCircle, FiLoader } from "react-icons/fi";
@@ -8,7 +8,8 @@ const TokenCallbackPage = () => {
   const [searchParams] = useSearchParams();
   const reference = searchParams.get("tx_ref");
   const transactionId = searchParams.get("transaction_id");
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
+  const navigate = useNavigate();
   const [status, setStatus] = useState("checking"); // checking | success | failed | pending | error
 
   useEffect(() => {
@@ -43,6 +44,15 @@ const TokenCallbackPage = () => {
     };
   }, [reference, transactionId]);
 
+  useEffect(() => {
+    if (status === "success" && user?.id) {
+      const timer = setTimeout(() => {
+        navigate(`/profile/${user.id}`, { replace: true });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [status, user, navigate]);
+
   return (
     <div className="container-app py-24 text-center max-w-md mx-auto">
       {status === "checking" && (
@@ -57,7 +67,9 @@ const TokenCallbackPage = () => {
           <FiCheckCircle className="w-10 h-10 text-green-600 mx-auto mb-4" />
           <h2 className="text-gray-900 mb-2">Tokens added ✅</h2>
           <p className="text-gray-500 mb-6">Your balance has been updated.</p>
-          <Link to="/" className="btn-primary inline-flex">Continue</Link>
+          <Link to={`/profile/${user?.id}`} className="btn-primary inline-flex">
+            Continue
+          </Link>
         </>
       )}
       {status === "failed" && (
