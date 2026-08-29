@@ -10,11 +10,12 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true); // true on first load
 
-  // ── On app load: restore session from localStorage ──────────
+  // ── On app load: restore cached session instantly, then sync
+  // with the server in the background (handles balance/data
+  // changes made on another device or tab) ────────────────────
   useEffect(() => {
     const savedToken = localStorage.getItem("tt_token");
     const savedUser = localStorage.getItem("tt_user");
-
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
@@ -27,6 +28,13 @@ export const AuthProvider = ({ children }) => {
     }
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (token) {
+      refreshUser();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // ── Login: save token + user to state + localStorage ────────
   const login = (tokenValue, userData) => {
