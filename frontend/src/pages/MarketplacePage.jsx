@@ -8,7 +8,7 @@ import ListingCardSkeleton from "../components/listings/ListingCardSkeleton";
 import FilterBar from "../components/listings/FilterBar";
 import Pagination from "../components/ui/Pagination";
 import Alert from "../components/ui/Alert";
-import { getListings } from "../services/listingService";
+import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
 const ITEMS_PER_PAGE = 12;
@@ -19,6 +19,13 @@ const CATEGORIES = [
   { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
   { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
+
+const SUBCATEGORY_DISPLAY = {
+  MENS_FASHION: { label: "Men's Fashion", emoji: "👔" },
+  FEMALE_FASHION: { label: "Female Fashion", emoji: "👚" },
+  SKIN_CARE: { label: "Skin Care", emoji: "🧴" },
+  FRAGRANCE: { label: "Fragrance", emoji: "🌸" },
+};
 
 const MarketplacePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,6 +51,7 @@ const MarketplacePage = () => {
   // ── Fetch listings from real API (only once a category is chosen) ──
   const fetchListings = useCallback(async () => {
     if (!filters.category) return;
+    if (SUBCATEGORIES_BY_CATEGORY[filters.category] && !filters.subcategory) return;
     setLoading(true);
     setError("");
     try {
@@ -96,15 +104,28 @@ const MarketplacePage = () => {
       setCurrentPage(1);
     };
 
-    const handleSelectCategory = (value) => {
-      setFilters((prev) => ({ ...prev, category: value, subcategory: "" }));
-      setCurrentPage(1);
-    };
+      const handleSelectCategory = (value) => {
+    setFilters((prev) => ({ ...prev, category: value, subcategory: "" }));
+    setCurrentPage(1);
+  };
 
-    const handleChangeCategory = () => {
-      setFilters((prev) => ({ ...prev, category: "", subcategory: "" }));
-      setCurrentPage(1);
-    };
+  const handleChangeCategory = () => {
+    setFilters((prev) => ({ ...prev, category: "", subcategory: "" }));
+    setCurrentPage(1);
+  };
+
+  const handleSelectSubcategory = (value) => {
+    setFilters((prev) => ({ ...prev, subcategory: value }));
+    setCurrentPage(1);
+  };
+
+  const handleChangeSubcategory = () => {
+    setFilters((prev) => ({ ...prev, subcategory: "" }));
+    setCurrentPage(1);
+  };
+
+  const needsSubcategoryStep =
+    Boolean(SUBCATEGORIES_BY_CATEGORY[filters.category]) && !filters.subcategory;
   const handlePageChange = (page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -161,12 +182,17 @@ const MarketplacePage = () => {
         {/* ── Page Header ──────────────────────────────────── */}
         <div className="mb-8">
           <h1 className="text-gray-900">
-            {filters.category
+            {!filters.category
+              ? "Categories"
+              : needsSubcategoryStep
               ? CATEGORIES.find((c) => c.value === filters.category)?.label ??
                 "Marketplace"
-              : "Categories"}
+              : filters.subcategory
+              ? SUBCATEGORY_DISPLAY[filters.subcategory]?.label ?? "Marketplace"
+              : CATEGORIES.find((c) => c.value === filters.category)?.label ??
+                "Marketplace"}
           </h1>
-          {filters.category && (
+          {filters.category && !needsSubcategoryStep && (
             <p className="text-gray-500 mt-2">
               {loading
                 ? "Loading listings…"
@@ -196,7 +222,7 @@ const MarketplacePage = () => {
               </button>
             ))}
           </motion.div>
-        ) : (
+        ) : needsSubcategoryStep ? (
           <>
             {/* ── Back to categories ─────────────────────────── */}
             <button
@@ -205,6 +231,48 @@ const MarketplacePage = () => {
             >
               <FiArrowLeft className="w-4 h-4" />
               Change category
+            </button>
+
+            {/* ── Subcategory Picker ───────────────────────────── */}
+            <motion.div
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.4, ease: "easeOut" }}
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+            >
+              {SUBCATEGORIES_BY_CATEGORY[filters.category].map((value) => {
+                const display = SUBCATEGORY_DISPLAY[value] || {
+                  label: value.replace(/_/g, " "),
+                  emoji: "🗂️",
+                };
+                return (
+                  <button
+                    key={value}
+                    onClick={() => handleSelectSubcategory(value)}
+                    className="card p-6 flex flex-col items-center gap-3 hover:border-primary-300 hover:shadow-md transition-all text-center"
+                  >
+                    <span className="text-4xl">{display.emoji}</span>
+                    <span className="font-semibold text-gray-900">{display.label}</span>
+                  </button>
+                );
+              })}
+            </motion.div>
+          </>
+        ) : (
+          <>
+            {/* ── Back to categories / subcategories ───────────── */}
+            <button
+              onClick={
+                SUBCATEGORIES_BY_CATEGORY[filters.category]
+                  ? handleChangeSubcategory
+                  : handleChangeCategory
+              }
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+            >
+              <FiArrowLeft className="w-4 h-4" />
+              {SUBCATEGORIES_BY_CATEGORY[filters.category]
+                ? "Change subcategory"
+                : "Change category"}
             </button>
 
             {/* ── Sticky, blurred Filter Bar ───────────────────── */}
