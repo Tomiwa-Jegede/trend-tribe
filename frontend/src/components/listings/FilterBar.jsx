@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FiSearch, FiX, FiSliders } from "react-icons/fi";
-import { CATEGORIES, CONDITIONS } from "../../services/listingService";
+import { CATEGORIES, CONDITIONS, SUBCATEGORIES_BY_CATEGORY } from "../../services/listingService";
 
 const FilterBar = ({
   filters,
@@ -59,24 +59,45 @@ const FilterBar = ({
                           hideCategoryFilter ? "lg:grid-cols-3" : "lg:grid-cols-4"
                         }`}
         >
-          {/* Category */}
-          {!hideCategoryFilter && (
-            <div>
-              <label className="input-label">Category</label>
-              <select
-                value={filters.category}
-                onChange={(e) => onFilterChange({ category: e.target.value })}
-                className="input-field"
-              >
-                <option value="">All Categories</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c.replace("_", " ")}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+                     {/* Category */}
+            {!hideCategoryFilter && (
+              <div>
+                <label className="input-label">Category</label>
+                <select
+                  value={filters.category}
+                  onChange={(e) =>
+                    onFilterChange({ category: e.target.value, subcategory: "" })
+                  }
+                  className="input-field"
+                >
+                  <option value="">All Categories</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c.replace(/_/g, " ")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Subcategory (only for categories that have one) */}
+            {!hideCategoryFilter && SUBCATEGORIES_BY_CATEGORY[filters.category] && (
+              <div>
+                <label className="input-label">Subcategory</label>
+                <select
+                  value={filters.subcategory}
+                  onChange={(e) => onFilterChange({ subcategory: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="">All</option>
+                  {SUBCATEGORIES_BY_CATEGORY[filters.category].map((sc) => (
+                    <option key={sc} value={sc}>
+                      {sc.replace(/_/g, " ")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
           {/* Condition */}
           <div>

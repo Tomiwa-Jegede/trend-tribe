@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import FormInput from "../ui/FormInput";
 import Alert from "../ui/Alert";
-import { CATEGORIES, CONDITIONS } from "../../services/listingService";
+import { CATEGORIES, CONDITIONS, SUBCATEGORIES_BY_CATEGORY } from "../../services/listingService";
 import { uploadImages } from "../../services/uploadService";
 import { FiArrowRight, FiX, FiPlus, FiImage } from "react-icons/fi";
 
@@ -12,6 +12,7 @@ const DEFAULT_FORM = {
   description: "",
   price: "",
   category: "",
+  subcategory: "",
   condition: "",
   location: "",
   images: [],
@@ -35,6 +36,7 @@ const ListingForm = ({
           description: initialData.description || "",
           price: initialData.price || "",
           category: initialData.category || "",
+          subcategory: initialData.subcategory || "",
           condition: initialData.condition || "",
           location: initialData.location || "",
           images: initialData.images || [],
@@ -54,6 +56,12 @@ const ListingForm = ({
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const handleCategoryChange = (e) => {
+    const { value } = e.target;
+    setFormData((prev) => ({ ...prev, category: value, subcategory: "" }));
+    setErrors((prev) => ({ ...prev, category: "", subcategory: "" }));
   };
 
   const handleFileSelect = async (e) => {
@@ -144,6 +152,12 @@ const ListingForm = ({
     }
 
     if (!formData.category) newErrors.category = "Please select a category";
+    if (
+      SUBCATEGORIES_BY_CATEGORY[formData.category] &&
+      !formData.subcategory
+    ) {
+      newErrors.subcategory = "Please select a subcategory";
+    }
     if (!formData.condition) newErrors.condition = "Please select a condition";
 
     setErrors(newErrors);
@@ -237,28 +251,53 @@ const ListingForm = ({
 
       <div className="grid sm:grid-cols-2 gap-5">
         <div>
-          <label htmlFor="category" className="input-label">
-            Category <span className="text-red-500 ml-0.5">*</span>
-          </label>
-          <select
-            id="category"
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-            className={`input-field ${errors.category ? "border-red-400" : ""}`}
-          >
-            <option value="">Select category</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-          {errors.category && <p className="input-error">{errors.category}</p>}
-        </div>
+            <label htmlFor="category" className="input-label">
+              Category <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleCategoryChange}
+              className={`input-field ${errors.category ? "border-red-400" : ""}`}
+            >
+              <option value="">Select category</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+            {errors.category && <p className="input-error">{errors.category}</p>}
+          </div>
 
-        <div>
-          <label htmlFor="condition" className="input-label">
+          {SUBCATEGORIES_BY_CATEGORY[formData.category] && (
+            <div>
+              <label htmlFor="subcategory" className="input-label">
+                Subcategory <span className="text-red-500 ml-0.5">*</span>
+              </label>
+              <select
+                id="subcategory"
+                name="subcategory"
+                value={formData.subcategory}
+                onChange={handleChange}
+                className={`input-field ${errors.subcategory ? "border-red-400" : ""}`}
+              >
+                <option value="">Select subcategory</option>
+                {SUBCATEGORIES_BY_CATEGORY[formData.category].map((sc) => (
+                  <option key={sc} value={sc}>
+                    {sc.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </select>
+              {errors.subcategory && (
+                <p className="input-error">{errors.subcategory}</p>
+              )}
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="condition" className="input-label">
             Condition <span className="text-red-500 ml-0.5">*</span>
           </label>
           <select
@@ -275,10 +314,10 @@ const ListingForm = ({
               </option>
             ))}
           </select>
-          {errors.condition && (
-            <p className="input-error">{errors.condition}</p>
-          )}
-        </div>
+                     {errors.condition && (
+              <p className="input-error">{errors.condition}</p>
+            )}
+          </div>
       </div>
 
       {/* ── Photo upload grid ────────────────────────────────── */}

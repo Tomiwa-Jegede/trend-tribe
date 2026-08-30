@@ -4,16 +4,16 @@ import api from "../api/axios";
 
 // ─── Constants (moved here from mockListings.js) ───────────────
 export const CATEGORIES = [
-  "BOOKS",
-  "ELECTRONICS",
-  "CLOTHING",
-  "FURNITURE",
-  "STATIONERY",
-  "SPORTS",
-  "FOOD",
-  "SERVICES",
-  "OTHER",
+  "ACCESSORIES",
+  "FASHION",
+  "BEAUTY_AND_PERSONAL_CARE",
+  "OTHERS",
 ];
+
+export const SUBCATEGORIES_BY_CATEGORY = {
+  FASHION: ["MENS_FASHION", "FEMALE_FASHION"],
+  BEAUTY_AND_PERSONAL_CARE: ["SKIN_CARE", "FRAGRANCE"],
+};
 
 export const CONDITIONS = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"];
 

@@ -14,14 +14,10 @@ import HomeTicker from "../components/home/HomeTicker";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
-  { label: "Books", emoji: "📚", value: "BOOKS" },
-  { label: "Electronics", emoji: "💻", value: "ELECTRONICS" },
-  { label: "Clothing", emoji: "👗", value: "CLOTHING" },
-  { label: "Furniture", emoji: "🪑", value: "FURNITURE" },
-  { label: "Stationery", emoji: "✏️", value: "STATIONERY" },
-  { label: "Sports", emoji: "⚽", value: "SPORTS" },
-  { label: "Food", emoji: "🍱", value: "FOOD" },
-  { label: "Services", emoji: "🛠️", value: "SERVICES" },
+  { label: "Accessories", emoji: "👜", value: "ACCESSORIES" },
+  { label: "Fashion", emoji: "👗", value: "FASHION" },
+  { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
+  { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
 
 const MarketplacePage = () => {
@@ -36,13 +32,14 @@ const MarketplacePage = () => {
     parseInt(searchParams.get("page"), 10) || 1,
   );
 
-  const [filters, setFilters] = useState({
-    search: searchParams.get("search") || "",
-    category: searchParams.get("category") || "",
-    condition: searchParams.get("condition") || "",
-    minPrice: searchParams.get("minPrice") || "",
-    maxPrice: searchParams.get("maxPrice") || "",
-  });
+    const [filters, setFilters] = useState({
+      search: searchParams.get("search") || "",
+      category: searchParams.get("category") || "",
+      subcategory: searchParams.get("subcategory") || "",
+      condition: searchParams.get("condition") || "",
+      minPrice: searchParams.get("minPrice") || "",
+      maxPrice: searchParams.get("maxPrice") || "",
+    });
 
   // ── Fetch listings from real API (only once a category is chosen) ──
   const fetchListings = useCallback(async () => {
@@ -87,27 +84,27 @@ const MarketplacePage = () => {
     setCurrentPage(1); // reset to page 1 on filter change
   };
 
-  const handleReset = () => {
-    setFilters({
-      search: "",
-      category: "",
-      condition: "",
-      minPrice: "",
-      maxPrice: "",
-    });
-    setCurrentPage(1);
-  };
+     const handleReset = () => {
+      setFilters({
+        search: "",
+        category: "",
+        subcategory: "",
+        condition: "",
+        minPrice: "",
+        maxPrice: "",
+      });
+      setCurrentPage(1);
+    };
 
-  const handleSelectCategory = (value) => {
-    setFilters((prev) => ({ ...prev, category: value }));
-    setCurrentPage(1);
-  };
+    const handleSelectCategory = (value) => {
+      setFilters((prev) => ({ ...prev, category: value, subcategory: "" }));
+      setCurrentPage(1);
+    };
 
-  const handleChangeCategory = () => {
-    setFilters((prev) => ({ ...prev, category: "" }));
-    setCurrentPage(1);
-  };
-
+    const handleChangeCategory = () => {
+      setFilters((prev) => ({ ...prev, category: "", subcategory: "" }));
+      setCurrentPage(1);
+    };
   const handlePageChange = (page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -247,7 +244,7 @@ const MarketplacePage = () => {
               initial="hidden"
               animate="show"
               exit="exit"
-              className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
             >
               {Array.from({ length: 6 }).map((_, i) => (
                 <ListingCardSkeleton key={i} />
@@ -262,7 +259,7 @@ const MarketplacePage = () => {
               exit="exit"
             >
               <motion.div
-                className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
                 variants={gridVariants}
                 initial="hidden"
                 animate="show"

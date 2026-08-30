@@ -86,6 +86,7 @@ model Listing {
   description    String
   price          Decimal   @db.Decimal(10, 2)
   category       Category
+  subcategory    Subcategory?
   condition      Condition
   images         String[]  @default([])
   location       String?
@@ -138,15 +139,17 @@ enum ReportStatus {
 }
 
 enum Category {
-  BOOKS
-  ELECTRONICS
-  CLOTHING
-  FURNITURE
-  STATIONERY
-  SPORTS
-  FOOD
-  SERVICES
-  OTHER
+  ACCESSORIES
+  FASHION
+  BEAUTY_AND_PERSONAL_CARE
+  OTHERS
+}
+
+enum Subcategory {
+  MENS_FASHION
+  FEMALE_FASHION
+  SKIN_CARE
+  FRAGRANCE
 }
 
 enum Condition {

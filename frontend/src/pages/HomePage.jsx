@@ -17,14 +17,10 @@ import { Helmet } from "react-helmet-async";
 
 // ── Static data ────────────────────────────────────────────────
 const CATEGORIES = [
-  { label: "Books", emoji: "📚", value: "BOOKS" },
-  { label: "Electronics", emoji: "💻", value: "ELECTRONICS" },
-  { label: "Clothing", emoji: "👗", value: "CLOTHING" },
-  { label: "Furniture", emoji: "🪑", value: "FURNITURE" },
-  { label: "Stationery", emoji: "✏️", value: "STATIONERY" },
-  { label: "Sports", emoji: "⚽", value: "SPORTS" },
-  { label: "Food", emoji: "🍱", value: "FOOD" },
-  { label: "Services", emoji: "🛠️", value: "SERVICES" },
+  { label: "Accessories", emoji: "👜", value: "ACCESSORIES" },
+  { label: "Fashion", emoji: "👗", value: "FASHION" },
+  { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
+  { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
 
 const FEATURES = [
@@ -382,7 +378,7 @@ const HomePage = () => {
           </p>
         </RevealSection>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-2xl mx-auto">
           {CATEGORIES.map(({ label, emoji, value }, i) => (
             <motion.div
               key={value}

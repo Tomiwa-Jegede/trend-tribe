@@ -4,16 +4,20 @@ const { body } = require("express-validator");
 
 // ─── Valid Enums (must match schema.prisma exactly) ───────────
 const VALID_CATEGORIES = [
-  "BOOKS",
-  "ELECTRONICS",
-  "CLOTHING",
-  "FURNITURE",
-  "STATIONERY",
-  "SPORTS",
-  "FOOD",
-  "SERVICES",
-  "OTHER",
+  "ACCESSORIES",
+  "FASHION",
+  "BEAUTY_AND_PERSONAL_CARE",
+  "OTHERS",
 ];
+
+const VALID_SUBCATEGORIES = [
+  "MENS_FASHION",
+  "FEMALE_FASHION",
+  "SKIN_CARE",
+  "FRAGRANCE",
+];
+
+const CATEGORIES_WITH_SUBCATEGORY = ["FASHION", "BEAUTY_AND_PERSONAL_CARE"];
 
 const VALID_CONDITIONS = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"];
 
@@ -44,6 +48,18 @@ const createListingRules = [
     .withMessage("Category is required")
     .isIn(VALID_CATEGORIES)
     .withMessage(`Category must be one of: ${VALID_CATEGORIES.join(", ")}`),
+
+  body("subcategory")
+    .optional({ nullable: true })
+    .isIn(VALID_SUBCATEGORIES)
+    .withMessage(`Subcategory must be one of: ${VALID_SUBCATEGORIES.join(", ")}`)
+    .bail()
+    .custom((value, { req }) => {
+      if (value && !CATEGORIES_WITH_SUBCATEGORY.includes(req.body.category)) {
+        throw new Error("Subcategory is only valid for Fashion or Beauty and Personal Care");
+      }
+      return true;
+    }),
 
   body("condition")
     .notEmpty()
@@ -92,6 +108,18 @@ const updateListingRules = [
     .optional()
     .isIn(VALID_CATEGORIES)
     .withMessage(`Category must be one of: ${VALID_CATEGORIES.join(", ")}`),
+
+  body("subcategory")
+    .optional({ nullable: true })
+    .isIn(VALID_SUBCATEGORIES)
+    .withMessage(`Subcategory must be one of: ${VALID_SUBCATEGORIES.join(", ")}`)
+    .bail()
+    .custom((value, { req }) => {
+      if (value && req.body.category && !CATEGORIES_WITH_SUBCATEGORY.includes(req.body.category)) {
+        throw new Error("Subcategory is only valid for Fashion or Beauty and Personal Care");
+      }
+      return true;
+    }),
 
   body("condition")
     .optional()

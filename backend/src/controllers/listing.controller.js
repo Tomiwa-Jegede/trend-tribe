@@ -42,16 +42,17 @@ const deleteFromCloudinary = async (publicIds = []) => {
 // ─────────────────────────────────────────────────────────────
 const getAllListings = async (req, res) => {
   try {
-    const {
-      search,
-      category,
-      condition,
-      minPrice,
-      maxPrice,
-      page = 1,
-      limit = 12,
-      sort = "newest",
-    } = req.query;
+        const {
+        search,
+        category,
+        subcategory,
+        condition,
+        minPrice,
+        maxPrice,
+        page = 1,
+        limit = 12,
+        sort = "newest",
+      } = req.query;
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(48, Math.max(1, parseInt(limit, 10) || 12));
@@ -66,8 +67,9 @@ const getAllListings = async (req, res) => {
       ];
     }
 
-    if (category) where.category = category.toUpperCase();
-    if (condition) where.condition = condition.toUpperCase();
+        if (category) where.category = category.toUpperCase();
+      if (subcategory) where.subcategory = subcategory.toUpperCase();
+      if (condition) where.condition = condition.toUpperCase();
 
     if (minPrice || maxPrice) {
       where.price = {};
@@ -116,14 +118,15 @@ const getAllListings = async (req, res) => {
         hasNextPage: pageNum < totalPages,
         hasPrevPage: pageNum > 1,
       },
-      filters: {
-        search: search || null,
-        category: category || null,
-        condition: condition || null,
-        minPrice: minPrice || null,
-        maxPrice: maxPrice || null,
-        sort,
-      },
+          filters: {
+          search: search || null,
+          category: category || null,
+          subcategory: subcategory || null,
+          condition: condition || null,
+          minPrice: minPrice || null,
+          maxPrice: maxPrice || null,
+          sort,
+        },
     });
   } catch (err) {
     console.error("[GET ALL LISTINGS ERROR]", err);
@@ -238,6 +241,7 @@ const createListing = async (req, res) => {
       description,
       price,
       category,
+      subcategory,
       condition,
       images,
       imagePublicIds,
@@ -279,19 +283,20 @@ const createListing = async (req, res) => {
       }
     }
 
-    const listingData = {
-      title,
-      description,
-      price,
-      category,
-      condition,
-      images: images || [],
-      imagePublicIds: imagePublicIds || [],
-      coverPosition: coverPosition || { x: 50, y: 50 },
-      location: location || null,
-      sellerId: req.user.id,
-      isFreeSlot: usingFreeSlot,
-    };
+      const listingData = {
+        title,
+        description,
+        price,
+        category,
+        subcategory: subcategory || null,
+        condition,
+        images: images || [],
+        imagePublicIds: imagePublicIds || [],
+        coverPosition: coverPosition || { x: 50, y: 50 },
+        location: location || null,
+        sellerId: req.user.id,
+        isFreeSlot: usingFreeSlot,
+      };
 
     const listingInclude = {
       seller: {
@@ -363,6 +368,7 @@ const {
   description,
   price,
   category,
+  subcategory,
   condition,
   images,
   imagePublicIds,
@@ -375,8 +381,9 @@ const {
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (price !== undefined) updateData.price = price;
-    if (category !== undefined) updateData.category = category;
-    if (condition !== undefined) updateData.condition = condition;
+         if (category !== undefined) updateData.category = category;
+      if (subcategory !== undefined) updateData.subcategory = subcategory || null;
+      if (condition !== undefined) updateData.condition = condition;
     if (location !== undefined) updateData.location = location;
     if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
     if (images !== undefined) updateData.images = images;
