@@ -9,9 +9,20 @@ import FilterBar from "../components/listings/FilterBar";
 import Pagination from "../components/ui/Pagination";
 import Alert from "../components/ui/Alert";
 import { getListings } from "../services/listingService";
-import { FiInbox } from "react-icons/fi";
+import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
 const ITEMS_PER_PAGE = 12;
+
+const CATEGORIES = [
+  { label: "Books", emoji: "📚", value: "BOOKS" },
+  { label: "Electronics", emoji: "💻", value: "ELECTRONICS" },
+  { label: "Clothing", emoji: "👗", value: "CLOTHING" },
+  { label: "Furniture", emoji: "🪑", value: "FURNITURE" },
+  { label: "Stationery", emoji: "✏️", value: "STATIONERY" },
+  { label: "Sports", emoji: "⚽", value: "SPORTS" },
+  { label: "Food", emoji: "🍱", value: "FOOD" },
+  { label: "Services", emoji: "🛠️", value: "SERVICES" },
+];
 
 const MarketplacePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,8 +44,9 @@ const MarketplacePage = () => {
     maxPrice: searchParams.get("maxPrice") || "",
   });
 
-  // ── Fetch listings from real API ─────────────────────────
+  // ── Fetch listings from real API (only once a category is chosen) ──
   const fetchListings = useCallback(async () => {
+    if (!filters.category) return;
     setLoading(true);
     setError("");
     try {
@@ -83,6 +95,16 @@ const MarketplacePage = () => {
       minPrice: "",
       maxPrice: "",
     });
+    setCurrentPage(1);
+  };
+
+  const handleSelectCategory = (value) => {
+    setFilters((prev) => ({ ...prev, category: value }));
+    setCurrentPage(1);
+  };
+
+  const handleChangeCategory = () => {
+    setFilters((prev) => ({ ...prev, category: "" }));
     setCurrentPage(1);
   };
 
@@ -151,31 +173,62 @@ const MarketplacePage = () => {
           </p>
         </div>
 
-        {/* ── Sticky, blurred Filter Bar ───────────────────── */}
-        <div className="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        {/* ── Category Picker (shown until a category is chosen) ── */}
+        {!filters.category ? (
           <motion.div
-            initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: prefersReducedMotion ? 0 : 0.4,
-              ease: "easeOut",
-            }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.4, ease: "easeOut" }}
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
           >
-            <FilterBar
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              onReset={handleReset}
-            />
+            {CATEGORIES.map(({ label, emoji, value }) => (
+              <button
+                key={value}
+                onClick={() => handleSelectCategory(value)}
+                className="card p-6 flex flex-col items-center gap-3 hover:border-primary-300 hover:shadow-md transition-all text-center"
+              >
+                <span className="text-4xl">{emoji}</span>
+                <span className="font-semibold text-gray-900">{label}</span>
+              </button>
+            ))}
           </motion.div>
-        </div>
+        ) : (
+          <>
+            {/* ── Back to categories ─────────────────────────── */}
+            <button
+              onClick={handleChangeCategory}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+            >
+              <FiArrowLeft className="w-4 h-4" />
+              Change category
+            </button>
 
-        {/* ── Error State ──────────────────────────────────── */}
-        {error && (
-          <Alert type="error" message={error} onDismiss={() => setError("")} />
-        )}
+            {/* ── Sticky, blurred Filter Bar ───────────────────── */}
+            <div className="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-white/80 backdrop-blur-md border-b border-gray-100">
+              <motion.div
+                initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: prefersReducedMotion ? 0 : 0.4,
+                  ease: "easeOut",
+                }}
+              >
+                <FilterBar
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  onReset={handleReset}
+                  hideCategoryFilter
+                />
+              </motion.div>
+            </div>
 
-        {/* ── Listings Grid / Loading / Empty (cross-fade) ──── */}
-        <AnimatePresence mode="wait">
+            {/* ── Error State ──────────────────────────────────── */}
+            {error && (
+              <Alert type="error" message={error} onDismiss={() => setError("")} />
+            )}
+
+            {/* ── Listings Grid / Loading / Empty (cross-fade) ──── */}
+            <AnimatePresence mode="wait">
           {loading ? (
             <motion.div
               key="loading"
@@ -261,7 +314,9 @@ const MarketplacePage = () => {
               </button>
             </motion.div>
           ) : null}
-        </AnimatePresence>
+            </AnimatePresence>
+          </>
+        )}
       </div>
     </>
   );

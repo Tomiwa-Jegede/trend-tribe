@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FiSearch, FiX, FiSliders } from "react-icons/fi";
 import { CATEGORIES, CONDITIONS } from "../../services/listingService";
 
-const FilterBar = ({ filters, onFilterChange, onReset }) => {
+const FilterBar = ({ filters, onFilterChange, onReset, hideCategoryFilter = false }) => {
   const [showFilters, setShowFilters] = useState(false);
 
   const hasActiveFilters =
@@ -48,25 +48,29 @@ const FilterBar = ({ filters, onFilterChange, onReset }) => {
       {/* ── Expanded Filters ──────────────────────────── */}
       {showFilters && (
         <div
-          className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4
-                        border-t border-gray-100"
+          className={`grid sm:grid-cols-2 gap-4 mt-4 pt-4
+                        border-t border-gray-100 ${
+                          hideCategoryFilter ? "lg:grid-cols-3" : "lg:grid-cols-4"
+                        }`}
         >
           {/* Category */}
-          <div>
-            <label className="input-label">Category</label>
-            <select
-              value={filters.category}
-              onChange={(e) => onFilterChange({ category: e.target.value })}
-              className="input-field"
-            >
-              <option value="">All Categories</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c.replace("_", " ")}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!hideCategoryFilter && (
+            <div>
+              <label className="input-label">Category</label>
+              <select
+                value={filters.category}
+                onChange={(e) => onFilterChange({ category: e.target.value })}
+                className="input-field"
+              >
+                <option value="">All Categories</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c.replace("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Condition */}
           <div>
@@ -121,7 +125,7 @@ const FilterBar = ({ filters, onFilterChange, onReset }) => {
         >
           <span className="text-xs text-gray-400">Active filters:</span>
 
-          {filters.category && (
+          {!hideCategoryFilter && filters.category && (
             <Chip
               label={filters.category.replace("_", " ")}
               onRemove={() => onFilterChange({ category: "" })}
