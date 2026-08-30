@@ -163,14 +163,21 @@ const MarketplacePage = () => {
       <div className="container-app py-10">
         {/* ── Page Header ──────────────────────────────────── */}
         <div className="mb-8">
-          <h1 className="text-gray-900">Marketplace</h1>
-          <p className="text-gray-500 mt-2">
-            {loading
-              ? "Loading listings…"
-              : `${pagination?.totalCount ?? 0} item${
-                  pagination?.totalCount !== 1 ? "s" : ""
-                } available`}
-          </p>
+          <h1 className="text-gray-900">
+            {filters.category
+              ? CATEGORIES.find((c) => c.value === filters.category)?.label ??
+                "Marketplace"
+              : "Categories"}
+          </h1>
+          {filters.category && (
+            <p className="text-gray-500 mt-2">
+              {loading
+                ? "Loading listings…"
+                : `${pagination?.totalCount ?? 0} item${
+                    pagination?.totalCount !== 1 ? "s" : ""
+                  } available`}
+            </p>
+          )}
         </div>
 
         {/* ── Category Picker (shown until a category is chosen) ── */}
@@ -204,7 +211,7 @@ const MarketplacePage = () => {
             </button>
 
             {/* ── Sticky, blurred Filter Bar ───────────────────── */}
-            <div className="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-white/80 backdrop-blur-md border-b border-gray-100">
+            <div className="sticky top-16 z-40 -mx-4 px-4 py-3 mb-6 bg-white/80 backdrop-blur-md border-b border-gray-100">
               <motion.div
                 initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -218,6 +225,10 @@ const MarketplacePage = () => {
                   onFilterChange={handleFilterChange}
                   onReset={handleReset}
                   hideCategoryFilter
+                  searchPlaceholder={`Search for ${
+                    CATEGORIES.find((c) => c.value === filters.category)
+                      ?.label ?? "items"
+                  }...`}
                 />
               </motion.div>
             </div>

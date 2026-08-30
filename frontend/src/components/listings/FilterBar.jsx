@@ -4,7 +4,13 @@ import { useState } from "react";
 import { FiSearch, FiX, FiSliders } from "react-icons/fi";
 import { CATEGORIES, CONDITIONS } from "../../services/listingService";
 
-const FilterBar = ({ filters, onFilterChange, onReset, hideCategoryFilter = false }) => {
+const FilterBar = ({
+  filters,
+  onFilterChange,
+  onReset,
+  hideCategoryFilter = false,
+  searchPlaceholder = "Search for textbooks, laptops, furniture...",
+}) => {
   const [showFilters, setShowFilters] = useState(false);
 
   const hasActiveFilters =
@@ -24,7 +30,7 @@ const FilterBar = ({ filters, onFilterChange, onReset, hideCategoryFilter = fals
           />
           <input
             type="text"
-            placeholder="Search for textbooks, laptops, furniture..."
+            placeholder={searchPlaceholder}
             value={filters.search}
             onChange={(e) => onFilterChange({ search: e.target.value })}
             className="input-field pl-10"
