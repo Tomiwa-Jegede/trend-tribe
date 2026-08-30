@@ -146,7 +146,7 @@ const Navbar = () => {
   return (
     <>
       <motion.nav
-        className="bg-white border-b border-sage-100 sticky top-0 z-50"
+        className="bg-white border-b border-sage-100 sticky top-0 z-50 backdrop-blur-md"
         animate={
           reducedMotion
             ? {}
