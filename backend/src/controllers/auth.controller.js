@@ -9,6 +9,7 @@ const { generateOTP, getOTPExpiry } = require("../utils/otp");
 const { sendOTPEmail, sendPasswordResetEmail } = require("../utils/email");
 const config = require("../config/env");
 const { toDisplayTokens } = require("../utils/tokenFormat");
+const { normalizeWhatsapp } = require("../utils/phone");
 // ─── Helper: strip sensitive fields from user object ──────────
 const sanitizeUser = (user) => {
   const {
@@ -219,7 +220,7 @@ const verifyRegistration = async (req, res) => {
         fullName: pending.fullName,
         school: pending.school,
         matricNumber: pending.matricNumber,
-        whatsapp: pending.whatsapp,
+        whatsapp: pending.whatsapp ? normalizeWhatsapp(pending.whatsapp) : null,
         bio: pending.bio,
         role: pending.role,
         isVerified: true,
@@ -525,7 +526,19 @@ const updateProfile = async (req, res) => {
     if (fullName !== undefined) updateData.fullName = fullName;
     if (bio !== undefined) updateData.bio = bio;
     if (school !== undefined) updateData.school = school;
-    if (whatsapp !== undefined) updateData.whatsapp = whatsapp;
+    if (whatsapp !== undefined) {
+      if (!whatsapp || !whatsapp.trim()) {
+        updateData.whatsapp = null;
+      } else {
+        const normalized = normalizeWhatsapp(whatsapp);
+        if (!normalized) {
+          return res.status(400).json({
+            error: "Enter a valid Nigerian phone number (e.g. 08012345678 or +2348012345678)",
+          });
+        }
+        updateData.whatsapp = normalized;
+      }
+    }
 
     // If multer + cloudinary processed an avatar file, use its URL
     if (req.file) {

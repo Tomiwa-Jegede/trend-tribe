@@ -30,6 +30,7 @@ const EditProfilePage = () => {
   const [avatarFile, setAvatarFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [whatsappError, setWhatsappError] = useState("");
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -54,6 +55,14 @@ const EditProfilePage = () => {
 
   const handleSave = async () => {
     setError("");
+    setWhatsappError("");
+    if (
+      form.whatsapp.trim() &&
+      !/^(\+234|0)[789][01]\d{8}$/.test(form.whatsapp.trim())
+    ) {
+      setWhatsappError("Enter a valid Nigerian phone number (e.g. 08012345678)");
+      return;
+    }
     setSaving(true);
     try {
       const fields = { ...form };
@@ -220,8 +229,14 @@ const EditProfilePage = () => {
                   className="input-field"
                   placeholder="e.g. +2348012345678"
                   value={form.whatsapp}
-                  onChange={(e) => setForm((p) => ({ ...p, whatsapp: e.target.value }))}
+                  onChange={(e) => {
+                    setForm((p) => ({ ...p, whatsapp: e.target.value }));
+                    setWhatsappError("");
+                  }}
                 />
+                {whatsappError && (
+                  <p className="text-accent-600 text-sm mt-1">{whatsappError}</p>
+                )}
               </div>
 
               {/* Error */}
