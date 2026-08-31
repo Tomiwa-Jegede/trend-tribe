@@ -7,12 +7,14 @@ const REQUIRED_VARS = [
   "JWT_SECRET",
   "JWT_EXPIRES_IN",
   "CLIENT_URL",
+  "API_URL",
   "BREVO_API_KEY",
   "EMAIL_FROM",
   "EMAIL_FROM_NAME",
   "CLOUDINARY_CLOUD_NAME", // ← new
   "CLOUDINARY_API_KEY", // ← new
   "CLOUDINARY_API_SECRET", // ← new
+  "CRON_SECRET", // ← new
 ];
 
 const missing = REQUIRED_VARS.filter((key) => !process.env[key]);
@@ -37,6 +39,8 @@ const config = {
   },
 
   clientUrl: process.env.CLIENT_URL,
+  apiUrl: process.env.API_URL,
+  cronSecret: process.env.CRON_SECRET,
 
   email: {
     brevoApiKey: process.env.BREVO_API_KEY,

@@ -90,4 +90,42 @@ const sendPasswordResetEmail = async (toEmail, fullName, resetUrl) => {
   });
 };
 
-module.exports = { sendOTPEmail, sendPasswordResetEmail };
+// ─── Plain wrapper for marketing emails (deliberately unbranded — ──
+// avoids the boxed/logo look that trips Gmail's Promotions filter) ──
+const wrapMarketingEmail = (innerHtml) => `
+  <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 16px 8px; color: #1f2937;">
+    ${innerHtml}
+    <p style="margin-top: 24px; font-size: 12px; color: #9CA3AF;">
+      TrendTribe
+    </p>
+  </div>
+`;
+
+// ─── Send daily marketing/reminder email ──────────────────────
+const sendMarketingEmail = async (toEmail, fullName, unsubscribeToken) => {
+const html = wrapMarketingEmail(`
+    <p style="font-size: 14px; line-height: 1.6;">
+      Hi ${fullName}! 👋
+    </p>
+    <p style="font-size: 14px; line-height: 1.6;">
+      Hope things are off to a good start. Just a quick note —
+      there are new listings on TrendTribe today from students
+      around campus. Worth a look if you've got a minute:
+    </p>
+    <div style="margin: 20px 0;">
+          <a href="https://trendtribee.netlify.app"
+         style="display: inline-block; padding: 10px 20px; border: 1px solid #1340B8;
+                border-radius: 6px; color: #1340B8; text-decoration: none; font-size: 14px; font-weight: 600;">
+        What's New →
+      </a>
+    </div>
+  `);
+
+  return sendViaBrevo({
+    to: toEmail,
+    subject: "Your daily TrendTribe update",
+    html,
+  });
+};
+
+module.exports = { sendOTPEmail, sendPasswordResetEmail, sendMarketingEmail };

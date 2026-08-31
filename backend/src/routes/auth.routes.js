@@ -12,6 +12,7 @@ const {
   updateProfile,
   requestSellerUpgrade,
   verifySellerUpgrade,
+  unsubscribe,
 
 } = require("../controllers/auth.controller");
 const {
@@ -35,7 +36,7 @@ router.post("/register/resend", resendRegistrationOtp);
 router.post("/login", loginRules, validate, login);
 router.post("/forgot-password", forgotPasswordRules, validate, forgotPassword);
 router.post("/reset-password", resetPasswordRules, validate, resetPassword);
-
+router.get("/unsubscribe/:token", unsubscribe);
 // ─── Protected ────────────────────────────────────────────────
 router.get("/me", protect, getMe);
 router.post("/verify-email", protect, verifyEmailRules, validate, verifyEmail);

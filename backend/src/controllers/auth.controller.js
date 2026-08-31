@@ -653,6 +653,52 @@ const verifySellerUpgrade = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// GET /api/auth/unsubscribe/:token ← PUBLIC
+// Looks up user by unsubscribeToken, sets marketingOptIn to false,
+// returns a simple confirmation HTML page (link is clicked from email)
+// ─────────────────────────────────────────────────────────────
+const unsubscribe = async (req, res) => {
+  const { token } = req.params;
+
+  const htmlPage = (message) => `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>TrendTribe</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body style="font-family: -apple-system, sans-serif; text-align: center; padding: 60px 20px; color: #1f2937;">
+        <h2 style="margin-bottom: 12px;">TrendTribe</h2>
+        <p style="font-size: 16px;">${message}</p>
+      </body>
+    </html>
+  `;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { unsubscribeToken: token } });
+
+    if (!user) {
+      return res.status(404).send(htmlPage("This unsubscribe link is invalid or has already been used."));
+    }
+
+    if (!user.marketingOptIn) {
+      return res.status(200).send(htmlPage("You're already unsubscribed from marketing emails."));
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { marketingOptIn: false },
+    });
+
+    return res.status(200).send(htmlPage("You've been unsubscribed from marketing emails. You'll still receive important account emails."));
+  } catch (err) {
+    console.error("[UNSUBSCRIBE ERROR]", err);
+    return res.status(500).send(htmlPage("Something went wrong. Please try again later."));
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -666,4 +712,5 @@ module.exports = {
   updateProfile,
   requestSellerUpgrade,
   verifySellerUpgrade,
+  unsubscribe,
 };

@@ -20,6 +20,7 @@ const CATEGORIES = [
   { label: "Accessories", emoji: "👜", value: "ACCESSORIES" },
   { label: "Fashion", emoji: "👗", value: "FASHION" },
   { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
+  { label: "Snacks", emoji: "🍿", value: "SNACKS" },
   { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
 

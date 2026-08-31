@@ -31,6 +31,8 @@ model User {
   aiUsesRemaining      Int             @default(0)
   numberViewsRemaining Int             @default(0)
   tokenBalance         Int             @default(20)
+  marketingOptIn       Boolean         @default(true)
+  unsubscribeToken     String          @unique @default(cuid())
   tokenPurchases       TokenPurchase[]
   listings             Listing[]
   reports              Report[]
@@ -157,6 +159,7 @@ enum Category {
   ACCESSORIES
   FASHION
   BEAUTY_AND_PERSONAL_CARE
+  SNACKS
   OTHERS
 }
 
@@ -164,6 +167,7 @@ enum Subcategory {
   MENS_FASHION
   FEMALE_FASHION
   JERSEY
+  TIES
   SKIN_CARE
   FRAGRANCE
 }

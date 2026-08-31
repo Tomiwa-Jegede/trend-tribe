@@ -17,13 +17,14 @@ const CATEGORIES = [
   { label: "Accessories", emoji: "👜", value: "ACCESSORIES" },
   { label: "Fashion", emoji: "👗", value: "FASHION" },
   { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
+  { label: "Snacks", emoji: "🍿", value: "SNACKS" },
   { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
-
 const SUBCATEGORY_DISPLAY = {
-  MENS_FASHION: { label: "Men's Fashion", emoji: "👔" },
+  MENS_FASHION: { label: "Men's Fashion", emoji: "👕" },
   FEMALE_FASHION: { label: "Female Fashion", emoji: "👚" },
   JERSEY: { label: "Jersey", emoji: "🎽" },
+  TIES: { label: "Ties", emoji: "👔" },
   SKIN_CARE: { label: "Skin Care", emoji: "🧴" },
   FRAGRANCE: { label: "Fragrance", emoji: "🌸" },
 };

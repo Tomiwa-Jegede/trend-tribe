@@ -5,6 +5,8 @@ const { protect } = require("../middleware/auth.middleware");
 const { requireAdmin } = require("../middleware/admin.middleware");
 const prisma = require("../db");
 const cloudinary = require("../config/cloudinary");
+const config = require("../config/env");
+const { sendWeeklyEmail } = require("../scripts/sendWeeklyEmail");
 
 const router = express.Router();
 
@@ -260,6 +262,32 @@ router.patch("/reports/:id/ignore", protect, requireAdmin, async (req, res) => {
     return res.status(200).json({ message: "Report ignored ✅" });
   } catch (err) {
     console.error("[ADMIN IGNORE REPORT ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/admin/send-weekly-email ← SECRET KEY ONLY (no login)
+// Called by an external cron service (e.g. cron-job.org) on a
+// schedule. Guarded by a shared secret header, not a user session,
+// since the caller has no logged-in user.
+// Header required: x-cron-secret: <CRON_SECRET>
+// ─────────────────────────────────────────────────────────────
+router.post("/send-weekly-email", async (req, res) => {
+  const providedSecret = req.headers["x-cron-secret"];
+
+  if (!providedSecret || providedSecret !== config.cronSecret) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const result = await sendWeeklyEmail();
+    return res.status(200).json({
+      message: "Weekly email run complete",
+      ...result,
+    });
+  } catch (err) {
+    console.error("[SEND WEEKLY EMAIL ENDPOINT ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
