@@ -400,7 +400,7 @@ const ListingDetailPage = () => {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <button
+                        <button
                 onClick={async () => {
                   if (!isAuthenticated) {
                     navigate("/login");
@@ -409,18 +409,6 @@ const ListingDetailPage = () => {
                   setContactLoading(true);
                   const result = await revealContact(listing.id);
                   setContactLoading(false);
-
-                  if (!result.ok && result.needsTokenConfirm) {
-                    if (result.tokenBalance >= 1) {
-                      setContactConfirm({ tokenBalance: result.tokenBalance });
-                    } else {
-                      toast.info(result.error);
-                    }
-                    return;
-                  }
-
-                  setContactConfirm(null);
-
                   if (result.whatsapp) {
                     const message = encodeURIComponent(`Hi ${listing.seller.fullName}, I'm interested in your listing:
 📦 Item: ${listing.title}
@@ -438,32 +426,6 @@ Is this still available?`);
                 <FiMessageCircle className="w-5 h-5" />
                 {listing.isAvailable ? "Contact Seller" : "No Longer Available"}
               </button>
-              {contactConfirm && (
-                <button
-                  onClick={async () => {
-                    setContactLoading(true);
-                    const result = await revealContact(listing.id, true);
-                    refreshUser();
-                    setContactLoading(false);
-                    setContactConfirm(null);
-
-                    if (result.whatsapp) {
-                      const message = encodeURIComponent(`Hi ${listing.seller.fullName}, I'm interested in your listing:
-📦 Item: ${listing.title}
-💰 Price: ₦${listing.price}
-🔗 Listing: ${window.location.origin}/listings/${listing.id}
-Is this still available?`);
-                      window.open(`https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`, "_blank");
-                    } else {
-                      toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
-                    }
-                  }}
-                  disabled={contactLoading}
-                  className="text-xs font-medium text-primary-700 bg-white border border-primary-200 rounded-full px-3 py-1.5 hover:bg-primary-50 disabled:opacity-50 self-start"
-                >
-                  0.25 tokens — click to confirm
-                </button>
-              )}
             </div>
           )}
 

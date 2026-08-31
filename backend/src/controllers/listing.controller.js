@@ -589,51 +589,6 @@ const revealContact = async (req, res) => {
 
     if (!listing) return res.status(404).json({ error: "Listing not found" });
 
-    if (listing.sellerId === req.user.id) {
-      return res.status(200).json({ whatsapp: listing.seller.whatsapp });
-    }
-
-    const { confirmSpend } = req.body;
-    const viewer = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: { tokenBalance: true },
-    });
-
-    if (!viewer) return res.status(401).json({ error: "Account not found." });
-
-    const isAdmin = req.user.role === "ADMIN";
-
-    if (!isAdmin) {
-      if (viewer.tokenBalance < 1) {
-        return res.status(403).json({
-          error: "You're out of tokens. Buy more to view seller numbers.",
-          limitReached: true,
-          tokenBalance: toDisplayTokens(viewer.tokenBalance),
-        });
-      }
-
-      if (!confirmSpend) {
-        return res.status(402).json({
-          needsTokenConfirm: true,
-          tokenBalance: toDisplayTokens(viewer.tokenBalance),
-          error: "This will use 0.25 tokens. Confirm to continue.",
-        });
-      }
-
-      const spend = await prisma.user.updateMany({
-        where: { id: req.user.id, tokenBalance: { gte: 1 } },
-        data: { tokenBalance: { decrement: 1 } },
-      });
-
-      if (spend.count === 0) {
-        return res.status(402).json({
-          needsTokenConfirm: true,
-          tokenBalance: 0,
-          error: "You're out of tokens. Buy more to view seller numbers.",
-        });
-      }
-    }
-
     return res.status(200).json({ whatsapp: listing.seller.whatsapp });
   } catch (err) {
     console.error("[REVEAL CONTACT ERROR]", err);
