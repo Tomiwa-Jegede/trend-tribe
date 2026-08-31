@@ -101,16 +101,28 @@ const wrapMarketingEmail = (innerHtml) => `
   </div>
 `;
 
-// ─── Send daily marketing/reminder email ──────────────────────
+// ─── Rotating body message variants for daily marketing email ──
+const MARKETING_MESSAGE_VARIANTS = [
+  "Just a quick reminder not to forget to check TrendTribe today. 🛍️👀 New listings are waiting, and you might just find something you need! Have a fantastic day ahead!",
+  "Someone on campus might be selling exactly what you've been looking for. 🔍 Take a minute to browse today's listings on TrendTribe! Have a great day!",
+  "New day, new listings! 🆕 Students around campus have been adding fresh items to TrendTribe — worth a quick look before they're gone. Have a wonderful day!",
+  "Psst — TrendTribe's got new stuff today. 👀 Swing by and see what your fellow students are selling this week! Have an amazing day!",
+  "Good deals don't wait around. 💸 Check out today's fresh listings on TrendTribe before someone else grabs them! Have a good one!",
+  "Hey! 👋 A few new items just popped up on TrendTribe today — might be worth a quick peek. Have a lovely day!",
+  "Don't sleep on today's listings! 😄 Fellow students have new stuff up on TrendTribe right now. Have a productive day!",
+  "Quick one — TrendTribe's got fresh listings today. 🛒 Worth checking before you get busy with everything else. Have a smooth day!",
+  "Your next great find could be on TrendTribe today. ✨ New listings just went up from students around campus. Have a beautiful day!",
+  "Heads up! 📢 TrendTribe's been buzzing with new listings today — take a look when you get a sec. Have an awesome day!",
+];
+
 const sendMarketingEmail = async (toEmail, fullName, unsubscribeToken) => {
+  const bodyMessage = MARKETING_MESSAGE_VARIANTS[Math.floor(Math.random() * MARKETING_MESSAGE_VARIANTS.length)];
 const html = wrapMarketingEmail(`
     <p style="font-size: 14px; line-height: 1.6;">
-      Hi ${fullName}! 👋
+      Good morning, ${fullName}! 👋🏽 How's your day going so far?
     </p>
     <p style="font-size: 14px; line-height: 1.6;">
-      Hope things are off to a good start. Just a quick note —
-      there are new listings on TrendTribe today from students
-      around campus. Worth a look if you've got a minute:
+      ${bodyMessage}
     </p>
     <div style="margin: 20px 0;">
           <a href="https://trendtribee.netlify.app"
