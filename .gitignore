@@ -7,3 +7,4 @@ node_modules/
 /playwright/.cache/
 # Local Netlify folder
 .netlify
+backend/prisma.config.ts.bak

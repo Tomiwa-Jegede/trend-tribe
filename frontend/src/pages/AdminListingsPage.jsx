@@ -4,23 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminListings, deleteAdminListing } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
-
-const CATEGORIES = [
-  "BOOKS",
-  "ELECTRONICS",
-  "CLOTHING",
-  "FURNITURE",
-  "STATIONERY",
-  "SPORTS",
-  "FOOD",
-  "SERVICES",
-  "OTHER",
-];
+import { CATEGORIES, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 
 const AdminListingsPage = () => {
   const [listings, setListings] = useState([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
+  const [subcategory, setSubcategory] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +23,7 @@ const AdminListingsPage = () => {
       const data = await getAdminListings({
         search: search || undefined,
         category: category || undefined,
+        subcategory: subcategory || undefined,
         page,
       });
       setListings(data.listings);
@@ -42,7 +33,7 @@ const AdminListingsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, category, page]);
+  }, [search, category, subcategory, page]);
 
   useEffect(() => {
     fetchListings();
@@ -78,16 +69,34 @@ const AdminListingsPage = () => {
           onChange={(e) => {
             setPage(1);
             setCategory(e.target.value);
+            setSubcategory("");
           }}
           className="border border-sage-100 rounded-lg px-3 py-2 text-sm"
         >
           <option value="">All Categories</option>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {c}
+              {c.replace(/_/g, " ")}
             </option>
           ))}
         </select>
+        {SUBCATEGORIES_BY_CATEGORY[category] && (
+          <select
+            value={subcategory}
+            onChange={(e) => {
+              setPage(1);
+              setSubcategory(e.target.value);
+            }}
+            className="border border-sage-100 rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">All Subcategories</option>
+            {SUBCATEGORIES_BY_CATEGORY[category].map((sc) => (
+              <option key={sc} value={sc}>
+                {sc.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}

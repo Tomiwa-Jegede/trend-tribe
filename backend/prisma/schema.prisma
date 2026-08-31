@@ -166,6 +166,7 @@ enum Category {
 enum Subcategory {
   MENS_FASHION
   FEMALE_FASHION
+  UNISEX_FASHION
   JERSEY
   TIES
   SKIN_CARE

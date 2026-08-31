@@ -60,6 +60,7 @@ router.get("/listings", protect, requireAdmin, async (req, res) => {
     const {
       search,
       category,
+      subcategory,
       page = 1,
       limit = 20,
     } = req.query;
@@ -73,6 +74,7 @@ router.get("/listings", protect, requireAdmin, async (req, res) => {
       where.title = { contains: search.trim(), mode: "insensitive" };
     }
     if (category) where.category = category.toUpperCase();
+    if (subcategory) where.subcategory = subcategory.toUpperCase();
 
     const [listings, totalCount] = await Promise.all([
       prisma.listing.findMany({
@@ -84,6 +86,7 @@ router.get("/listings", protect, requireAdmin, async (req, res) => {
           id: true,
           title: true,
           category: true,
+          subcategory: true,
           price: true,
           isAvailable: true,
           createdAt: true,
