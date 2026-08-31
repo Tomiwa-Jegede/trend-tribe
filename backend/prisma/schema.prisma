@@ -34,6 +34,7 @@ model User {
   tokenPurchases       TokenPurchase[]
   listings             Listing[]
   reports              Report[]
+  favorites            Favorite[]
 
   @@map("users")
 }
@@ -100,6 +101,7 @@ model Listing {
   isFreeSlot     Boolean   @default(true)
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   reports        Report[]
+  favorites      Favorite[]
 
   @@map("listings")
 }
@@ -117,6 +119,19 @@ model Report {
   @@unique([listingId, reporterId])
   @@index([status])
   @@map("reports")
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  listingId Int
+  userId    Int
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, userId])
+  @@index([userId])
+  @@map("favorites")
 }
 
 enum Role {
@@ -148,6 +163,7 @@ enum Category {
 enum Subcategory {
   MENS_FASHION
   FEMALE_FASHION
+  JERSEY
   SKIN_CARE
   FRAGRANCE
 }

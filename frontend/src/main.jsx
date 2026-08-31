@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./context/AuthContext";
+import { FavoritesProvider } from "./context/FavoritesContext";
 import { ToastProvider } from "./context/ToastContext";
 import ToastOverlay from "./components/ui/Toast";
 import App from "./App";
@@ -15,12 +16,14 @@ createRoot(document.getElementById("root")).render(
     <HelmetProvider>
       <BrowserRouter>
         <AuthProvider>
-          <ToastProvider>
-            <App />
-            {/* Toast overlay lives outside App so it's never clipped by
-                any overflow-hidden parent (Navbar, modals, etc.)         */}
-            <ToastOverlay />
-          </ToastProvider>
+          <FavoritesProvider>
+            <ToastProvider>
+              <App />
+              {/* Toast overlay lives outside App so it's never clipped by
+                  any overflow-hidden parent (Navbar, modals, etc.)         */}
+              <ToastOverlay />
+            </ToastProvider>
+          </FavoritesProvider>
         </AuthProvider>
       </BrowserRouter>
     </HelmetProvider>

@@ -11,7 +11,7 @@ export const CATEGORIES = [
 ];
 
 export const SUBCATEGORIES_BY_CATEGORY = {
-  FASHION: ["MENS_FASHION", "FEMALE_FASHION"],
+  FASHION: ["MENS_FASHION", "FEMALE_FASHION", "JERSEY"],
   BEAUTY_AND_PERSONAL_CARE: ["SKIN_CARE", "FRAGRANCE"],
 };
 
@@ -72,6 +72,24 @@ export const updateListing = async (id, formData) => {
   const { data } = await api.put(`/listings/${id}`, formData);
   return data.listing;
 };
+// ─── POST /api/listings/:id/favorite ─────────────────────────────
+export const toggleFavorite = async (id) => {
+  const { data } = await api.post(`/listings/${id}/favorite`);
+  return data; // { favorited }
+};
+
+// ─── GET /api/listings/favorites/ids ──────────────────────────────
+export const getFavoriteIds = async () => {
+  const { data } = await api.get("/listings/favorites/ids");
+  return data.ids; // number[]
+};
+
+// ─── GET /api/listings/favorites/mine ─────────────────────────────
+export const getMyFavorites = async (params = {}) => {
+  const { data } = await api.get("/listings/favorites/mine", { params });
+  return data; // { listings, pagination }
+};
+
 // ─── POST /api/listings/image-search ─────────────────────────────
 export const searchByImage = async (file) => {
   const form = new FormData();

@@ -22,6 +22,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import FeaturesPage from "./pages/FeaturesPage";
 import TokenCallbackPage from "./pages/TokenCallbackPage";
+import FavoritesPage from "./pages/FavoritesPage";
 
 // ─── Lazy-loaded (heavier / less-frequently-visited pages) ────
 const CreateListingPage = lazy(() => import("./pages/CreateListingPage"));
@@ -196,10 +197,17 @@ const App = () => {
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/features" element={<FeaturesPage />} />
-            <Route path="/coming-soon" element={<ComingSoonPage />} />
-            <Route path="/messages" element={<ComingSoonPage />} />
-            <Route path="/saved" element={<ComingSoonPage />} />
-            <Route path="/notifications" element={<ComingSoonPage />} />
+              <Route path="/coming-soon" element={<ComingSoonPage />} />
+              <Route path="/messages" element={<ComingSoonPage />} />
+              <Route
+                path="/saved"
+                element={
+                  <ProtectedRoute>
+                    <FavoritesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/notifications" element={<ComingSoonPage />} />
             <Route path="/my-listings" element={<ComingSoonPage />} />
           </Routes>
           </Suspense>

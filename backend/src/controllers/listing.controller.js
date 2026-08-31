@@ -596,6 +596,120 @@ const revealContact = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// POST /api/listings/:id/favorite ← PROTECTED
+// Toggles a favorite on/off for the current user.
+// ─────────────────────────────────────────────────────────────
+const toggleFavorite = async (req, res) => {
+  try {
+    const listingId = parseInt(req.params.id, 10);
+    if (isNaN(listingId))
+      return res.status(400).json({ error: "Invalid listing ID" });
+
+    const listing = await prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true },
+    });
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+    const existing = await prisma.favorite.findUnique({
+      where: {
+        listingId_userId: { listingId, userId: req.user.id },
+      },
+    });
+
+    if (existing) {
+      await prisma.favorite.delete({ where: { id: existing.id } });
+      return res.status(200).json({ favorited: false });
+    }
+
+    await prisma.favorite.create({
+      data: { listingId, userId: req.user.id },
+    });
+    return res.status(201).json({ favorited: true });
+  } catch (err) {
+    console.error("[TOGGLE FAVORITE ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/listings/favorites/ids ← PROTECTED
+// Lightweight list of listing IDs the current user has favorited,
+// used by the frontend to mark hearts as filled across any grid.
+// ─────────────────────────────────────────────────────────────
+const getMyFavoriteIds = async (req, res) => {
+  try {
+    const favorites = await prisma.favorite.findMany({
+      where: { userId: req.user.id },
+      select: { listingId: true },
+    });
+    return res.status(200).json({ ids: favorites.map((f) => f.listingId) });
+  } catch (err) {
+    console.error("[GET FAVORITE IDS ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/listings/favorites/mine ← PROTECTED
+// Full favorited listings for a "My Favorites" page.
+// ─────────────────────────────────────────────────────────────
+const getMyFavorites = async (req, res) => {
+  try {
+    const { page = 1, limit = 12 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(48, Math.max(1, parseInt(limit, 10) || 12));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [favorites, totalCount] = await Promise.all([
+      prisma.favorite.findMany({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limitNum,
+        include: {
+          listing: {
+            include: {
+              seller: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true,
+                  school: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.favorite.count({ where: { userId: req.user.id } }),
+    ]);
+
+    const listings = favorites
+      .filter((f) => f.listing)
+      .map((f) => formatListing(f.listing));
+
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    return res.status(200).json({
+      listings,
+      pagination: {
+        totalCount,
+        totalPages,
+        currentPage: pageNum,
+        limit: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  } catch (err) {
+    console.error("[GET MY FAVORITES ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   getAllListings,
   getListingById,
@@ -606,4 +720,7 @@ module.exports = {
   reportListing,
   revealContact,
   searchListingsByImage,
+  toggleFavorite,
+  getMyFavoriteIds,
+  getMyFavorites,
 };

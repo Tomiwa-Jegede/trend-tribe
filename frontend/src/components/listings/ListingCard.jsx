@@ -1,8 +1,10 @@
 // src/components/listings/ListingCard.jsx
 
-import { Link } from "react-router-dom";
-import { FiMapPin, FiUser } from "react-icons/fi";
+import { Link, useNavigate } from "react-router-dom";
+import { FiMapPin, FiUser, FiHeart } from "react-icons/fi";
 import { motion, useReducedMotion } from "framer-motion";
+import { useAuth } from "../../context/AuthContext";
+import { useFavorites } from "../../context/FavoritesContext";
 
 // ─── Condition badge color map ────────────────────────────────
 const CONDITION_STYLES = {
@@ -86,9 +88,25 @@ const categoryVariants = {
 // ─────────────────────────────────────────────────────────────
 const ListingCard = ({ listing }) => {
   const reduced = useReducedMotion();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { isFavorited, toggleFavorite } = useFavorites();
   const { id, title, price, category, condition, images, location, seller } =
     listing;
   const thumbnail = images?.[0] || null;
+  const favorited = isFavorited(id);
+
+  const handleFavoriteClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+    toggleFavorite(id).catch(() => {
+      // Silently ignore — context already reverted the optimistic update
+    });
+  };
 
   // When reduced motion is on — collapse everything to a simple fade
   const safeCard = reduced
@@ -147,15 +165,37 @@ const ListingCard = ({ listing }) => {
             </div>
           )}
 
-          {/* Condition badge */}
-          <motion.span
-            className={`badge absolute top-3 left-3 ${CONDITION_STYLES[condition]}`}
-            initial={reduced ? {} : { opacity: 0, x: -8 }}
-            animate={reduced ? {} : { opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-          >
-            {CONDITION_LABELS[condition]}
-          </motion.span>
+                    {/* Condition badge */}
+            <motion.span
+              className={`badge absolute top-3 left-3 ${CONDITION_STYLES[condition]}`}
+              initial={reduced ? {} : { opacity: 0, x: -8 }}
+              animate={reduced ? {} : { opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              {CONDITION_LABELS[condition]}
+            </motion.span>
+
+            {/* Favorite heart */}
+            <motion.button
+              type="button"
+              onClick={handleFavoriteClick}
+              aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+              initial={reduced ? {} : { opacity: 0, scale: 0.8 }}
+              animate={reduced ? {} : { opacity: 1, scale: 1 }}
+              whileTap={reduced ? {} : { scale: 0.85 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90
+                         backdrop-blur-sm flex items-center justify-center
+                         shadow-sm hover:bg-white transition-colors"
+            >
+              <FiHeart
+                className={`w-4 h-4 transition-colors ${
+                  favorited
+                    ? "fill-red-500 text-red-500"
+                    : "text-gray-400"
+                }`}
+              />
+            </motion.button>
 
           {/* Hover overlay */}
           {!reduced && (

@@ -12,6 +12,9 @@ const {
   reportListing,
   revealContact,
   searchListingsByImage,
+  toggleFavorite,
+  getMyFavoriteIds,
+  getMyFavorites,
 } = require("../controllers/listing.controller");
 const { protect } = require("../middleware/auth.middleware");
 const { requireVerified, requireSeller } = require("../middleware/verified.middleware");
@@ -32,6 +35,8 @@ const imageSearchUpload = multer({
 // ─── Public ───────────────────────────────────────────────────
 router.get("/", getAllListings);
 router.get("/user/:userId", getListingsByUser);
+router.get("/favorites/mine", protect, getMyFavorites);
+router.get("/favorites/ids", protect, getMyFavoriteIds);
 router.get("/:id", getListingById);
 // ─── Protected ────────────────────────────────────────────────
 router.post(
@@ -53,5 +58,6 @@ router.put("/:id", protect, requireSeller, updateListingRules, validate, updateL
 router.delete("/:id", protect, requireSeller, deleteListing);
 router.post("/:id/report", protect, reportListing);
 router.post("/:id/contact", protect, revealContact);
+router.post("/:id/favorite", protect, toggleFavorite);
 
 module.exports = router;

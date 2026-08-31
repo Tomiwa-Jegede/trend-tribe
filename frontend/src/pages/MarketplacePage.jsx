@@ -23,6 +23,7 @@ const CATEGORIES = [
 const SUBCATEGORY_DISPLAY = {
   MENS_FASHION: { label: "Men's Fashion", emoji: "👔" },
   FEMALE_FASHION: { label: "Female Fashion", emoji: "👚" },
+  JERSEY: { label: "Jersey", emoji: "🎽" },
   SKIN_CARE: { label: "Skin Care", emoji: "🧴" },
   FRAGRANCE: { label: "Fragrance", emoji: "🌸" },
 };

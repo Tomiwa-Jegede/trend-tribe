@@ -14,6 +14,7 @@ import {
   FiUser,
   FiLogOut,
   FiHelpCircle,
+  FiHeart,
 } from "react-icons/fi";
 
 // ── Reduced-motion helper ──────────────────────────────────────
@@ -189,16 +190,19 @@ const Navbar = () => {
               <NavLink path="/features" label="Features" />
               <NavLink path="/about" label="About" />
 
-              {isAuthenticated && (
-                <NavLink
-                  path={`/profile/${user?.id}`}
-                  label="My Profile"
+                          {isAuthenticated && (
+                  <NavLink
+                    path={`/profile/${user?.id}`}
+                    label="My Profile"
 
-                />
-              )}
-              {user?.role === "ADMIN" && (
-                <NavLink path="/admin" label="Admin" />
-              )}
+                  />
+                )}
+                {isAuthenticated && (
+                  <NavLink path="/saved" label="Favorites" />
+                )}
+                {user?.role === "ADMIN" && (
+                  <NavLink path="/admin" label="Admin" />
+                )}
             </div>
 
             {/* ── Desktop Auth Buttons ──────────────────────── */}
@@ -368,14 +372,17 @@ const Navbar = () => {
               <MobileNavLink path="/about" label="About" index={3} />
 
 
-              {isAuthenticated && (
-                <MobileNavLink
-                  path={`/profile/${user?.id}`}
-                  label="My Profile"
-                  index={3}
+                             {isAuthenticated && (
+                  <MobileNavLink
+                    path={`/profile/${user?.id}`}
+                    label="My Profile"
+                    index={3}
 
-                />
-              )}
+                  />
+                )}
+                {isAuthenticated && (
+                  <MobileNavLink path="/saved" label="Favorites" index={4} />
+                )}
               {isAuthenticated && typeof user?.tokenBalance === "number" && (
                 <div className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-full px-2.5 py-1 w-fit">
                   🪙 {user.tokenBalance} tokens
