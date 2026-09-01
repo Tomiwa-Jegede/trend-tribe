@@ -94,6 +94,8 @@ model Listing {
   images         String[]  @default([])
   location       String?
   isAvailable    Boolean   @default(true)
+  soldAt         DateTime?
+  archivedAt     DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   sellerId       Int
@@ -161,6 +163,7 @@ enum Category {
   BEAUTY_AND_PERSONAL_CARE
   SNACKS
   OTHERS
+  GADGETS
 }
 
 enum Subcategory {
@@ -171,6 +174,9 @@ enum Subcategory {
   TIES
   SKIN_CARE
   FRAGRANCE
+  PHONE_ACCESSORIES
+  JEWELRY
+  OTHERS
 }
 
 enum Condition {

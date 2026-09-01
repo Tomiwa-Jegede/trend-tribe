@@ -1,0 +1,1 @@
+ALTER TYPE "Subcategory" ADD VALUE 'JEWELRY';

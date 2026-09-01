@@ -8,6 +8,7 @@ const VALID_CATEGORIES = [
   "FASHION",
   "BEAUTY_AND_PERSONAL_CARE",
   "SNACKS",
+  "GADGETS",
   "OTHERS",
 ];
 const VALID_SUBCATEGORIES = [
@@ -18,9 +19,12 @@ const VALID_SUBCATEGORIES = [
   "TIES",
   "SKIN_CARE",
   "FRAGRANCE",
+  "PHONE_ACCESSORIES",
+  "JEWELRY",
+  "OTHERS",
 ];
 
-const CATEGORIES_WITH_SUBCATEGORY = ["FASHION", "BEAUTY_AND_PERSONAL_CARE"];
+const CATEGORIES_WITH_SUBCATEGORY = ["FASHION", "BEAUTY_AND_PERSONAL_CARE", "ACCESSORIES"];
 
 const VALID_CONDITIONS = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"];
 
@@ -59,7 +63,7 @@ const createListingRules = [
     .bail()
     .custom((value, { req }) => {
       if (value && !CATEGORIES_WITH_SUBCATEGORY.includes(req.body.category)) {
-        throw new Error("Subcategory is only valid for Fashion or Beauty and Personal Care");
+        throw new Error("Subcategory is only valid for Fashion, Beauty and Personal Care, or Accessories");
       }
       return true;
     }),
@@ -119,7 +123,7 @@ const updateListingRules = [
     .bail()
     .custom((value, { req }) => {
       if (value && req.body.category && !CATEGORIES_WITH_SUBCATEGORY.includes(req.body.category)) {
-        throw new Error("Subcategory is only valid for Fashion or Beauty and Personal Care");
+        throw new Error("Subcategory is only valid for Fashion, Beauty and Personal Care, or Accessories");
       }
       return true;
     }),

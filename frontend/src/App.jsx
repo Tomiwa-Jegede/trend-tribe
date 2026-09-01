@@ -32,6 +32,7 @@ const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
 const AdminListingsPage = lazy(() => import("./pages/AdminListingsPage"));
 const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const AdminReportsPage = lazy(() => import("./pages/AdminReportsPage"));
+const MyListingsPage = lazy(() => import("./pages/MyListingsPage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -208,7 +209,14 @@ const App = () => {
                 }
               />
               <Route path="/notifications" element={<ComingSoonPage />} />
-            <Route path="/my-listings" element={<ComingSoonPage />} />
+              <Route
+                path="/my-listings"
+                element={
+                  <ProtectedRoute>
+                    <MyListingsPage />
+                  </ProtectedRoute>
+                }
+              />
           </Routes>
           </Suspense>
         </PageTransition>

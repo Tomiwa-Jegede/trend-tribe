@@ -29,6 +29,7 @@ const SUBCATEGORY_DISPLAY = {
   TIES: { label: "Ties", emoji: "👔" },
   SKIN_CARE: { label: "Skin Care", emoji: "🧴" },
   FRAGRANCE: { label: "Fragrance", emoji: "🌸" },
+  OTHERS: { label: "Others", emoji: "🗂️" },
   PHONE_ACCESSORIES: { label: "Phone Accessories", emoji: "🎧" },
   JEWELRY: { label: "Jewelry", emoji: "💎" },
 };

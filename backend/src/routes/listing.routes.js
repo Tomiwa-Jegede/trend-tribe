@@ -8,6 +8,7 @@ const {
   createListing,
   updateListing,
   deleteListing,
+  getMyListings,
   getListingsByUser,
   reportListing,
   revealContact,
@@ -34,6 +35,8 @@ const imageSearchUpload = multer({
 
 // ─── Public ───────────────────────────────────────────────────
 router.get("/", getAllListings);
+// ─── Protected (must be before /:id) ─────────────────────────
+router.get("/me", protect, getMyListings);
 router.get("/user/:userId", getListingsByUser);
 router.get("/favorites/mine", protect, getMyFavorites);
 router.get("/favorites/ids", protect, getMyFavoriteIds);

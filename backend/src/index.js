@@ -113,6 +113,14 @@ async function startServer() {
         console.error("❌ Pending registration cleanup error:", err.message);
       }
     }, 10 * 60 * 1000); // every 10 minutes
+
+    // ─── Ghost prune: 30d auto-hide stale listings (Wayfinder buyer-trust slice) ──
+    const { archiveGhostListings } = require("./controllers/listing.controller");
+    setInterval(async () => {
+      await archiveGhostListings();
+    }, 24 * 60 * 60 * 1000); // every 24 hours
+    // run once on boot (non-blocking)
+    archiveGhostListings().catch(() => {});
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);
     process.exit(1);

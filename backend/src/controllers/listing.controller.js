@@ -385,7 +385,15 @@ const {
       if (subcategory !== undefined) updateData.subcategory = subcategory || null;
       if (condition !== undefined) updateData.condition = condition;
     if (location !== undefined) updateData.location = location;
-    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+    if (isAvailable !== undefined) {
+      updateData.isAvailable = isAvailable;
+      if (isAvailable === false && listing.isAvailable === true) {
+        updateData.soldAt = new Date();
+      } else if (isAvailable === true && listing.isAvailable === false) {
+        updateData.soldAt = null;
+        updateData.archivedAt = null;
+      }
+    }
     if (images !== undefined) updateData.images = images;
     if (imagePublicIds !== undefined)
       updateData.imagePublicIds = imagePublicIds;
@@ -458,6 +466,84 @@ const deleteListing = async (req, res) => {
   } catch (err) {
     console.error("[DELETE LISTING ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/listings/me ← PROTECTED (seller home)
+// ─────────────────────────────────────────────────────────────
+const getMyListings = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { available, page = 1, limit = 12, sort = "newest" } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(48, Math.max(1, parseInt(limit, 10) || 12));
+    const skip = (pageNum - 1) * limitNum;
+
+    const where = { sellerId: userId };
+    if (available === "true") where.isAvailable = true;
+    if (available === "false") where.isAvailable = false;
+
+    const orderByMap = {
+      newest: { createdAt: "desc" },
+      oldest: { createdAt: "asc" },
+      price_asc: { price: "asc" },
+      price_desc: { price: "desc" },
+    };
+    const orderBy = orderByMap[sort] || orderByMap.newest;
+
+    const [listings, totalCount] = await Promise.all([
+      prisma.listing.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limitNum,
+        include: {
+          _count: { select: { favorites: true, reports: true } },
+        },
+      }),
+      prisma.listing.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    return res.status(200).json({
+      listings: listings.map((l) => ({
+        ...formatListing(l),
+        favoriteCount: l._count.favorites,
+        reportCount: l._count.reports,
+      })),
+      pagination: {
+        totalCount,
+        totalPages,
+        currentPage: pageNum,
+        limit: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  } catch (err) {
+    console.error("[GET MY LISTINGS ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// Job: 30d ghost prune — flips isAvailable=false + archivedAt for stale listings
+// ─────────────────────────────────────────────────────────────
+const archiveGhostListings = async () => {
+  try {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const result = await prisma.listing.updateMany({
+      where: { isAvailable: true, createdAt: { lt: cutoff } },
+      data: { isAvailable: false, archivedAt: new Date() },
+    });
+    if (result.count > 0) console.log(`🧹 Ghost prune archived ${result.count} stale listing(s)`);
+    return result.count;
+  } catch (err) {
+    console.error("[GHOST PRUNE ERROR]", err.message);
+    return 0;
   }
 };
 
@@ -716,6 +802,8 @@ module.exports = {
   createListing,
   updateListing,
   deleteListing,
+  getMyListings,
+  archiveGhostListings,
   getListingsByUser,
   reportListing,
   revealContact,
