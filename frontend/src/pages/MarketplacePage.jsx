@@ -14,10 +14,11 @@ import HomeTicker from "../components/home/HomeTicker";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
-  { label: "Accessories", emoji: "👜", value: "ACCESSORIES" },
+  { label: "Accessories", emoji: "🔌💎", value: "ACCESSORIES" },
   { label: "Fashion", emoji: "👗", value: "FASHION" },
   { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
   { label: "Snacks", emoji: "🍿", value: "SNACKS" },
+  { label: "Gadgets", emoji: "📱", value: "GADGETS" },
   { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
 const SUBCATEGORY_DISPLAY = {
@@ -28,6 +29,8 @@ const SUBCATEGORY_DISPLAY = {
   TIES: { label: "Ties", emoji: "👔" },
   SKIN_CARE: { label: "Skin Care", emoji: "🧴" },
   FRAGRANCE: { label: "Fragrance", emoji: "🌸" },
+  PHONE_ACCESSORIES: { label: "Phone Accessories", emoji: "🎧" },
+  JEWELRY: { label: "Jewelry", emoji: "💎" },
 };
 
 const MarketplacePage = () => {
