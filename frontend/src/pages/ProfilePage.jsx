@@ -7,13 +7,23 @@ import ListingCard from "../components/listings/ListingCard";
 import { getListingsByUser } from "../services/listingService";
 import { updateProfile } from "../services/authService";
 import Alert from "../components/ui/Alert";
-import { FiUser, FiMapPin, FiInbox, FiPlus, FiCamera, FiEdit2, FiPhone, FiArrowRight, FiZap } from "react-icons/fi";
+import { useToast } from "../context/ToastContext";
+import { FiUser, FiMapPin, FiInbox, FiPlus, FiCamera, FiEdit2, FiPhone, FiArrowRight, FiZap, FiLink2 } from "react-icons/fi";
 import api from "../api/axios";
 import BuyTokens from "../components/ui/BuyTokens";
 
 const ProfilePage = () => {
   const { id } = useParams();
   const { user: currentUser, setUser } = useAuth();
+  const { toast } = useToast();
+  const handleCopyProfileLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Profile link copied to clipboard!");
+    } catch {
+      toast.error("Failed to copy link.");
+    }
+  };
 
   const [seller, setSeller] = useState(null);
   const [listings, setListings] = useState([]);
@@ -183,6 +193,16 @@ const ProfilePage = () => {
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-gray-900">{seller.fullName}</h2>
+              <button
+                type="button"
+                onClick={handleCopyProfileLink}
+                aria-label="Copy link to this profile"
+                className="w-9 h-9 rounded-full border border-gray-200 flex items-center
+                           justify-center text-gray-400 hover:text-primary-600
+                           hover:border-primary-200 transition-colors flex-shrink-0"
+              >
+                <FiLink2 className="w-4 h-4" />
+              </button>
               {isOwnProfile && (
                 <span className="badge bg-primary-50 text-primary-700">
                   You

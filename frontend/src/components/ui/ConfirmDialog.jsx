@@ -38,6 +38,7 @@ const ConfirmDialog = ({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   danger = false,
+  warning = false,
   onConfirm,
   onCancel,
 }) => {
@@ -71,7 +72,7 @@ const ConfirmDialog = ({
               <motion.div
                 className={`w-10 h-10 rounded-full flex items-center
                             justify-center
-                            ${danger ? "bg-red-100" : "bg-primary-100"}`}
+                            ${danger ? "bg-red-100" : warning ? "bg-yellow-100" : "bg-primary-100"}`}
                 initial={reduced ? {} : { scale: 0.7, opacity: 0 }}
                 animate={reduced ? {} : { scale: 1, opacity: 1 }}
                 transition={{
@@ -83,7 +84,7 @@ const ConfirmDialog = ({
               >
                 <FiAlertTriangle
                   className={`w-5 h-5
-                    ${danger ? "text-red-600" : "text-primary-600"}`}
+                    ${danger ? "text-red-600" : warning ? "text-yellow-600" : "text-primary-600"}`}
                 />
               </motion.div>
 

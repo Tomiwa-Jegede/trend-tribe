@@ -21,6 +21,7 @@ import {
   FiClock,
   FiChevronRight,
   FiFlag,
+  FiLink2,
 } from "react-icons/fi";
 
 const CONDITION_STYLES = {
@@ -96,7 +97,14 @@ const ListingDetailPage = () => {
   }, [id]);
 
   const isOwner = isAuthenticated && listing && user?.id === listing.seller.id;
-
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard!");
+    } catch {
+      toast.error("Failed to copy link.");
+    }
+  };
   const handleReport = async (reason) => {
     setReporting(true);
     try {
@@ -330,7 +338,19 @@ const ListingDetailPage = () => {
             </span>
           </div>
 
-          <h1 className="text-gray-900 mb-3">{listing.title}</h1>
+          <div className="flex items-center gap-2 mb-3">
+            <h1 className="text-gray-900 flex-1">{listing.title}</h1>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              aria-label="Copy link to this listing"
+              className="w-9 h-9 rounded-full border border-gray-200 flex items-center
+                         justify-center text-gray-400 hover:text-primary-600
+                         hover:border-primary-200 transition-colors flex-shrink-0"
+            >
+              <FiLink2 className="w-4 h-4" />
+            </button>
+          </div>
 
           <p className="text-3xl font-extrabold text-primary-600 mb-4">
             {formatPrice(listing.price)}

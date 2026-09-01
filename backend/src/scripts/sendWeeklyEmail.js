@@ -17,10 +17,9 @@ const sendWeeklyEmail = async () => {
   });
 
   console.log(`[WEEKLY EMAIL] Found ${recipients.length} recipients.`);
-
   let sent = 0;
   let failed = 0;
-
+  const failures = [];
   for (const user of recipients) {
     try {
       await sendMarketingEmail(user.email, user.fullName, user.unsubscribeToken);
@@ -28,15 +27,13 @@ const sendWeeklyEmail = async () => {
       console.log(`[WEEKLY EMAIL] ✅ Sent to ${user.email} (id ${user.id})`);
     } catch (err) {
       failed += 1;
+      failures.push({ email: user.email, fullName: user.fullName, error: err.message });
       console.error(`[WEEKLY EMAIL] ❌ Failed for ${user.email} (id ${user.id}):`, err.message);
     }
-
     await sleep(DELAY_MS);
   }
-
   console.log(`[WEEKLY EMAIL] Done. Sent: ${sent}, Failed: ${failed}, Total: ${recipients.length}`);
-
-  return { sent, failed, total: recipients.length };
+  return { sent, failed, total: recipients.length, failures };
 };
 
 module.exports = { sendWeeklyEmail };

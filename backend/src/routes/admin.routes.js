@@ -276,6 +276,53 @@ router.patch("/reports/:id/ignore", protect, requireAdmin, async (req, res) => {
 // since the caller has no logged-in user.
 // Header required: x-cron-secret: <CRON_SECRET>
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// In-memory status of the last manual weekly email run.
+// Intentionally NOT persisted to the database (kept in process
+// memory only) — resets on server restart/redeploy, by design.
+// ─────────────────────────────────────────────────────────────
+let lastWeeklyEmailRun = null; // { status: "running" | "done" | "error", result?, startedAt, finishedAt? }
+// ─────────────────────────────────────────────────────────────
+// POST /api/admin/trigger-weekly-email ← PROTECTED + ADMIN ONLY
+// Manual, fire-and-forget trigger for the weekly email, clicked
+// from the admin dashboard. Responds immediately; the actual send
+// (with its built-in 2s-per-recipient delay) runs in the background.
+// ─────────────────────────────────────────────────────────────
+router.post("/trigger-weekly-email", protect, requireAdmin, (req, res) => {
+  res.status(202).json({ message: "Weekly email send started in background." });
+  lastWeeklyEmailRun = { status: "running", startedAt: new Date().toISOString() };
+  sendWeeklyEmail()
+    .then((result) => {
+      lastWeeklyEmailRun = {
+        status: "done",
+        result,
+        startedAt: lastWeeklyEmailRun.startedAt,
+        finishedAt: new Date().toISOString(),
+      };
+      console.log("[MANUAL WEEKLY EMAIL] Complete:", result);
+    })
+    .catch((err) => {
+      lastWeeklyEmailRun = {
+        status: "error",
+        error: err.message,
+        startedAt: lastWeeklyEmailRun.startedAt,
+        finishedAt: new Date().toISOString(),
+      };
+      console.error("[MANUAL WEEKLY EMAIL ERROR]", err);
+    });
+});
+// ─────────────────────────────────────────────────────────────
+// GET /api/admin/weekly-email-status ← PROTECTED + ADMIN ONLY
+// Poll this after triggering a send to see live status/result.
+// In-memory only — reflects just the most recent run since last
+// server restart.
+// ─────────────────────────────────────────────────────────────
+router.get("/weekly-email-status", protect, requireAdmin, (req, res) => {
+  if (!lastWeeklyEmailRun) {
+    return res.status(200).json({ status: "idle" });
+  }
+  return res.status(200).json(lastWeeklyEmailRun);
+});
 router.post("/send-weekly-email", async (req, res) => {
   const providedSecret = req.headers["x-cron-secret"];
 

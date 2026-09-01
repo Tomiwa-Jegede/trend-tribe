@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
-import { getAdminStats } from "../services/adminService";
+import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
+import { useToast } from "../context/ToastContext";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 
 const STAT_CONFIG = [
   { key: "totalUsers", label: "Total Users" },
@@ -17,6 +19,44 @@ const AdminDashboardPage = () => {
   
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailRun, setEmailRun] = useState(null);
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const { toast } = useToast();
+
+  const pollWeeklyEmailStatus = () => {
+    const interval = setInterval(async () => {
+      try {
+        const data = await getWeeklyEmailStatus();
+        setEmailRun(data);
+        if (data.status === "done" || data.status === "error") {
+          clearInterval(interval);
+          if (data.status === "done") {
+            toast.success(`Weekly email done: ${data.result.sent} sent, ${data.result.failed} failed.`);
+          } else {
+            toast.error("Weekly email run failed to complete.");
+          }
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 3000);
+  };
+
+  const handleSendWeeklyEmail = async () => {
+    setShowSendConfirm(false);
+    setSendingEmail(true);
+    try {
+      await triggerWeeklyEmail();
+      toast.success("Weekly email send started in background.");
+      setEmailRun({ status: "running" });
+      pollWeeklyEmailStatus();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to start weekly email send.");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -77,8 +117,72 @@ const AdminDashboardPage = () => {
           ))}
         </div>
       )}
+      <div className="mt-8 pt-6 border-t border-sage-100">
+        <h2 className="text-sm font-semibold text-navy-900 mb-1">Weekly Email</h2>
+        <p className="text-sm text-gray-500 mb-3">
+          Manually send the weekly marketing email to all opted-in, verified users.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowSendConfirm(true)}
+          disabled={sendingEmail || emailRun?.status === "running"}
+          className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {sendingEmail || emailRun?.status === "running" ? "Sending..." : "Send Weekly Email Now"}
+        </button>
+
+        <ConfirmDialog
+          isOpen={showSendConfirm}
+          warning
+          title="Send Weekly Email?"
+          message="This will send the weekly marketing email to all opted-in, verified users right now."
+          confirmLabel="Send Now"
+          cancelLabel="Cancel"
+          onConfirm={handleSendWeeklyEmail}
+          onCancel={() => setShowSendConfirm(false)}
+        />
+
+        {emailRun?.status === "running" && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 mt-4">
+            <MiniSpinner size={16} />
+            Sending in progress — this can take a few minutes...
+          </div>
+        )}
+
+        {emailRun?.status === "done" && (
+          <div className="mt-4 bg-white border border-sage-100 rounded-xl p-4">
+            <p className="text-sm text-navy-900 mb-3">
+              <span className="font-semibold text-green-600">{emailRun.result.sent} sent</span>
+              {" · "}
+              <span className="font-semibold text-red-500">{emailRun.result.failed} failed</span>
+              {" · "}
+              {emailRun.result.total} total
+            </p>
+            {emailRun.result.failures.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                  Failed Recipients
+                </p>
+                <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                  {emailRun.result.failures.map((f, i) => (
+                    <div key={i} className="text-sm border-b border-sage-50 pb-2 last:border-0">
+                      <p className="font-medium text-navy-900">{f.fullName} · {f.email}</p>
+                      <p className="text-xs text-red-500">{f.error}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {emailRun?.status === "error" && (
+          <p className="text-sm text-red-500 mt-4">
+            The send run failed to complete: {emailRun.error}
+          </p>
+        )}
+      </div>
     </AdminLayout>
   );
 };
-
 export default AdminDashboardPage;

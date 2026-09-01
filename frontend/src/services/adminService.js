@@ -6,6 +6,14 @@ export const getAdminStats = async () => {
   const { data } = await api.get("/admin/stats");
   return data; // { totalUsers, totalListings, activeListings, newUsers, newListings }
 };
+export const triggerWeeklyEmail = async () => {
+  const { data } = await api.post("/admin/trigger-weekly-email");
+  return data; // { message }
+};
+export const getWeeklyEmailStatus = async () => {
+  const { data } = await api.get("/admin/weekly-email-status");
+  return data; // { status: "idle"|"running"|"done"|"error", result?, error?, startedAt?, finishedAt? }
+};
 
 export const getAdminListings = async (params = {}) => {
   const { data } = await api.get("/admin/listings", { params });
