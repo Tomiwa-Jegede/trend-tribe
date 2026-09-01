@@ -375,7 +375,40 @@ const {
   coverPosition,
   location,
   isAvailable,
+  confirmSpend,
 } = req.body;
+
+    // ── Re-activation guard: hide→show that would exceed 3 active costs 1 token ──
+    let reactivationRequiresToken = false;
+    if (isAvailable === true && listing.isAvailable === false) {
+      const activeCount = await prisma.listing.count({
+        where: { sellerId: req.user.id, isAvailable: true },
+      });
+      const isAdmin = req.user.role === "ADMIN";
+      if (!isAdmin && activeCount >= FREE_LISTING_LIMIT) {
+        const seller = await prisma.user.findUnique({
+          where: { id: req.user.id },
+          select: { tokenBalance: true },
+        });
+        if (!seller || seller.tokenBalance < 4) {
+          return res.status(403).json({
+            error: "Re-activating this would give you 4 active listings. You need 1 token to have 4 up at once.",
+            limitReached: true,
+            currentCount: activeCount,
+            freeSlotLimit: FREE_LISTING_LIMIT,
+            tokenBalance: toDisplayTokens(seller?.tokenBalance ?? 0),
+          });
+        }
+        if (!confirmSpend) {
+          return res.status(402).json({
+            needsTokenConfirm: true,
+            tokenBalance: toDisplayTokens(seller.tokenBalance),
+            error: "Re-activating this will use 1 token to have 4 active listings. Confirm to continue.",
+          });
+        }
+        reactivationRequiresToken = true;
+      }
+    }
 
     const updateData = {};
     if (title !== undefined) updateData.title = title;
@@ -416,22 +449,47 @@ const {
       updateData.editCount = { increment: 1 };
     }
 
-    const updated = await prisma.listing.update({
-      where: { id },
-      data: updateData,
-      include: {
-        seller: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-            avatar: true,
-            school: true,
-          whatsapp: true,
+    let updated;
+    if (reactivationRequiresToken) {
+      try {
+        updated = await prisma.$transaction(async (tx) => {
+          const updatedSeller = await tx.user.updateMany({
+            where: { id: req.user.id, tokenBalance: { gte: 4 } },
+            data: { tokenBalance: { decrement: 4 } },
+          });
+          if (updatedSeller.count === 0) throw new Error("TOKEN_BALANCE_RACE");
+          return tx.listing.update({
+            where: { id },
+            data: updateData,
+            include: {
+              seller: { select: { id: true, username: true, fullName: true, avatar: true, school: true, whatsapp: true } },
+            },
+          });
+        });
+      } catch (e) {
+        if (e.message === "TOKEN_BALANCE_RACE") {
+          return res.status(403).json({ error: "Your token balance changed before this could complete.", limitReached: true });
+        }
+        throw e;
+      }
+    } else {
+      updated = await prisma.listing.update({
+        where: { id },
+        data: updateData,
+        include: {
+          seller: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatar: true,
+              school: true,
+            whatsapp: true,
+            },
           },
         },
-      },
-    });
+      });
+    }
 
     return res.status(200).json({
       message: "Listing updated successfully ✅",

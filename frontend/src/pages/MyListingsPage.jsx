@@ -47,14 +47,27 @@ const MyListingsPage = () => {
 
   const handleToggle = async (listing) => {
     setToggling(listing.id);
+    setErr(null);
     try {
       const nextAvailable = !listing.isAvailable;
-      await api.put(`/listings/${listing.id}`, { isAvailable: nextAvailable });
+      try {
+        await api.put(`/listings/${listing.id}`, { isAvailable: nextAvailable });
+      } catch (e) {
+        if (e.response?.status === 402 && e.response?.data?.needsTokenConfirm) {
+          const ok = confirm(e.response.data.error + "\n\nConfirm to spend 1 token?");
+          if (!ok) throw e;
+          await api.put(`/listings/${listing.id}`, { isAvailable: nextAvailable, confirmSpend: true });
+          refreshUser?.();
+        } else {
+          throw e;
+        }
+      }
       setListings((prev) =>
         prev.map((l) =>
           l.id === listing.id ? { ...l, isAvailable: nextAvailable, soldAt: nextAvailable ? null : new Date().toISOString(), archivedAt: nextAvailable ? null : l.archivedAt } : l
         )
       );
+      if (!listing.isAvailable) refreshUser?.();
     } catch (e) {
       setErr(e.response?.data?.error || "Failed to update listing");
     } finally {
