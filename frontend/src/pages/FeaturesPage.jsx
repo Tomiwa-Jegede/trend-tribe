@@ -391,8 +391,8 @@ const FeaturesPage = () => {
           <FeatureCard
             delay={0}
             icon={<FiUsers className="w-5 h-5" />}
-            title="Only students"
-            desc="Only students can buy and sell. You sign up with your school email."
+            title="Sell as a student, buy as anyone"
+            desc="Anyone can create an account to buy. Only verified students can sell and list items."
           />
           <FeatureCard
             delay={0.05}

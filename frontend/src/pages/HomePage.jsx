@@ -28,8 +28,8 @@ const CATEGORIES = [
 const FEATURES = [
   {
     icon: <FiUsers className="w-6 h-6 text-primary-600" />,
-    title: "Students Only",
-    desc: "A trusted community built exclusively for university and college students.",
+    title: "Anyone Can Buy, Students Sell",
+    desc: "Anyone can create an account to buy. Only verified students can list items.",
   },
   {
     icon: <FiSearch className="w-6 h-6 text-primary-600" />,
