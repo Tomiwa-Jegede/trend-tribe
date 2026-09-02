@@ -212,10 +212,10 @@ const ListingCard = ({ listing }) => {
         </div>
 
         {/* ── Content ───────────────────────────────────── */}
-        <div className="p-4 flex flex-col gap-2 flex-1">
+        <div className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 flex-1">
           {/* Category */}
           <motion.span
-            className="text-xs font-semibold text-primary-600 uppercase tracking-wide"
+            className="text-[11px] sm:text-xs font-semibold text-primary-600 uppercase tracking-wide truncate"
             variants={reduced ? {} : categoryVariants}
             initial="hidden"
             animate="show"
@@ -225,15 +225,15 @@ const ListingCard = ({ listing }) => {
 
           {/* Title */}
           <h4
-            className="text-gray-900 line-clamp-2 leading-snug
-                         group-hover:text-primary-600 transition-colors duration-200"
+            className="text-sm sm:text-[15px] lg:text-base font-semibold text-gray-900 line-clamp-2 leading-snug
+                         group-hover:text-primary-600 transition-colors duration-200 break-words"
           >
             {title}
           </h4>
 
           {/* Price */}
           <motion.p
-            className="text-xl font-extrabold mt-1 text-primary-600"
+            className="text-lg sm:text-xl font-extrabold mt-1 text-primary-600 break-words"
             variants={reduced ? {} : priceVariants}
             initial="hidden"
             animate="show"

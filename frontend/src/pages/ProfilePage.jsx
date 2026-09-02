@@ -129,7 +129,7 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="container-app py-10">
+    <div className="container-app py-6 sm:py-10">
       {isOwnProfile && seller.role === "SELLER" && !seller.whatsapp && (
         <Alert
           type="info"
@@ -137,8 +137,8 @@ const ProfilePage = () => {
         />
       )}
       {/* ── Profile Header ── */}
-      <div className="card p-6 sm:p-8 mb-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+      <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5">
           {/* Avatar */}
           <div className="relative flex-shrink-0">
             <div
@@ -190,14 +190,14 @@ const ProfilePage = () => {
             )}
           </div>
 
-          <div className="flex-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-gray-900">{seller.fullName}</h2>
+          <div className="flex-1 min-w-0 w-full sm:w-auto">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 break-words">{seller.fullName}</h2>
               <button
                 type="button"
                 onClick={handleCopyProfileLink}
                 aria-label="Copy link to this profile"
-                className="w-9 h-9 rounded-full border border-gray-200 flex items-center
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-gray-200 flex items-center
                            justify-center text-gray-400 hover:text-primary-600
                            hover:border-primary-200 transition-colors flex-shrink-0"
               >
@@ -225,7 +225,7 @@ const ProfilePage = () => {
                 </span>
               )}
             </div>
-            <p className="text-gray-400 text-sm mb-3">@{seller.username}</p>
+            <p className="text-gray-500 text-sm mb-3 break-all">@{seller.username}</p>
 
             {seller.bio && (
               <p className="text-gray-600 text-sm mb-3 max-w-xl">
@@ -250,7 +250,7 @@ const ProfilePage = () => {
           </div>
 
           {isOwnProfile && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto mt-3 sm:mt-0">
               <button
                 type="button"
                 onClick={() => setBuyTokensOpen(true)}
@@ -259,9 +259,10 @@ const ProfilePage = () => {
                 <FiZap className="w-3.5 h-3.5" />
                 {currentUser?.tokenBalance ?? 0} tokens
               </button>
-              <Link to={`/profile/${id}/edit`} aria-label="Edit profile" className="btn-secondary flex items-center justify-center"><FiEdit2 className="w-4 h-4" /></Link>              <Link
+              <Link to={`/profile/${id}/edit`} aria-label="Edit profile" className="btn-secondary flex items-center justify-center px-3 py-2"><FiEdit2 className="w-4 h-4" /></Link>
+              <Link
                 to="/create-listing"
-                className="btn-primary flex items-center gap-2 whitespace-nowrap"
+                className="btn-primary flex items-center gap-2 whitespace-nowrap flex-1 sm:flex-none justify-center text-sm"
               >
                 <FiPlus className="w-4 h-4" />
                 New Listing
@@ -343,17 +344,20 @@ const ProfilePage = () => {
         </div>
 
       {/* ── Listings ── */}
-      <div className="mb-6">
-        <h3 className="text-gray-900">
-          {isOwnProfile ? "Your Listings" : `${seller.fullName}'s Listings`}
-          <span className="text-gray-400 font-normal text-base ml-2">
-            ({listings.length})
+      <div className="mb-4 sm:mb-6">
+        <h3 className="text-lg sm:text-2xl font-semibold text-gray-900 flex flex-wrap items-center gap-2 break-words">
+          <span>{isOwnProfile ? "Your Listings" : `${seller.fullName}'s Listings`}</span>
+          <span className="inline-flex items-center justify-center bg-gray-100 text-gray-600 font-medium text-sm px-2.5 py-1 rounded-full">
+            {listings.length}
           </span>
         </h3>
+        <p className="text-sm text-gray-500 mt-1 sm:hidden">
+          {listings.length} item{listings.length !== 1 ? "s" : ""} {listings.length === 1 ? "listed" : "listed"}
+        </p>
       </div>
 
       {listings.length > 0 ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {listings.map((listing) => (
             <ListingCard key={listing.id} listing={{ ...listing, seller }} />
           ))}

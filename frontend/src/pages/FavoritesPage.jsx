@@ -100,15 +100,15 @@ const FavoritesPage = () => {
           content="Listings you've saved on Trend Tribe."
         />
       </Helmet>
-      <div className="container-app py-10">
-        <div className="mb-8">
-          <h1 className="text-gray-900">My Favorites</h1>
-          <p className="text-gray-500 mt-2">
+      <div className="container-app py-6 sm:py-10">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 break-words">My Favorites</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-2 min-h-[20px] break-words">
             {loading
               ? "Loading your favorites…"
-              : `${displayedListings.length} item${
-                  displayedListings.length !== 1 ? "s" : ""
-                } saved`}
+              : `${pagination?.totalCount ?? displayedListings.length} item${
+                  (pagination?.totalCount ?? displayedListings.length) !== 1 ? "s" : ""
+                } saved${!loading && pagination && pagination.totalCount !== displayedListings.length ? ` · ${displayedListings.length} on this page` : ""}`}
           </p>
         </div>
 
@@ -124,7 +124,7 @@ const FavoritesPage = () => {
               initial="hidden"
               animate="show"
               exit="exit"
-              className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
             >
               {Array.from({ length: 6 }).map((_, i) => (
                 <ListingCardSkeleton key={i} />
@@ -139,7 +139,7 @@ const FavoritesPage = () => {
               exit="exit"
             >
               <motion.div
-                className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
                 variants={gridVariants}
                 initial="hidden"
                 animate="show"

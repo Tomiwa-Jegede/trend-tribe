@@ -1,11 +1,9 @@
 /* src/index.css */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* ─── Import Inter font ─────────────────────────────────── */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 
 /* ─── Base styles ───────────────────────────────────────── */
 @layer base {
@@ -19,16 +17,16 @@
   }
 
   h1 {
-    @apply text-4xl font-bold tracking-tight;
+    @apply text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight;
   }
   h2 {
-    @apply text-3xl font-bold tracking-tight;
+    @apply text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight;
   }
   h3 {
-    @apply text-2xl font-semibold;
+    @apply text-lg sm:text-xl lg:text-2xl font-semibold;
   }
   h4 {
-    @apply text-xl font-semibold;
+    @apply text-base sm:text-lg lg:text-xl font-semibold;
   }
 }
 

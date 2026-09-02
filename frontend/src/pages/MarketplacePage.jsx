@@ -191,8 +191,8 @@ const MarketplacePage = () => {
       <HomeTicker variant="info" />
       <div className="container-app py-10">
         {/* ── Page Header ──────────────────────────────────── */}
-        <div className="mb-8">
-          <h1 className="text-gray-900">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-gray-900 break-words">
             {!filters.category
               ? "Categories"
               : needsSubcategoryStep
@@ -204,7 +204,7 @@ const MarketplacePage = () => {
                 "Marketplace"}
           </h1>
           {filters.category && !needsSubcategoryStep && (
-            <p className="text-gray-500 mt-2">
+            <p className="text-sm sm:text-base text-gray-600 mt-2 min-h-[20px] break-words">
               {loading
                 ? "Loading listings…"
                 : `${pagination?.totalCount ?? 0} item${
@@ -287,7 +287,7 @@ const MarketplacePage = () => {
             </button>
 
             {/* ── Sticky, blurred Filter Bar ───────────────────── */}
-            <div className="sticky top-16 z-40 -mx-4 px-4 py-3 mb-6 bg-white/80 backdrop-blur-md border-b border-gray-100">
+            <div className="sticky top-16 z-40 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-6 bg-white/80 backdrop-blur-md border-b border-gray-100">
               <motion.div
                 initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -317,11 +317,14 @@ const MarketplacePage = () => {
             {/* ── Featured Boosted Product Cards (Marketplace top only, A) ── */}
             {!loading && boostedListings.length > 0 && (
               <div className="mb-8">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <span className="text-xs font-bold tracking-widest uppercase text-amber-600">Featured</span>
                   <span className="text-xs text-gray-400">· Sponsored · 24h</span>
+                  <span className="ml-auto text-xs font-medium text-gray-500 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                    {boostedListings.length} featured
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                   {boostedListings.map((listing) => (
                     <div key={`boosted-${listing.id}`} className="relative">
                       <span className="absolute top-2 left-2 z-10 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-1 rounded-full">★ Featured</span>
@@ -341,7 +344,7 @@ const MarketplacePage = () => {
               initial="hidden"
               animate="show"
               exit="exit"
-              className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
             >
               {Array.from({ length: 6 }).map((_, i) => (
                 <ListingCardSkeleton key={i} />
@@ -356,7 +359,7 @@ const MarketplacePage = () => {
               exit="exit"
             >
               <motion.div
-                className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
                 variants={gridVariants}
                 initial="hidden"
                 animate="show"
