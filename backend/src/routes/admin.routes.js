@@ -32,6 +32,9 @@ router.get("/stats", protect, requireAdmin, async (req, res) => {
       coldListings,
       totalNotifications,
       topFavorited,
+      totalContactViews,
+      newContactViews,
+      topContacted,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.listing.count(),
@@ -47,6 +50,13 @@ router.get("/stats", protect, requireAdmin, async (req, res) => {
         take: 5,
         select: { id: true, title: true, _count: { select: { favorites: true } } },
       }),
+      prisma.contactView.count(),
+      prisma.contactView.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+      prisma.listing.findMany({
+        orderBy: { contactViews: "desc" },
+        take: 5,
+        select: { id: true, title: true, contactViews: true },
+      }),
     ]);
 
     return res.status(200).json({
@@ -60,6 +70,9 @@ router.get("/stats", protect, requireAdmin, async (req, res) => {
       coldListings,
       totalNotifications,
       topFavorited: topFavorited.map((l) => ({ id: l.id, title: l.title, favoriteCount: l._count.favorites })),
+      totalContactViews,
+      newContactViews,
+      topContacted,
     });
   } catch (err) {
     console.error("[GET ADMIN STATS ERROR]", err);
@@ -109,6 +122,7 @@ router.get("/listings", protect, requireAdmin, async (req, res) => {
           price: true,
           isAvailable: true,
           boostedUntil: true,
+          contactViews: true,
           createdAt: true,
           seller: { select: { username: true } },
           _count: { select: { favorites: true } },
@@ -203,10 +217,19 @@ router.get("/users", protect, requireAdmin, async (req, res) => {
       prisma.user.count({ where }),
     ]);
 
+    // Aggregate contact views per user (admin only)
+    const contactTotals = await prisma.listing.groupBy({
+      by: ["sellerId"],
+      where: { sellerId: { in: users.map((u) => u.id) } },
+      _sum: { contactViews: true },
+    });
+    const contactMap = Object.fromEntries(contactTotals.map((c) => [c.sellerId, c._sum.contactViews ?? 0]));
+    const usersWithContacts = users.map((u) => ({ ...u, totalContactViews: contactMap[u.id] ?? 0 }));
+
     const totalPages = Math.ceil(totalCount / limitNum);
 
     return res.status(200).json({
-      users,
+      users: usersWithContacts,
       pagination: {
         totalCount,
         totalPages,
@@ -309,6 +332,49 @@ router.get("/favorites", protect, requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("[ADMIN GET FAVORITES ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/admin/listings/:id/contact-views ← PROTECTED + ADMIN ONLY
+// Detailed per-listing contact click log (admin only)
+// ─────────────────────────────────────────────────────────────
+router.get("/listings/:id/contact-views", protect, requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
+    const listing = await prisma.listing.findUnique({
+      where: { id },
+      select: { id: true, title: true, contactViews: true, seller: { select: { username: true } } },
+    });
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+    const [views, totalCount] = await Promise.all([
+      prisma.contactView.findMany({
+        where: { listingId: id },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limitNum,
+        include: { viewer: { select: { id: true, username: true, fullName: true, school: true } } },
+      }),
+      prisma.contactView.count({ where: { listingId: id } }),
+    ]);
+    return res.status(200).json({
+      listing,
+      views,
+      pagination: {
+        totalCount,
+        totalPages: Math.ceil(totalCount / limitNum),
+        currentPage: pageNum,
+        limit: limitNum,
+      },
+    });
+  } catch (err) {
+    console.error("[ADMIN GET CONTACT VIEWS ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });

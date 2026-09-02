@@ -10,6 +10,13 @@ const formatListing = (listing) => ({
   price: parseFloat(listing.price),
 });
 
+// Admin-only fields that must not leak to public responses
+const stripAdminFields = (listing) => {
+  if (!listing) return listing;
+  const { contactViews, contactViewLogs, ...rest } = listing;
+  return rest;
+};
+
 // ─── Helper: check listing exists + verify ownership ──────────
 const findAndVerifyListing = async (listingId, userId) => {
   const listing = await prisma.listing.findUnique({
@@ -118,7 +125,7 @@ const getAllListings = async (req, res) => {
     const totalPages = Math.ceil(totalCount / limitNum);
 
     return res.status(200).json({
-      listings: listings.map(formatListing),
+      listings: listings.map((l) => formatListing(stripAdminFields(l))),
       pagination: {
         totalCount,
         totalPages,
@@ -225,10 +232,13 @@ const getListingById = async (req, res) => {
     if (!listing) return res.status(404).json({ error: "Listing not found" });
 
     const { listings: sellerListings, ...sellerFields } = listing.seller;
+    const cleaned = stripAdminFields(listing);
+    // keep seller override after stripping
+    cleaned.seller = undefined;
 
     return res.status(200).json({
       listing: {
-        ...formatListing(listing),
+        ...formatListing(cleaned),
         seller: { ...sellerFields, activeListings: sellerListings.length },
       },
     });
@@ -348,7 +358,7 @@ const createListing = async (req, res) => {
 
     return res.status(201).json({
       message: "Listing created successfully ✅",
-      listing: formatListing(listing),
+      listing: formatListing(stripAdminFields(listing)),
     });
   } catch (err) {
     if (err.message === "TOKEN_BALANCE_RACE") {
@@ -506,7 +516,7 @@ const {
 
     return res.status(200).json({
       message: "Listing updated successfully ✅",
-      listing: formatListing(updated),
+      listing: formatListing(stripAdminFields(updated)),
     });
   } catch (err) {
     console.error("[UPDATE LISTING ERROR]", err);
@@ -581,7 +591,7 @@ const getMyListings = async (req, res) => {
 
     return res.status(200).json({
       listings: listings.map((l) => ({
-        ...formatListing(l),
+        ...formatListing(stripAdminFields(l)),
         favoriteCount: l._count.favorites,
         reportCount: l._count.reports,
       })),
@@ -706,7 +716,7 @@ const getListingsByUser = async (req, res) => {
 
     return res.status(200).json({
       seller: user,
-      listings: listings.map(formatListing),
+      listings: listings.map((l) => formatListing(stripAdminFields(l))),
       pagination: {
         totalCount,
         totalPages,
@@ -766,6 +776,7 @@ const reportListing = async (req, res) => {
 // GET /api/listings/:id/contact ← PROTECTED
 // Reveals the seller's WhatsApp/phone number, gated by token credits.
 // 1 token = 4 views, every view counts (no caching of "already viewed").
+// Now also tracks contact view clicks per listing for seller analytics.
 // ─────────────────────────────────────────────────────────────
 const revealContact = async (req, res) => {
   try {
@@ -782,6 +793,28 @@ const revealContact = async (req, res) => {
     });
 
     if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+    // Track view — don't block response if tracking fails
+    // Don't count owner's own clicks; count only authenticated non-owner views
+    const viewerId = req.user?.id;
+    const isOwner = viewerId && listing.sellerId === viewerId;
+    if (viewerId && !isOwner) {
+      prisma.$transaction([
+        prisma.listing.update({
+          where: { id },
+          data: { contactViews: { increment: 1 } },
+        }),
+        prisma.contactView.create({
+          data: { listingId: id, viewerId },
+        }),
+      ]).catch((e) => console.error("[CONTACT VIEW TRACK ERROR]", e.message));
+    } else if (!isOwner) {
+      // Anonymous fallback (should not happen — route is protected — but safe)
+      prisma.listing.update({
+        where: { id },
+        data: { contactViews: { increment: 1 } },
+      }).catch((e) => console.error("[CONTACT VIEW TRACK ERROR]", e.message));
+    }
 
     return res.status(200).json({ whatsapp: listing.seller.whatsapp });
   } catch (err) {

@@ -121,6 +121,7 @@ const AdminListingsPage = () => {
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3">♥ Fav</th>
+                <th className="px-4 py-3">👁 Contact</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
                 <th className="px-4 py-3"></th>
@@ -160,6 +161,9 @@ const AdminListingsPage = () => {
                     <td className="px-4 py-3 text-center font-bold text-navy-900">
                       {l.favoriteCount ?? 0}
                     </td>
+                    <td className="px-4 py-3 text-center font-bold text-navy-900">
+                      {l.contactViews ?? 0}
+                    </td>
                   <td className="px-4 py-3">
                     <span
                       className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -188,7 +192,7 @@ const AdminListingsPage = () => {
               {listings.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-6 text-center text-gray-400"
                   >
                     No listings found.
@@ -221,7 +225,7 @@ const AdminListingsPage = () => {
                 </span>
               </div>
               <p className="text-sm text-gray-600 mb-1">
-                @{l.seller?.username} · {l.category} · ♥ {l.favoriteCount ?? 0}
+                @{l.seller?.username} · {l.category} · ♥ {l.favoriteCount ?? 0} · 👁 {l.contactViews ?? 0}
               </p>
               <div className="flex items-center justify-between mt-2">
                 <p className="text-sm font-semibold text-navy-900">

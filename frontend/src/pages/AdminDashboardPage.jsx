@@ -17,6 +17,8 @@ const STAT_CONFIG = [
   { key: "newFavorites", label: "New Favorites (Last 7 Days)" },
   { key: "coldListings", label: "Cold Listings (0 fav, active)" },
   { key: "totalNotifications", label: "Bell Notifications" },
+  { key: "totalContactViews", label: "Total Contact Clicks" },
+  { key: "newContactViews", label: "Contact Clicks (Last 7 Days)" },
 ];
 
 const AdminDashboardPage = () => {
@@ -129,6 +131,19 @@ const AdminDashboardPage = () => {
                   <a key={l.id} href={`/listings/${l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
                     <span className="truncate pr-4">{l.title}</span>
                     <span className="font-bold">♥ {l.favoriteCount}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          {stats.topContacted?.length > 0 && (
+            <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Contact Clicks (admin only)</p>
+              <div className="flex flex-col gap-2">
+                {stats.topContacted.map((l) => (
+                  <a key={l.id} href={`/listings/${l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
+                    <span className="truncate pr-4">{l.title}</span>
+                    <span className="font-bold">👁 {l.contactViews}</span>
                   </a>
                 ))}
               </div>

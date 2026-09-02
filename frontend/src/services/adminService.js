@@ -49,3 +49,8 @@ export const getAdminFavorites = async (params = {}) => {
   const { data } = await api.get("/admin/favorites", { params });
   return data; // { favorites, pagination }
 };
+
+export const getAdminContactViews = async (listingId, params = {}) => {
+  const { data } = await api.get(`/admin/listings/${listingId}/contact-views`, { params });
+  return data; // { listing, views, pagination }
+};

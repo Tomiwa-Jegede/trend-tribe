@@ -38,6 +38,7 @@ model User {
   reports              Report[]
   favorites            Favorite[]
   notifications        Notification[]
+  contactViews         ContactView[]
 
   @@map("users")
 }
@@ -105,10 +106,12 @@ model Listing {
   imagePublicIds String[]  @default([])
   coverPosition  Json?     @default("{\"x\": 50, \"y\": 50}")
   editCount      Int       @default(0)
+  contactViews   Int       @default(0)
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   reports        Report[]
   favorites      Favorite[]
   notifications  Notification[]
+  contactViewLogs ContactView[]
 
   @@map("listings")
 }
@@ -155,6 +158,19 @@ model Notification {
   @@index([userId, read])
   @@index([listingId])
   @@map("notifications")
+}
+
+model ContactView {
+  id        Int      @id @default(autoincrement())
+  listingId Int
+  viewerId  Int
+  createdAt DateTime @default(now())
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([viewerId])
+  @@map("contact_views")
 }
 
 enum Role {

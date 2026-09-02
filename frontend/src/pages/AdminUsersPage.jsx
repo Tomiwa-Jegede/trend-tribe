@@ -85,6 +85,7 @@ const AdminUsersPage = () => {
                 <th className="px-4 py-3">School</th>
                 <th className="px-4 py-3">Tokens</th>
                 <th className="px-4 py-3">Listings</th>
+                <th className="px-4 py-3">👁 Contacts</th>
                 <th className="px-4 py-3">Matric No.</th>
                 <th className="px-4 py-3">Joined</th>
                 <th className="px-4 py-3"></th>
@@ -109,6 +110,7 @@ const AdminUsersPage = () => {
                   <td className="px-4 py-3 text-gray-600">{u.school}</td>
                   <td className="px-4 py-3 text-center font-bold text-navy-900">🪙 {u.tokenBalance ?? 0}</td>
                   <td className="px-4 py-3 text-center font-bold text-navy-900">{u._count?.listings ?? 0}</td>
+                  <td className="px-4 py-3 text-center font-bold text-navy-900">{u.totalContactViews ?? 0}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {u.matricNumber || "—"}
                   </td>
@@ -130,7 +132,7 @@ const AdminUsersPage = () => {
               {users.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={10}
                     className="px-4 py-6 text-center text-gray-400"
                   >
                     No users found.
