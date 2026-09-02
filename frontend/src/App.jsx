@@ -32,6 +32,7 @@ const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
 const AdminListingsPage = lazy(() => import("./pages/AdminListingsPage"));
 const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const AdminReportsPage = lazy(() => import("./pages/AdminReportsPage"));
+const AdminFavoritesPage = lazy(() => import("./pages/AdminFavoritesPage"));
 const MyListingsPage = lazy(() => import("./pages/MyListingsPage"));
 
 const NotFoundPage = () => (
@@ -188,6 +189,14 @@ const App = () => {
               element={
                 <AdminRoute>
                   <AdminReportsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/favorites"
+              element={
+                <AdminRoute>
+                  <AdminFavoritesPage />
                 </AdminRoute>
               }
             />

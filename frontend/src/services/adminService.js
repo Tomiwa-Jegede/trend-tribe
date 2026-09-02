@@ -44,3 +44,8 @@ export const ignoreAdminReport = async (id) => {
   const { data } = await api.patch(`/admin/reports/${id}/ignore`);
   return data; // { message }
 };
+
+export const getAdminFavorites = async (params = {}) => {
+  const { data } = await api.get("/admin/favorites", { params });
+  return data; // { favorites, pagination }
+};

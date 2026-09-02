@@ -9,6 +9,7 @@ import {
   FiUsers,
   FiShoppingBag,
   FiFlag,
+  FiHeart,
   FiLogOut,
   FiMenu,
   FiX,
@@ -19,6 +20,7 @@ const navItems = [
   { label: "Users", path: "/admin/users", icon: FiUsers },
   { label: "Listings", path: "/admin/listings", icon: FiShoppingBag },
   { label: "Reports", path: "/admin/reports", icon: FiFlag },
+  { label: "Favorites", path: "/admin/favorites", icon: FiHeart },
 ];
 
 const SidebarContent = ({ location, onNavigate }) => (

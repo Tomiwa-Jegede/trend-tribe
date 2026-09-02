@@ -271,6 +271,47 @@ router.get("/reports", protect, requireAdmin, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// GET /api/admin/favorites ← PROTECTED + ADMIN ONLY — who favorited what
+// ─────────────────────────────────────────────────────────────
+router.get("/favorites", protect, requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+    const [favorites, totalCount] = await Promise.all([
+      prisma.favorite.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limitNum,
+        include: {
+          listing: { select: { id: true, title: true, category: true, isAvailable: true } },
+          user: { select: { id: true, username: true, fullName: true, school: true } },
+        },
+      }),
+      prisma.favorite.count(),
+    ]);
+    return res.status(200).json({
+      favorites: favorites.map((f) => ({
+        id: f.id,
+        createdAt: f.createdAt,
+        listing: f.listing,
+        user: f.user,
+      })),
+      pagination: {
+        totalCount,
+        totalPages: Math.ceil(totalCount / limitNum),
+        currentPage: pageNum,
+        limit: limitNum,
+      },
+    });
+  } catch (err) {
+    console.error("[ADMIN GET FAVORITES ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // PATCH /api/admin/reports/:id/ignore ← PROTECTED + ADMIN ONLY
 // ─────────────────────────────────────────────────────────────
 router.patch("/reports/:id/ignore", protect, requireAdmin, async (req, res) => {
