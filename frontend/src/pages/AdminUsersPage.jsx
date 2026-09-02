@@ -83,6 +83,7 @@ const AdminUsersPage = () => {
                 <th className="px-4 py-3">Full Name</th>
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">School</th>
+                <th className="px-4 py-3">Tokens</th>
                 <th className="px-4 py-3">Matric No.</th>
                 <th className="px-4 py-3">Joined</th>
                 <th className="px-4 py-3"></th>
@@ -105,6 +106,7 @@ const AdminUsersPage = () => {
                   <td className="px-4 py-3 text-gray-600">{u.fullName}</td>
                   <td className="px-4 py-3 text-gray-600">{u.email}</td>
                   <td className="px-4 py-3 text-gray-600">{u.school}</td>
+                  <td className="px-4 py-3 text-center font-bold text-navy-900">🪙 {u.tokenBalance ?? 0}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {u.matricNumber || "—"}
                   </td>
@@ -126,7 +128,7 @@ const AdminUsersPage = () => {
               {users.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-6 text-center text-gray-400"
                   >
                     No users found.
@@ -159,7 +161,7 @@ const AdminUsersPage = () => {
               <p className="text-sm text-gray-600">{u.fullName}</p>
               <p className="text-sm text-gray-500">{u.email}</p>
               <p className="text-xs text-gray-400 mt-1">
-                {u.school} {u.matricNumber ? `· ${u.matricNumber}` : ""}
+                {u.school} {u.matricNumber ? `· ${u.matricNumber}` : ""} · 🪙 {u.tokenBalance ?? 0} tokens
               </p>
               <div className="flex items-center justify-between mt-3">
                 <p className="text-xs text-gray-400">
@@ -210,3 +212,4 @@ const AdminUsersPage = () => {
 };
 
 export default AdminUsersPage;
+// trigger deploy Wed Sep  2 14:56:57 WAT 2026
