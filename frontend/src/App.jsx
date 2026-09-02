@@ -21,6 +21,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import FeaturesPage from "./pages/FeaturesPage";
+import PricingPage from "./pages/PricingPage";
 import TokenCallbackPage from "./pages/TokenCallbackPage";
 import FavoritesPage from "./pages/FavoritesPage";
 
@@ -207,6 +208,7 @@ const App = () => {
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/features" element={<FeaturesPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
               <Route path="/coming-soon" element={<ComingSoonPage />} />
               <Route path="/messages" element={<ComingSoonPage />} />
               <Route

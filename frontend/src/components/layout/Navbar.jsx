@@ -189,6 +189,7 @@ const Navbar = () => {
 
               />
               <NavLink path="/features" label="Features" />
+              <NavLink path="/pricing" label="Pricing" />
               <NavLink path="/about" label="About" />
 
                           {isAuthenticated && (
@@ -374,6 +375,7 @@ const Navbar = () => {
 
               />
               <MobileNavLink path="/features" label="Features" index={2} />
+              <MobileNavLink path="/pricing" label="Pricing" index={2} />
               <MobileNavLink path="/about" label="About" index={3} />
 
 

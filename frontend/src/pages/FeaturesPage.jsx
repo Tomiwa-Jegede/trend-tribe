@@ -394,61 +394,81 @@ const FeaturesPage = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           <FeatureCard
             delay={0}
-            icon={<FiSearch className="w-5 h-5" />}
-            title="Search & filter"
-            desc="Find exactly what you need with filters for category, price range, and item condition. Results update instantly."
+            icon={<FiUsers className="w-5 h-5" />}
+            title="Students only — OTP verified"
+            desc="Sign up with school email, verify via Brevo OTP, stay verified. Role BUYER → SELLER upgrade via RUN email."
           />
           <FeatureCard
             delay={0.05}
             icon={<FiTag className="w-5 h-5" />}
             title="List in 60 seconds"
-            desc="Post an item fast. Upload photos, set your price, pick a category, and go live. Zero listing fees, zero commission."
+            desc="Title, description, price, Category (Fashion, Beauty + Others, Gadgets, Accessories, Snacks, Others) + Subcategory (e.g., MENS_FASHION, SKIN_CARE, PHONE_ACCESSORIES, JEWELRY, OTHERS), condition, location — live instantly."
           />
           <FeatureCard
             delay={0.1}
             icon={<FiCamera className="w-5 h-5" />}
-            title="Multi-photo uploads"
-            desc="Show your item from every angle. Buyers see exactly what they're getting before reaching out."
+            title="Multi-photo + cover drag"
+            desc="Up to 5 Cloudinary photos, drag the cover to reposition, imagePublicIds stay in sync. First photo is the card."
           />
           <FeatureCard
             delay={0.15}
-            icon={<FiMessageCircle className="w-5 h-5" />}
-            title="WhatsApp contact"
-            desc={`Tap "Contact Seller" and you're taken straight to WhatsApp with the listing details pre-filled. Simple, fast, no accounts needed.`}
+            icon={<FiSearch className="w-5 h-5" />}
+            title="Search, filter & Featured boost"
+            desc="Category → subcategory gate, search, price & condition. Boosted product cards (1 token 24h) pinned on top of Marketplace — same card, tap to detail."
           />
           <FeatureCard
             delay={0.2}
-            icon={<FiUsers className="w-5 h-5" />}
-            title="Students only"
-            desc="TrendTribe is for verified university and college students. Your campus, your community, your marketplace."
+            icon={<FiShield className="w-5 h-5" />}
+            title="My Listings + 30-day timer"
+            desc="Seller-only subtle progress bar: GHOST in X days, HIDDEN, Featured hours. 30-day auto-hide (archivedAt) frees the slot; re-activate the 4th costs 1 token."
           />
           <FeatureCard
             delay={0.25}
-            icon={<FiShield className="w-5 h-5" />}
-            title="Safe, on-campus trading"
-            desc="Meet in a public spot on campus, inspect the item, pay cash. No shipping, no scams, no uncertainty."
+            icon={<FiTrendingUp className="w-5 h-5" />}
+            title="Boost to top (Marketplace only)"
+            desc="1 token = 24h Featured product card on top of Marketplace (A). Click goes to full detail. Not on Home, not duplicated in grid."
           />
           <FeatureCard
             delay={0.3}
             icon={<FiHeart className="w-5 h-5" />}
-            title="Save listings"
-            desc="Bookmark items you're interested in and come back to them later from your saved items page."
-            comingSoon
+            title="Favorites + My Listings count"
+            desc="Save any listing. Seller sees ♥ count per card in My Listings. Admin sees who favorited what at /admin/favorites."
           />
           <FeatureCard
             delay={0.35}
-            icon={<FiStar className="w-5 h-5" />}
-            title="Seller ratings"
-            desc="Rate buyers and sellers after a trade. Build a reputation that makes future deals easier."
-            comingSoon
+            icon={<FiBell className="w-5 h-5" />}
+            title="Bell-only notifications"
+            desc="Favorite → seller bell (in-app pull, 30s poll). New user / new listing → admin bell. No email/WhatsApp push this bet — you see it when you return."
           />
           <FeatureCard
             delay={0.4}
-            icon={<FiBell className="w-5 h-5" />}
-            title="Notifications"
-            desc="Get alerted when someone enquires about your listing or when a saved item's price drops."
-            comingSoon
+            icon={<FiMessageCircle className="w-5 h-5" />}
+            title="WhatsApp contact (free)"
+            desc="Contact Seller opens wa.me with pre-filled item title/price/link. Always free — tokens never gate contact."
           />
+          <FeatureCard
+            delay={0.45}
+            icon={<FiSmartphone className="w-5 h-5" />}
+            title="Admin: users, listings, reports, favorites"
+            desc="Dashboard shows cold listings, top favorited, bell total. Listings table shows ♥ fav + Featured + timer. Reports PENDING → IGNORED."
+          />
+          <FeatureCard
+            delay={0.5}
+            icon={<FiStar className="w-5 h-5" />}
+            title="Tokens — 3 free, then 1 token per extra"
+            desc="1 token = ₦200 = 4 units. Post 4th active, re-activate 4th, boost 24h, extend ghost 14d — each 1 token. Frederick AI 0.25-0.5 token. See pricing."
+          />
+          <FeatureCard
+            delay={0.55}
+            icon={<FiSmartphone className="w-5 h-5" />}
+            title="Mobile bell outside hamburger"
+            desc="Bell sits next to the menu button on mobile, always visible — no need to open the menu to see `●`."
+          />
+        </div>
+        <div className="text-center mt-8">
+          <Link to="/pricing" className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 hover:underline">
+            See token pricing <FiArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </section>
 
