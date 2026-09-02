@@ -84,6 +84,7 @@ const AdminUsersPage = () => {
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">School</th>
                 <th className="px-4 py-3">Tokens</th>
+                <th className="px-4 py-3">Listings</th>
                 <th className="px-4 py-3">Matric No.</th>
                 <th className="px-4 py-3">Joined</th>
                 <th className="px-4 py-3"></th>
@@ -107,6 +108,7 @@ const AdminUsersPage = () => {
                   <td className="px-4 py-3 text-gray-600">{u.email}</td>
                   <td className="px-4 py-3 text-gray-600">{u.school}</td>
                   <td className="px-4 py-3 text-center font-bold text-navy-900">🪙 {u.tokenBalance ?? 0}</td>
+                  <td className="px-4 py-3 text-center font-bold text-navy-900">{u._count?.listings ?? 0}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {u.matricNumber || "—"}
                   </td>

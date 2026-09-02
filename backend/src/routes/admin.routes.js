@@ -197,6 +197,7 @@ router.get("/users", protect, requireAdmin, async (req, res) => {
           role: true,
           tokenBalance: true,
           createdAt: true,
+          _count: { select: { listings: true } },
         },
       }),
       prisma.user.count({ where }),
