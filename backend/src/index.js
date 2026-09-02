@@ -123,6 +123,12 @@ async function startServer() {
     }, 24 * 60 * 60 * 1000); // every 24 hours
     // run once on boot (non-blocking)
     archiveGhostListings().catch(() => {});
+    // ─── Clear expired boosts (featured 24h) ──
+    setInterval(async () => {
+      try {
+        await prisma.listing.updateMany({ where: { boostedUntil: { lt: new Date() } }, data: { boostedUntil: null, boostedAt: null } });
+      } catch {}
+    }, 60 * 60 * 1000); // hourly
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);
     process.exit(1);

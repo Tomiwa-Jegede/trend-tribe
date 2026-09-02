@@ -9,6 +9,7 @@ const {
   updateListing,
   deleteListing,
   getMyListings,
+  boostListing,
   getListingsByUser,
   reportListing,
   revealContact,
@@ -59,6 +60,7 @@ router.post(
 );
 router.put("/:id", protect, requireSeller, updateListingRules, validate, updateListing);
 router.delete("/:id", protect, requireSeller, deleteListing);
+router.post("/:id/boost", protect, requireSeller, boostListing);
 router.post("/:id/report", protect, reportListing);
 router.post("/:id/contact", protect, revealContact);
 router.post("/:id/favorite", protect, toggleFavorite);

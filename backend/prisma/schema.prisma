@@ -97,6 +97,8 @@ model Listing {
   isAvailable    Boolean   @default(true)
   soldAt         DateTime?
   archivedAt     DateTime?
+  boostedAt      DateTime?
+  boostedUntil   DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   sellerId       Int

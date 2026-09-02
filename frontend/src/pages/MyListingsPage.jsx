@@ -19,6 +19,12 @@ const daysLeft = (listing) => {
   return Math.max(0, Math.ceil(GHOST_DAYS - elapsed));
 };
 
+const isBoosted = (listing) => listing.boostedUntil && new Date(listing.boostedUntil) > new Date();
+const boostedHoursLeft = (listing) => {
+  if (!isBoosted(listing)) return 0;
+  return Math.max(0, Math.ceil((new Date(listing.boostedUntil).getTime() - Date.now()) / 3600000));
+};
+
 const MyListingsPage = () => {
   const { user, refreshUser } = useAuth();
   const [listings, setListings] = useState([]);
@@ -86,6 +92,32 @@ const MyListingsPage = () => {
     }
   };
 
+  const handleBoost = async (listing) => {
+    setToggling(listing.id);
+    setErr(null);
+    try {
+      try {
+        const { data } = await api.post(`/listings/${listing.id}/boost`, {});
+        setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil } : l)));
+        refreshUser?.();
+      } catch (e) {
+        if (e.response?.status === 402 && e.response?.data?.needsTokenConfirm) {
+          const ok = confirm(e.response.data.error + "\n\nConfirm to spend 1 token for 24h Featured on top of Marketplace?");
+          if (!ok) throw e;
+          const { data } = await api.post(`/listings/${listing.id}/boost`, { confirmSpend: true });
+          setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil } : l)));
+          refreshUser?.();
+        } else {
+          throw e;
+        }
+      }
+    } catch (e) {
+      setErr(e.response?.data?.error || "Failed to boost");
+    } finally {
+      setToggling(null);
+    }
+  };
+
   const freeSlotsUsed = pagination ? pagination.totalCount : listings.length;
   const FREE_LIMIT = 3;
   const freeLeft = Math.max(0, FREE_LIMIT - freeSlotsUsed);
@@ -126,16 +158,22 @@ const MyListingsPage = () => {
             {listings.map((l) => {
               const ghost = isGhost(l);
               const left = daysLeft(l);
+              const boosted = isBoosted(l);
+              const bLeft = boostedHoursLeft(l);
+              const pctLeft = Math.max(0, Math.min(100, ((GHOST_DAYS - left) / GHOST_DAYS) * 100));
               return (
-                <div key={l.id} className={`card overflow-hidden ${ghost ? "ring-2 ring-amber-300" : ""} ${!l.isAvailable ? "opacity-60" : ""}`}>
+                <div key={l.id} className={`card overflow-hidden ${ghost ? "ring-2 ring-amber-300" : ""} ${boosted ? "ring-2 ring-amber-400" : ""} ${!l.isAvailable ? "opacity-60" : ""}`}>
                   <div className="relative h-48 bg-gray-100 overflow-hidden">
                     {l.images?.[0] ? (
                       <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" style={l.coverPosition ? { objectPosition: `${l.coverPosition.x}% ${l.coverPosition.y}%` } : undefined} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
                     )}
-                    {ghost && <span className="absolute top-2 left-2 bg-amber-400 text-amber-900 text-xs font-bold px-2 py-1 rounded-full">GHOST — will hide in {left}d</span>}
+                    {boosted && <span className="absolute top-2 left-2 bg-amber-400 text-amber-900 text-xs font-bold px-2 py-1 rounded-full">★ Featured · {bLeft}h left</span>}
+                    {ghost && <span className={`absolute bg-amber-400 text-amber-900 text-xs font-bold px-2 py-1 rounded-full ${boosted ? "top-9 left-2" : "top-2 left-2"}`}>GHOST — will hide in {left}d</span>}
                     {!l.isAvailable && <span className="absolute top-2 right-2 bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded-full">HIDDEN</span>}
+                    {/* subtle 30d timer bar — seller + admin only (not on public cards) */}
+                    {l.isAvailable && <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/10"><div className="h-full bg-amber-400 transition-all" style={{ width: `${pctLeft}%`, opacity: 0.9 }} /></div>}
                   </div>
                   <div className="p-4">
                     <Link to={`/listings/${l.id}`} className="font-bold text-gray-900 line-clamp-1 hover:text-primary-600">{l.title}</Link>
@@ -152,6 +190,17 @@ const MyListingsPage = () => {
                       >
                         {toggling === l.id ? "..." : l.isAvailable ? "Mark Sold / Hide" : "Re-activate"}
                       </button>
+                      {l.isAvailable && !boosted && (
+                        <button
+                          onClick={() => handleBoost(l)}
+                          disabled={toggling === l.id}
+                          className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500"
+                          title="Boost to Featured on top of Marketplace for 24h"
+                        >
+                          Boost 24h · 1🪙
+                        </button>
+                      )}
+                      {boosted && <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">★ Featured {bLeft}h</span>}
                       <Link to={`/listings/${l.id}/edit`} className="text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50">
                         Edit
                       </Link>

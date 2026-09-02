@@ -108,6 +108,7 @@ router.get("/listings", protect, requireAdmin, async (req, res) => {
           subcategory: true,
           price: true,
           isAvailable: true,
+          boostedUntil: true,
           createdAt: true,
           seller: { select: { username: true } },
           _count: { select: { favorites: true } },

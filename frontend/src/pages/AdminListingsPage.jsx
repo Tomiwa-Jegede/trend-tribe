@@ -6,6 +6,10 @@ import { getAdminListings, deleteAdminListing } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { CATEGORIES, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 
+const GHOST_DAYS = 30;
+const isBoosted = (l) => l.boostedUntil && new Date(l.boostedUntil) > new Date();
+const daysLeft = (l) => Math.max(0, Math.ceil((new Date(l.createdAt).getTime() + GHOST_DAYS*86400000 - Date.now())/86400000));
+
 const AdminListingsPage = () => {
   const [listings, setListings] = useState([]);
   const [search, setSearch] = useState("");
@@ -123,24 +127,39 @@ const AdminListingsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {listings.map((l) => (
-                <tr
-                  key={l.id}
-                  className="border-b border-sage-50 last:border-0"
-                >
-                  <td className="px-4 py-3 font-medium text-navy-900">
-                    {l.title}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {l.seller?.username}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{l.category}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    ₦{l.price.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-center font-bold text-navy-900">
-                    {l.favoriteCount ?? 0}
-                  </td>
+              {listings.map((l) => {
+                const boosted = isBoosted(l);
+                const left = daysLeft(l);
+                const pct = Math.max(0, Math.min(100, ((30 - left) / 30) * 100));
+                return (
+                  <tr
+                    key={l.id}
+                    className="border-b border-sage-50 last:border-0"
+                  >
+                    <td className="px-4 py-3 font-medium text-navy-900">
+                      <div className="flex flex-col">
+                        <span className="flex items-center gap-2">
+                          {l.title}
+                          {boosted && <span className="text-[10px] bg-amber-400 text-amber-900 px-1.5 py-0.5 rounded-full font-bold">★ Featured</span>}
+                        </span>
+                        {l.isAvailable && (
+                          <div className="w-full h-1 bg-black/10 rounded-full mt-1 overflow-hidden max-w-[120px]">
+                            <div className="h-full bg-amber-400" style={{ width: `${pct}%` }} />
+                          </div>
+                        )}
+                        {l.isAvailable && <span className="text-[10px] text-gray-400 mt-0.5">{left}d left · {boosted ? "featured " + Math.ceil((new Date(l.boostedUntil).getTime() - Date.now())/3600000) + "h left" : ""}</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {l.seller?.username}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{l.category}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      ₦{l.price.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-center font-bold text-navy-900">
+                      {l.favoriteCount ?? 0}
+                    </td>
                   <td className="px-4 py-3">
                     <span
                       className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -155,7 +174,7 @@ const AdminListingsPage = () => {
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(l.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-3">
+                    <td className="px-4 py-3">
                     <button
                       onClick={() => handleDelete(l.id)}
                       className="text-red-500 hover:text-red-600 text-xs font-medium"
@@ -164,7 +183,8 @@ const AdminListingsPage = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {listings.length === 0 && (
                 <tr>
                   <td

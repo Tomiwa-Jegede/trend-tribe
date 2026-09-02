@@ -60,6 +60,11 @@ const getAllListings = async (req, res) => {
 
     const where = { isAvailable: true };
 
+    // Featured boost filter: ?boosted=true returns only currently boosted (Marketplace top only)
+    if (req.query.boosted === "true") {
+      where.boostedUntil = { gt: new Date() };
+    }
+
     if (search?.trim()) {
       where.OR = [
         { title: { contains: search.trim(), mode: "insensitive" } },
@@ -83,7 +88,12 @@ const getAllListings = async (req, res) => {
       price_asc: { price: "asc" },
       price_desc: { price: "desc" },
     };
-    const orderBy = orderByMap[sort] || orderByMap.newest;
+    // Boosted first (future boostedUntil), then by chosen sort — Featured row is product cards on Marketplace top only
+    const sortOrder = orderByMap[sort] || orderByMap.newest;
+    const orderBy = [
+      { boostedUntil: { sort: "desc", nulls: "last" } },
+      sortOrder,
+    ];
 
     const [listings, totalCount] = await Promise.all([
       prisma.listing.findMany({
@@ -618,6 +628,43 @@ const archiveGhostListings = async () => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// POST /api/listings/:id/boost ← PROTECTED (Marketplace top only)
+// 1 token = 24h featured product card on Marketplace top
+// ─────────────────────────────────────────────────────────────
+const boostListing = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
+    const { error, status, listing } = await findAndVerifyListing(id, req.user.id);
+    if (error) return res.status(status).json({ error });
+    if (!listing.isAvailable) return res.status(400).json({ error: "Only active listings can be boosted" });
+    if (listing.boostedUntil && new Date(listing.boostedUntil) > new Date()) {
+      return res.status(400).json({ error: "This listing is already boosted" });
+    }
+    const { confirmSpend } = req.body;
+    const seller = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tokenBalance: true } });
+    if (!seller || seller.tokenBalance < 4) {
+      return res.status(403).json({ error: "You need 1 token to boost for 24h.", tokenBalance: toDisplayTokens(seller?.tokenBalance ?? 0) });
+    }
+    if (!confirmSpend) {
+      return res.status(402).json({ needsTokenConfirm: true, tokenBalance: toDisplayTokens(seller.tokenBalance), error: "Boost this listing to Featured for 24h? This will use 1 token." });
+    }
+    const now = new Date();
+    const until = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const updated = await prisma.$transaction(async (tx) => {
+      const ok = await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: 4 } }, data: { tokenBalance: { decrement: 4 } } });
+      if (ok.count === 0) throw new Error("TOKEN_BALANCE_RACE");
+      return tx.listing.update({ where: { id }, data: { boostedAt: now, boostedUntil: until } });
+    });
+    return res.status(200).json({ message: "Listing boosted for 24h ✅", listing: formatListing(updated) });
+  } catch (err) {
+    if (err.message === "TOKEN_BALANCE_RACE") return res.status(403).json({ error: "Token balance changed, try again." });
+    console.error("[BOOST LISTING ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
 // GET /api/listings/user/:userId
 // ─────────────────────────────────────────────────────────────
 const getListingsByUser = async (req, res) => {
@@ -884,6 +931,7 @@ module.exports = {
   deleteListing,
   getMyListings,
   archiveGhostListings,
+  boostListing,
   getListingsByUser,
   reportListing,
   revealContact,

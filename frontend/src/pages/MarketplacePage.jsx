@@ -46,6 +46,10 @@ const MarketplacePage = () => {
     parseInt(searchParams.get("page"), 10) || 1,
   );
 
+  const isBoosted = (l) => l.boostedUntil && new Date(l.boostedUntil) > new Date();
+  const boostedListings = listings.filter(isBoosted);
+  const normalListings = listings.filter((l) => !isBoosted(l));
+
     const [filters, setFilters] = useState({
       search: searchParams.get("search") || "",
       category: searchParams.get("category") || "",
@@ -310,6 +314,24 @@ const MarketplacePage = () => {
               <Alert type="error" message={error} onDismiss={() => setError("")} />
             )}
 
+            {/* ── Featured Boosted Product Cards (Marketplace top only, A) ── */}
+            {!loading && boostedListings.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-bold tracking-widest uppercase text-amber-600">Featured</span>
+                  <span className="text-xs text-gray-400">· Sponsored · 24h</span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                  {boostedListings.map((listing) => (
+                    <div key={`boosted-${listing.id}`} className="relative">
+                      <span className="absolute top-2 left-2 z-10 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-1 rounded-full">★ Featured</span>
+                      <ListingCard listing={listing} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* ── Listings Grid / Loading / Empty (cross-fade) ──── */}
             <AnimatePresence mode="wait">
           {loading ? (
@@ -325,7 +347,7 @@ const MarketplacePage = () => {
                 <ListingCardSkeleton key={i} />
               ))}
             </motion.div>
-          ) : listings.length > 0 ? (
+          ) : normalListings.length > 0 ? (
             <motion.div
               key={resultsKey}
               variants={fadeVariants}
@@ -339,7 +361,7 @@ const MarketplacePage = () => {
                 initial="hidden"
                 animate="show"
               >
-                {listings.map((listing) => (
+                {normalListings.map((listing) => (
                   <motion.div key={listing.id} variants={cardVariants}>
                     <ListingCard listing={listing} />
                   </motion.div>
@@ -364,7 +386,7 @@ const MarketplacePage = () => {
                 )}
               </AnimatePresence>
             </motion.div>
-          ) : !error ? (
+          ) : !error && normalListings.length===0 && boostedListings.length===0 ? (
             <motion.div
               key="empty"
               variants={fadeVariants}
