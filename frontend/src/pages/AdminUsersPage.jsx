@@ -170,6 +170,7 @@ const AdminUsersPage = () => {
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1">🪙 {u.tokenBalance ?? 0} tokens</span>
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1">📦 {u._count?.listings ?? 0} listings</span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-amber-50 border border-amber-100 rounded-full px-2.5 py-1">👁 {u.totalContactViews ?? 0} contacts</span>
               </div>
               <div className="flex items-center justify-between mt-3 gap-2">
                 <p className="text-xs text-gray-400">
