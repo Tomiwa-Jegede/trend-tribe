@@ -21,6 +21,7 @@ const uploadRoutes = require("./routes/upload.routes");
 const adminRoutes = require("./routes/admin.routes");
 const frederickRoutes = require("./routes/frederick.routes");
 const paymentRoutes = require("./routes/payment.routes");
+const notificationRoutes = require("./routes/notification.routes");
 const { handleWebhook } = require("./controllers/payment.controller");
 
 const app = express();
@@ -70,6 +71,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/frederick", frederickRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {

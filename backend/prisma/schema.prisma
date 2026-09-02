@@ -37,6 +37,7 @@ model User {
   listings             Listing[]
   reports              Report[]
   favorites            Favorite[]
+  notifications        Notification[]
 
   @@map("users")
 }
@@ -106,6 +107,7 @@ model Listing {
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   reports        Report[]
   favorites      Favorite[]
+  notifications  Notification[]
 
   @@map("listings")
 }
@@ -136,6 +138,22 @@ model Favorite {
   @@unique([listingId, userId])
   @@index([userId])
   @@map("favorites")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int // recipient (seller)
+  actorId   Int? // who favorited
+  listingId Int?
+  type      String // FAVORITE
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   Listing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([listingId])
+  @@map("notifications")
 }
 
 enum Role {

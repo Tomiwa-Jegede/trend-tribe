@@ -16,6 +16,7 @@ import {
   FiHelpCircle,
   FiHeart,
 } from "react-icons/fi";
+import NotificationBell from "../notifications/NotificationBell";
 
 // ── Reduced-motion helper ──────────────────────────────────────
 const useReducedMotion = () => {
@@ -285,6 +286,8 @@ const Navbar = () => {
                       </span>
                     )}
 
+                    <NotificationBell />
+
                     <motion.button
                       onClick={handleLogout}
                       className="p-2 text-gray-400 hover:text-red-500
@@ -390,6 +393,11 @@ const Navbar = () => {
               )}
               {user?.role === "ADMIN" && (
                 <MobileNavLink path="/admin" label="Admin" index={4} />
+              )}
+              {isAuthenticated && (
+                <div className="pt-2">
+                  <NotificationBell />
+                </div>
               )}
 
               <div className="border-t border-sage-100 pt-4 flex flex-col gap-3">

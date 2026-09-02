@@ -212,7 +212,7 @@ const verifyRegistration = async (req, res) => {
       });
     }
 
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         email: pending.email,
         username: pending.username,
@@ -226,6 +226,18 @@ const verifyRegistration = async (req, res) => {
         isVerified: true,
       },
     });
+
+    // Admin bell: new user signed up (Wayfinder admin signal)
+    try {
+      const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+      if (admins.length) {
+        await prisma.notification.createMany({
+          data: admins.map((a) => ({ userId: a.id, actorId: newUser.id, type: "NEW_USER" })),
+        });
+      }
+    } catch (e) {
+      console.error("[ADMIN NOTIF NEW_USER ERROR]", e.message);
+    }
 
     await prisma.pendingRegistration.delete({ where: { email } });
 

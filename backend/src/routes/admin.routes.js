@@ -27,12 +27,26 @@ router.get("/stats", protect, requireAdmin, async (req, res) => {
       activeListings,
       newUsers,
       newListings,
+      totalFavorites,
+      newFavorites,
+      coldListings,
+      totalNotifications,
+      topFavorited,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.listing.count(),
       prisma.listing.count({ where: { isAvailable: true } }),
       prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
       prisma.listing.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+      prisma.favorite.count(),
+      prisma.favorite.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+      prisma.listing.count({ where: { isAvailable: true, favorites: { none: {} } } }),
+      prisma.notification.count(),
+      prisma.listing.findMany({
+        orderBy: { favorites: { _count: "desc" } },
+        take: 5,
+        select: { id: true, title: true, _count: { select: { favorites: true } } },
+      }),
     ]);
 
     return res.status(200).json({
@@ -41,6 +55,11 @@ router.get("/stats", protect, requireAdmin, async (req, res) => {
       activeListings,
       newUsers,
       newListings,
+      totalFavorites,
+      newFavorites,
+      coldListings,
+      totalNotifications,
+      topFavorited: topFavorited.map((l) => ({ id: l.id, title: l.title, favoriteCount: l._count.favorites })),
     });
   } catch (err) {
     console.error("[GET ADMIN STATS ERROR]", err);
@@ -91,6 +110,7 @@ router.get("/listings", protect, requireAdmin, async (req, res) => {
           isAvailable: true,
           createdAt: true,
           seller: { select: { username: true } },
+          _count: { select: { favorites: true } },
         },
       }),
       prisma.listing.count({ where }),
@@ -99,7 +119,7 @@ router.get("/listings", protect, requireAdmin, async (req, res) => {
     const totalPages = Math.ceil(totalCount / limitNum);
 
     return res.status(200).json({
-      listings: listings.map((l) => ({ ...l, price: parseFloat(l.price) })),
+      listings: listings.map((l) => ({ ...l, price: parseFloat(l.price), favoriteCount: l._count.favorites })),
       pagination: {
         totalCount,
         totalPages,

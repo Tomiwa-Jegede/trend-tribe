@@ -326,6 +326,18 @@ const createListing = async (req, res) => {
           return tx.listing.create({ data: listingData, include: listingInclude });
         });
 
+    // Admin bell: new listing (in-app pull)
+    try {
+      const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+      if (admins.length) {
+        await prisma.notification.createMany({
+          data: admins.map((a) => ({ userId: a.id, actorId: req.user.id, listingId: listing.id, type: "NEW_LISTING" })),
+        });
+      }
+    } catch (e) {
+      console.error("[ADMIN NOTIF NEW_LISTING ERROR]", e.message);
+    }
+
     return res.status(201).json({
       message: "Listing created successfully ✅",
       listing: formatListing(listing),
@@ -752,7 +764,7 @@ const toggleFavorite = async (req, res) => {
 
     const listing = await prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true },
+      select: { id: true, sellerId: true },
     });
     if (!listing) return res.status(404).json({ error: "Listing not found" });
 
@@ -770,6 +782,16 @@ const toggleFavorite = async (req, res) => {
     await prisma.favorite.create({
       data: { listingId, userId: req.user.id },
     });
+    // Bell-only notification for seller (in-app pull, no email/WA)
+    if (listing.sellerId !== req.user.id) {
+      try {
+        await prisma.notification.create({
+          data: { userId: listing.sellerId, actorId: req.user.id, listingId, type: "FAVORITE" },
+        });
+      } catch (e) {
+        console.error("[NOTIFICATION CREATE ERROR]", e.message);
+      }
+    }
     return res.status(201).json({ favorited: true });
   } catch (err) {
     console.error("[TOGGLE FAVORITE ERROR]", err);

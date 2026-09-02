@@ -13,6 +13,10 @@ const STAT_CONFIG = [
   { key: "activeListings", label: "Active Listings" },
   { key: "newUsers", label: "New Users (Last 7 Days)" },
   { key: "newListings", label: "New Listings (Last 7 Days)" },
+  { key: "totalFavorites", label: "Total Favorites" },
+  { key: "newFavorites", label: "New Favorites (Last 7 Days)" },
+  { key: "coldListings", label: "Cold Listings (0 fav, active)" },
+  { key: "totalNotifications", label: "Bell Notifications" },
 ];
 
 const AdminDashboardPage = () => {
@@ -101,21 +105,36 @@ const AdminDashboardPage = () => {
       )}
 
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {STAT_CONFIG.map(({ key, label }) => (
-            <div
-              key={key}
-              className="bg-white border border-sage-100 rounded-xl p-5"
-            >
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-                {label}
-              </p>
-              <p className="text-2xl font-bold text-navy-900">
-                {stats[key]}
-              </p>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {STAT_CONFIG.map(({ key, label }) => (
+              <div
+                key={key}
+                className="bg-white border border-sage-100 rounded-xl p-5"
+              >
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                  {label}
+                </p>
+                <p className="text-2xl font-bold text-navy-900">
+                  {stats[key] ?? 0}
+                </p>
+              </div>
+            ))}
+          </div>
+          {stats.topFavorited?.length > 0 && (
+            <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Favorited (click to view)</p>
+              <div className="flex flex-col gap-2">
+                {stats.topFavorited.map((l) => (
+                  <a key={l.id} href={`/listings/${l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
+                    <span className="truncate pr-4">{l.title}</span>
+                    <span className="font-bold">♥ {l.favoriteCount}</span>
+                  </a>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
       <div className="mt-8 pt-6 border-t border-sage-100">
         <h2 className="text-sm font-semibold text-navy-900 mb-1">Weekly Email</h2>
