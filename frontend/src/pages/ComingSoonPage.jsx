@@ -76,55 +76,25 @@ const CountdownCard = ({ title, countdown, accent }) => (
   </div>
 );
 
-// Map routes to human-readable names & icons
+// Map routes to human-readable names & icons — only true coming-soon surfaces
 const PAGE_META = {
   "/messages": {
     icon: "💬",
     name: "Messages",
-    desc: "In-app messaging between buyers and sellers.",
-    launchDate: "August 23, 2026",
+    desc: "In-app messaging between buyers and sellers is not here yet. For now, sellers are reached on WhatsApp.",
+    launchDate: "Coming soon",
   },
-
-  "/saved": {
-    icon: "❤️",
-    name: "Saved Items",
-    desc: "Your personal wishlist of bookmarked listings.",
-    launchDate: "August 23, 2026",
-  },
-
-  "/notifications": {
-    icon: "🔔",
-    name: "Notifications",
-    desc: "Alerts for listing activity, price drops, and more.",
-    launchDate: "August 23, 2026",
-  },
-
-  "/profile": {
-    icon: "👤",
-    name: "Profile Settings",
-    desc: "Edit your bio, photo, and university info.",
-    launchDate: "August 23, 2026",
-  },
-
-  "/my-listings": {
-    icon: "📋",
-    name: "My Listings",
-    desc: "Manage, edit, and re-post your active listings.",
-    launchDate: "August 23, 2026",
-  },
-
   "/admin": {
     icon: "🛠️",
     name: "Admin Panel",
-    desc: "Platform management tools — for admins only.",
-    launchDate: "August 23, 2026",
+    desc: "Platform management for admins only.",
+    launchDate: "Live for admins",
   },
-
   "/features": {
     icon: "✨",
     name: "Features",
-    desc: "Additional TrendTribe experiences and enhancements.",
-    launchDate: "July 12, 2026",
+    desc: "New campus trading features.",
+    launchDate: "Live",
   },
 };
 

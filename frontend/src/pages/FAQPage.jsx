@@ -44,36 +44,36 @@ const FAQS = [
     items: [
       {
         q: "Who can use TrendTribe?",
-        a: "TrendTribe is exclusively for university students — both student vendors who want to grow their business and student shoppers looking for what they need on campus. Every user is verified.",
+        a: "TrendTribe is for students. Anyone with a school email can buy. To sell, verify your RUN email (@run.edu.ng) and matric number. Buyers are verified by email OTP — sellers get extra checks.",
       },
       {
         q: "How does TrendTribe work?",
-        a: "Student vendors list their products to gain visibility among their campus community. Student buyers browse, discover vendors, and connect with them directly to make purchases.",
+        a: "Sellers list items with photos and price. Buyers browse Fashion, Beauty and Personal Care, Gadgets, Accessories, Snacks and more, then tap Contact Seller to chat on WhatsApp. Meet on campus, check the item, pay cash or transfer.",
       },
       {
-        q: "How do I verify my student status?",
-        a: "Sign up with your school email and matric number. We'll send a verification link to confirm your account before you can buy or sell.",
+        q: "How do I verify my account?",
+        a: "We send a 6-digit code to your email via Brevo. Enter it. The code expires in 10 minutes. Sellers also verify their RUN email and matric number. No link is sent.",
       },
     ],
   },
   {
-    category: "For Vendors",
+    category: "For Sellers",
     items: [
       {
-        q: "How do I list my products?",
-        a: "Hit the 'Sell' button, add photos, set a price, and publish. The whole process takes under 60 seconds — and your product is instantly visible to students on your campus.",
+        q: "How do I list an item?",
+        a: "Tap Sell, add up to 5 photos, set price, pick category and subcategory (for example Beauty → Others), choose condition and post. It takes under 60 seconds and shows instantly.",
       },
       {
-        q: "What can I sell on TrendTribe?",
-        a: "Anything students need — fashion, perfumes, electronics, textbooks, furniture, gadgets, food, and more. Illegal, counterfeit, or prohibited items are not allowed.",
+        q: "What can I sell?",
+        a: "Fashion, Beauty and Personal Care, Gadgets, Accessories, Snacks and other student items. No illegal or fake items.",
       },
       {
-        q: "How does TrendTribe help me get more customers?",
-        a: "TrendTribe puts your business in front of your entire campus community — not just your friends. Student shoppers actively browse the platform looking for vendors, giving you the visibility you've been missing.",
+        q: "How do I get more buyers to see me?",
+        a: "Keep your listing fresh. Listings hide after 30 days — you see a subtle bar in My Listings. Use 1 token to boost to the top of Marketplace for 24 hours as a Featured card, or keep 3 items up free.",
       },
       {
-        q: "How do I receive payments?",
-        a: "Payments are handled directly between you and your buyer — via bank transfer or cash on delivery. TrendTribe does not process or hold payments.",
+        q: "How do I get paid?",
+        a: "You and the buyer meet on campus and pay by cash or bank transfer. TrendTribe does not hold money. Token purchases for extra listings or boosts are paid via Flutterwave.",
       },
     ],
   },
@@ -81,16 +81,16 @@ const FAQS = [
     category: "For Buyers",
     items: [
       {
-        q: "How do I find what I'm looking for?",
-        a: "Browse the marketplace by category or search for specific products. Every listing is from a verified student vendor on your campus — no strangers, no uncertainty.",
+        q: "How do I find what I need?",
+        a: "Open Marketplace, pick a category and subcategory, or search. Filters for price and condition help you narrow results. Featured listings sit at the top.",
       },
       {
-        q: "Can vendors deliver to my dorm?",
-        a: "Many vendors on TrendTribe offer delivery within campus. Check the listing details or message the vendor directly to arrange delivery to your dorm or a convenient spot.",
+        q: "Do sellers deliver?",
+        a: "No delivery is promised. You meet on campus at a public place, check the item, then pay. That keeps it simple and safe.",
       },
       {
-        q: "Can I negotiate prices?",
-        a: "Yes! Use the chat feature to message a vendor and agree on a price that works for both of you.",
+        q: "Can I bargain?",
+        a: "Yes — on WhatsApp after you tap Contact Seller. The message is pre-filled with the item title, price and link. No in-app chat needed.",
       },
     ],
   },
@@ -98,16 +98,29 @@ const FAQS = [
     category: "Safety & Trust",
     items: [
       {
-        q: "How do I know vendors are real students?",
-        a: "Every vendor on TrendTribe is verified using their school email and matric number. You're always dealing with a real, enrolled student from your campus.",
+        q: "How do I know a seller is real?",
+        a: "Sellers are verified with a RUN school email and matric number. Buyers are verified by email code. You always see the seller’s profile and school.",
       },
       {
-        q: "What if I have an issue with a transaction?",
-        a: "Contact our support team at hello@trendtribe.ng and we'll help resolve it as quickly as possible.",
+        q: "What if I have a problem?",
+        a: "Email hello@trendtribe.ng and we will help within 24 hours.",
       },
       {
-        q: "Can I report a suspicious listing or user?",
-        a: "Absolutely. Every listing and profile has a report button. Our team reviews all reports promptly and takes action where necessary.",
+        q: "Can I report a listing?",
+        a: "Yes. Every listing has a Report button. Choose Scam, Fake item, Inappropriate or Other. We review quickly.",
+      },
+    ],
+  },
+  {
+    category: "Tokens & Pricing",
+    items: [
+      {
+        q: "Do I need tokens to use TrendTribe?",
+        a: "No. Browsing, saving, and contacting sellers on WhatsApp are free. Tokens are only for sellers who want more: a 4th active listing, to bring back a hidden 4th, to boost to Featured for 24h, or to keep an item up 14 more days. 1 token = ₦200.",
+      },
+      {
+        q: "Do my 3 free listings come back?",
+        a: "Yes. You get 3 active at a time for free, not 3 total. Hide or delete one and the free space comes back. The 4th active at the same time is what costs 1 token.",
       },
     ],
   },
@@ -286,10 +299,10 @@ const FAQPage = () => {
           </motion.p>
           <motion.a
             variants={reduced ? {} : fadeUp}
-            href="/contact"
+            href="mailto:hello@trendtribe.ng"
             className="btn-primary inline-flex items-center gap-2 px-8 py-3 rounded-xl font-semibold"
           >
-            Contact Us
+            Email Us
           </motion.a>
         </Section>
       </div>

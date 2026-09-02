@@ -138,7 +138,7 @@ const PrivacyPage = () => {
             variants={reduced ? {} : fadeUp}
             className="text-white/50 text-sm"
           >
-            Last updated: {__PRIVACY_LAST_UPDATED__ || "Not yet published"}
+            Last updated: September 2026
           </motion.p>
         </motion.div>
       </div>

@@ -79,7 +79,7 @@ const AUDIENCE = [
     emoji: "💻",
     tag: "The Convenience Buyer",
     name: "Ebube, 19",
-    desc: "A CS freshman still finding his feet on campus. He needs things he forgot to pack and doesn't know where to look. TrendTribe connects him to vendors who can deliver right to his dorm.",
+    desc: "A CS freshman still finding his feet on campus. He needs things he forgot to pack and doesn't know where to look. TrendTribe connects him to sellers he can meet on campus.",
   },
 ];
 
@@ -88,14 +88,14 @@ const TICKER_ITEMS = [
   { icon: "👁️", text: "Get seen on campus" },
   { icon: "🤝", text: "Student vendors, student buyers" },
   { icon: "🌟", text: "Your hustle deserves visibility" },
-  { icon: "👗", text: "Fashion, perfumes, electronics & more" },
-  { icon: "📍", text: "Shop within your university" },
+  { icon: "👗", text: "Fashion, beauty, gadgets & more" },
+  { icon: "📍", text: "Meet on campus, no shipping" },
   { icon: "💛", text: "Community over competition" },
   { icon: "⚡", text: "List your product in 60 seconds" },
-  { icon: "💸", text: "Zero fees, zero commissions" },
+  { icon: "🪙", text: "3 listings free, 1 token for more" },
   { icon: "🔥", text: "Where student entrepreneurs shine" },
   { icon: "🏫", text: "Exclusively for students" },
-  { icon: "📦", text: "Delivered to your dorm" },
+  { icon: "🤝", text: "Meet, check, pay on campus" },
 ];
 
 const AboutPage = () => {

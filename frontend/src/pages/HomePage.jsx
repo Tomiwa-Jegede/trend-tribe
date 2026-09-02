@@ -20,6 +20,7 @@ const CATEGORIES = [
   { label: "Accessories", emoji: "👜", value: "ACCESSORIES" },
   { label: "Fashion", emoji: "👗", value: "FASHION" },
   { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
+  { label: "Gadgets", emoji: "📱", value: "GADGETS" },
   { label: "Snacks", emoji: "🍿", value: "SNACKS" },
   { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
@@ -42,8 +43,8 @@ const FEATURES = [
   },
   {
     icon: <FiStar className="w-6 h-6 text-primary-600" />,
-    title: "Free to Use",
-    desc: "No listing fees, no commissions. Post your items and connect with buyers for free.",
+    title: "3 Free Listings",
+    desc: "Keep 3 items up for free. Need a 4th at the same time? 1 token (₦200). Browsing, saving and WhatsApp are always free.",
   },
 ];
 
@@ -127,16 +128,16 @@ const HomePage = () => {
   return (
     <div className="flex flex-col">
       <Helmet>
-        <title>Trend Tribe — Student Marketplace</title>
+        <title>Trend Tribe — Student Marketplace to Buy and Sell on Campus</title>
         <meta
           name="description"
-          content="Trend Tribe — the student-only marketplace to buy, sell, and trade within your campus community."
+          content="Buy and sell fashion, beauty, gadgets and more with students on your campus. 3 free listings, 1 token for more. Safe meetups, no shipping."
         />
         <link rel="canonical" href="https://trendtribee.netlify.app/" />
-        <meta property="og:title" content="Trend Tribe — Student Marketplace" />
+        <meta property="og:title" content="Trend Tribe — Campus Marketplace for Students" />
         <meta
           property="og:description"
-          content="The student-only marketplace to buy, sell, and trade within your campus community."
+          content="Student marketplace to buy and sell fashion, beauty and gadgets. 3 listings free, 1 token for more. Meet on campus."
         />
         <meta property="og:url" content="https://trendtribee.netlify.app/" />
       </Helmet>
@@ -275,9 +276,7 @@ const HomePage = () => {
                 variants={reduced ? {} : fadeSlideUp}
                 className="text-lg text-white/75 leading-relaxed mb-10"
               >
-                TrendTribe connects students to buy, sell, and trade fashion,
-                accessories, perfumes and more — all within your university
-                community. No fees, no middlemen.
+                Buy and sell fashion, beauty, gadgets and more with students on your campus. 3 listings free. Extra listings, Featured boost and more days cost 1 token. No shipping — meet on campus.
               </motion.p>
 
               {/* CTAs */}
@@ -493,8 +492,7 @@ const HomePage = () => {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
                 >
-                  Join thousands of students already buying and selling on
-                  TrendTribe. It's completely free.
+                  Join students buying and selling on TrendTribe. 3 listings free. Browsing, saving and WhatsApp are always free.
                 </motion.p>
 
                 <motion.div

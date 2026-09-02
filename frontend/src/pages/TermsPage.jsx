@@ -54,8 +54,8 @@ const SECTIONS = [
     body: "As a buyer, you agree to provide accurate information when placing an order and to only confirm receipt of an item after you have actually received it in the condition described. Attempting to falsely claim non-delivery or initiating fraudulent disputes against sellers is a violation of these Terms and may result in account suspension.",
   },
   {
-    title: "Free Trial & Subscription",
-    body: "TrendTribe is completely free to use for all verified students during our current free access period. In the future, certain features may move to a subscription-based plan. We will give you clear advance notice before any paid plan is introduced, and you will never be charged without your explicit consent.",
+    title: "Tokens & Payments",
+    body: "Browsing, saving listings and contacting sellers on WhatsApp are free. Sellers get 3 active listings free at the same time. To have a 4th active at the same time, to boost a listing to Featured for 24 hours, or to keep an item up 14 more days after the 30-day hide, you need 1 token. 1 token = ₦200. Frederick AI help costs less than 1 token per session. Hide or delete a listing and the free space comes back. Token purchases are paid via Flutterwave at 1 token = ₦200. Trading between students is still cash or transfer in person on campus — we do not hold your money and we are not part of that trade.",
   },
   {
     title: "Prohibited Conduct",
@@ -150,12 +150,12 @@ const TermsPage = () => {
             Terms that are{" "}
             <span style={{ color: "#F5C518" }}>actually readable.</span>
           </motion.h1>
-          <motion.p
-            variants={reduced ? {} : fadeUp}
-            className="text-white/50 text-sm"
-          >
-            Last updated: {__TERMS_LAST_UPDATED__ || "Not yet published"}
-          </motion.p>
+            <motion.p
+              variants={reduced ? {} : fadeUp}
+              className="text-white/50 text-sm"
+            >
+              Last updated: September 2026
+            </motion.p>
         </motion.div>
       </div>
 

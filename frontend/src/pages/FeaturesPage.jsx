@@ -119,18 +119,14 @@ const Step = ({ number, title, desc, delay = 0 }) => {
   );
 };
 
-// ── Category pill ─────────────────────────────────────────────
+// ── Category pill — matches Prisma Category enum (6)
 const CATEGORIES = [
-  { emoji: "👗", label: "Clothing" },
-  { emoji: "👟", label: "Footwear" },
-  { emoji: "🌸", label: "Perfumes" },
-  { emoji: "💻", label: "Electronics" },
-  { emoji: "📚", label: "Books" },
-  { emoji: "🪑", label: "Furniture" },
-  { emoji: "⚽", label: "Sports" },
-  { emoji: "🍱", label: "Food" },
-  { emoji: "✏️", label: "Stationery" },
-  { emoji: "🛠️", label: "Services" },
+  { emoji: "👜", label: "Accessories" },
+  { emoji: "👗", label: "Fashion" },
+  { emoji: "💄", label: "Beauty & Personal Care" },
+  { emoji: "📱", label: "Gadgets" },
+  { emoji: "🍿", label: "Snacks" },
+  { emoji: "🗂️", label: "Others" },
 ];
 
 // ── Main component ────────────────────────────────────────────
@@ -686,31 +682,40 @@ const FeaturesPage = () => {
           </p>
         </RevealSection>
 
-        <div className="grid sm:grid-cols-3 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
             {
               emoji: "⭐",
               title: "Seller ratings",
-              desc: "Build trust with a reputation system after each trade.",
+              desc: "Build trust with ratings after each trade on campus.",
+              soon: true,
+            },
+            {
+              emoji: "💬",
+              title: "Messages",
+              desc: "Chat on Trend Tribe without WhatsApp. For now, Contact Seller opens WhatsApp.",
+              soon: true,
             },
             {
               emoji: "❤️",
               title: "Saved items",
-              desc: "Wishlist listings and revisit them when you're ready.",
+              desc: "Save listings and find them at /saved. Tap the heart on any card.",
+              soon: false,
             },
             {
               emoji: "🔔",
               title: "Notifications",
-              desc: "Alerts for new messages, price drops, and listing activity.",
+              desc: "Bell in the top bar shows who saved your listing, new users and new listings for admin.",
+              soon: false,
             },
-          ].map(({ emoji, title, desc }, i) => (
+          ].map(({ emoji, title, desc, soon }, i) => (
             <motion.div
               key={title}
               initial={reduced ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.4, delay: i * 0.08, ease: "easeOut" }}
-              className="card p-6 flex flex-col gap-3 border-dashed"
+              className={`card p-6 flex flex-col gap-3 ${soon ? "border-dashed" : ""}`}
             >
               <span className="text-3xl">{emoji}</span>
               <div>
@@ -718,9 +723,9 @@ const FeaturesPage = () => {
                   <h4 className="text-gray-900">{title}</h4>
                   <span
                     className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                    style={{ background: "#FEF3CD", color: "#856404" }}
+                    style={{ background: soon ? "#FEF3CD" : "#D1FAE5", color: soon ? "#856404" : "#065F46" }}
                   >
-                    Soon
+                    {soon ? "Soon" : "Live"}
                   </span>
                 </div>
                 <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
