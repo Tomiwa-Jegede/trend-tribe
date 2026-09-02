@@ -333,21 +333,23 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* ── Mobile Menu Toggle ────────────────────────── */}
-            <motion.button
-              className="md:hidden p-2 rounded-lg text-gray-600
-                         hover:bg-sage-50 transition-colors"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              whileTap={reducedMotion ? {} : { scale: 0.9 }}
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={menuOpen}
-            >
-              {menuOpen ? (
-                <FiX className="w-5 h-5" />
-              ) : (
-                <FiMenu className="w-5 h-5" />
-              )}
-            </motion.button>
+            {/* ── Mobile Bell + Menu Toggle (outside hamburger) ── */}
+            <div className="md:hidden flex items-center gap-1">
+              <NotificationBell />
+              <motion.button
+                className="p-2 rounded-lg text-gray-600 hover:bg-sage-50 transition-colors"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                whileTap={reducedMotion ? {} : { scale: 0.9 }}
+                aria-label={menuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={menuOpen}
+              >
+                {menuOpen ? (
+                  <FiX className="w-5 h-5" />
+                ) : (
+                  <FiMenu className="w-5 h-5" />
+                )}
+              </motion.button>
+            </div>
           </div>
         </div>
 
@@ -393,11 +395,6 @@ const Navbar = () => {
               )}
               {user?.role === "ADMIN" && (
                 <MobileNavLink path="/admin" label="Admin" index={4} />
-              )}
-              {isAuthenticated && (
-                <div className="pt-2">
-                  <NotificationBell />
-                </div>
               )}
 
               <div className="border-t border-sage-100 pt-4 flex flex-col gap-3">
