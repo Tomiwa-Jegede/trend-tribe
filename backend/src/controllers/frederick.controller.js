@@ -2,7 +2,6 @@
 
 const prisma = require("../db");
 const { askGemini, askGeminiVision } = require("../utils/gemini");
-const { toDisplayTokens } = require("../utils/tokenFormat");
 
 
 // ─────────────────────────────────────────────────────────────
@@ -36,7 +35,7 @@ const existingSession = await prisma.frederickSession.findUnique({
   where: { userId_sessionId: { userId: req.user.id, sessionId } },
 });
 
-const cost = existingSession ? 0 : (hasImage ? 2 : 1); // units (1 unit = 0.25 tokens); image search = 0.5 tokens flat
+const cost = existingSession ? 0 : 1; // 1 token per new session (ponytail: tokens not units)
     let seller = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: { tokenBalance: true },
@@ -53,15 +52,15 @@ const cost = existingSession ? 0 : (hasImage ? 2 : 1); // units (1 unit = 0.25 t
         return res.status(403).json({
           error: "You're out of tokens. Buy more to keep chatting with Jegede.",
           limitReached: true,
-          tokenBalance: toDisplayTokens(seller.tokenBalance),
+          tokenBalance: seller.tokenBalance,
         });
       }
 
       if (!confirmSpend) {
         return res.status(402).json({
           needsTokenConfirm: true,
-          tokenBalance: toDisplayTokens(seller.tokenBalance),
-          error: `This will use ${toDisplayTokens(cost)} tokens. Confirm to continue.`,
+          tokenBalance: seller.tokenBalance,
+          error: `This will use ${cost} token${cost !== 1 ? "s" : ""}. Confirm to continue.`,
         });
       }
 

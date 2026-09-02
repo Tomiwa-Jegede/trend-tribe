@@ -413,19 +413,19 @@ const {
           where: { id: req.user.id },
           select: { tokenBalance: true },
         });
-        if (!seller || seller.tokenBalance < 4) {
+        if (!seller || seller.tokenBalance < 1) {
           return res.status(403).json({
             error: "Re-activating this would give you 4 active listings. You need 1 token to have 4 up at once.",
             limitReached: true,
             currentCount: activeCount,
             freeSlotLimit: FREE_LISTING_LIMIT,
-            tokenBalance: toDisplayTokens(seller?.tokenBalance ?? 0),
+            tokenBalance: seller?.tokenBalance ?? 0,
           });
         }
         if (!confirmSpend) {
           return res.status(402).json({
             needsTokenConfirm: true,
-            tokenBalance: toDisplayTokens(seller.tokenBalance),
+            tokenBalance: seller.tokenBalance,
             error: "Re-activating this will use 1 token to have 4 active listings. Confirm to continue.",
           });
         }
@@ -477,8 +477,8 @@ const {
       try {
         updated = await prisma.$transaction(async (tx) => {
           const updatedSeller = await tx.user.updateMany({
-            where: { id: req.user.id, tokenBalance: { gte: 4 } },
-            data: { tokenBalance: { decrement: 4 } },
+            where: { id: req.user.id, tokenBalance: { gte: 1 } },
+            data: { tokenBalance: { decrement: 1 } },
           });
           if (updatedSeller.count === 0) throw new Error("TOKEN_BALANCE_RACE");
           return tx.listing.update({
@@ -644,16 +644,16 @@ const boostListing = async (req, res) => {
     }
     const { confirmSpend } = req.body;
     const seller = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tokenBalance: true } });
-    if (!seller || seller.tokenBalance < 4) {
-      return res.status(403).json({ error: "You need 1 token to boost for 24h.", tokenBalance: toDisplayTokens(seller?.tokenBalance ?? 0) });
+    if (!seller || seller.tokenBalance < 1) {
+      return res.status(403).json({ error: "You need 1 token to boost for 24h.", tokenBalance: seller?.tokenBalance ?? 0 });
     }
     if (!confirmSpend) {
-      return res.status(402).json({ needsTokenConfirm: true, tokenBalance: toDisplayTokens(seller.tokenBalance), error: "Boost this listing to Featured for 24h? This will use 1 token." });
+      return res.status(402).json({ needsTokenConfirm: true, tokenBalance: seller.tokenBalance, error: "Boost this listing to Featured for 24h? This will use 1 token." });
     }
     const now = new Date();
     const until = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const updated = await prisma.$transaction(async (tx) => {
-      const ok = await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: 4 } }, data: { tokenBalance: { decrement: 4 } } });
+      const ok = await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: 1 } }, data: { tokenBalance: { decrement: 1 } } });
       if (ok.count === 0) throw new Error("TOKEN_BALANCE_RACE");
       return tx.listing.update({ where: { id }, data: { boostedAt: now, boostedUntil: until } });
     });

@@ -101,14 +101,14 @@ const FrederickWidget = () => {
             text: result.error,
             products: [],
                        tokenConfirm:
-              result.tokenBalance >= 0.25
+              result.tokenBalance >= 1
                 ? {
                     pendingMessage: trimmed,
                     pendingImage: imageToSend,
-                    cost: imageToSend ? 0.5 : 0.25,
+                    cost: 1,
                   }
                 : null,
-            needsTokens: result.tokenBalance < 0.25,
+            needsTokens: result.tokenBalance < 1,
           },
         ]);      } else {
         setMessages((prev) => [

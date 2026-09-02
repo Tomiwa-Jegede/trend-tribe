@@ -1,7 +1,6 @@
 // src/controllers/payment.controller.js
 const prisma = require("../db");
 const config = require("../config/env");
-const { TOKEN_UNIT } = require("../utils/tokenFormat");
 
 const TOKEN_PRICE_NAIRA = 200; // ₦200 per token, flat rate
 
@@ -178,7 +177,7 @@ async function creditPurchase(purchase, flutterwaveTransactionId) {
   if (count === 1) {
     await prisma.user.update({
       where: { id: purchase.userId },
-      data: { tokenBalance: { increment: purchase.quantity * TOKEN_UNIT } },
+      data: { tokenBalance: { increment: purchase.quantity } },
     });
   }
 }

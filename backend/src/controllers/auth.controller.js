@@ -8,7 +8,6 @@ const { signToken } = require("../utils/jwt");
 const { generateOTP, getOTPExpiry } = require("../utils/otp");
 const { sendOTPEmail, sendPasswordResetEmail } = require("../utils/email");
 const config = require("../config/env");
-const { toDisplayTokens } = require("../utils/tokenFormat");
 const { normalizeWhatsapp } = require("../utils/phone");
 // ─── Helper: strip sensitive fields from user object ──────────
 const sanitizeUser = (user) => {
@@ -20,13 +19,7 @@ const sanitizeUser = (user) => {
     resetTokenExpiresAt,
     ...safeUser
   } = user;
-  return {
-    ...safeUser,
-    tokenBalance:
-      typeof safeUser.tokenBalance === "number"
-        ? toDisplayTokens(safeUser.tokenBalance)
-        : safeUser.tokenBalance,
-  };
+  return safeUser;
 };
 
 // ─── Helper: build token payload ─────────────────────────────
@@ -335,7 +328,6 @@ const getMe = async (req, res) => {
     return res.status(200).json({
       user: {
         ...userFields,
-        tokenBalance: toDisplayTokens(userFields.tokenBalance),
         listingCount: listings.length,
       },
     });
