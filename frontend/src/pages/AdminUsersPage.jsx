@@ -161,11 +161,13 @@ const AdminUsersPage = () => {
                 </p>
               </div>
               <p className="text-sm text-gray-600">{u.fullName}</p>
-              <p className="text-sm text-gray-500">{u.email}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                {u.school} {u.matricNumber ? `· ${u.matricNumber}` : ""} · 🪙 {u.tokenBalance ?? 0} tokens
+              <p className="text-sm text-gray-500 break-all">{u.email}</p>
+              <p className="text-xs text-gray-400 mt-1 flex flex-wrap items-center gap-x-1">
+                <span>{u.school} {u.matricNumber ? `· ${u.matricNumber}` : ""}</span>
+                <span>· 🪙 {u.tokenBalance ?? 0} tokens</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2 py-0.5 ml-1">📦 {u._count?.listings ?? 0} listings</span>
               </p>
-              <div className="flex items-center justify-between mt-3">
+              <div className="flex items-center justify-between mt-3 gap-2">
                 <p className="text-xs text-gray-400">
                   Joined {new Date(u.createdAt).toLocaleDateString()}
                 </p>
