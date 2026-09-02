@@ -391,74 +391,56 @@ const FeaturesPage = () => {
           <FeatureCard
             delay={0}
             icon={<FiUsers className="w-5 h-5" />}
-            title="Students only — OTP verified"
-            desc="Sign up with school email, verify via Brevo OTP, stay verified. Role BUYER → SELLER upgrade via RUN email."
+            title="Only students"
+            desc="Only students can buy and sell. You sign up with your school email."
           />
           <FeatureCard
             delay={0.05}
             icon={<FiTag className="w-5 h-5" />}
-            title="List in 60 seconds"
-            desc="Title, description, price, Category (Fashion, Beauty + Others, Gadgets, Accessories, Snacks, Others) + Subcategory (e.g., MENS_FASHION, SKIN_CARE, PHONE_ACCESSORIES, JEWELRY, OTHERS), condition, location — live instantly."
+            title="Post in 60 seconds"
+            desc="Add photos, write what it is, set a price and post. It shows right away."
           />
           <FeatureCard
             delay={0.1}
             icon={<FiCamera className="w-5 h-5" />}
-            title="Multi-photo + cover drag"
-            desc="Up to 5 Cloudinary photos, drag the cover to reposition, imagePublicIds stay in sync. First photo is the card."
+            title="Add photos"
+            desc="Add up to 5 photos. Pick the first one as the cover. Buyers see it on your card."
           />
           <FeatureCard
             delay={0.15}
             icon={<FiSearch className="w-5 h-5" />}
-            title="Search, filter & Featured boost"
-            desc="Category → subcategory gate, search, price & condition. Boosted product cards (1 token 24h) pinned on top of Marketplace — same card, tap to detail."
+            title="Find what you need"
+            desc="Pick a category like Fashion or Beauty, then filter by price and condition."
           />
           <FeatureCard
             delay={0.2}
-            icon={<FiShield className="w-5 h-5" />}
-            title="My Listings + 30-day timer"
-            desc="Seller-only subtle progress bar: GHOST in X days, HIDDEN, Featured hours. 30-day auto-hide (archivedAt) frees the slot; re-activate the 4th costs 1 token."
+            icon={<FiHeart className="w-5 h-5" />}
+            title="Save items"
+            desc="Tap the heart to save an item. Find it later in Saved."
           />
           <FeatureCard
             delay={0.25}
-            icon={<FiTrendingUp className="w-5 h-5" />}
-            title="Boost to top (Marketplace only)"
-            desc="1 token = 24h Featured product card on top of Marketplace (A). Click goes to full detail. Not on Home, not duplicated in grid."
+            icon={<FiBell className="w-5 h-5" />}
+            title="Get notified"
+            desc="When someone saves your item, you see it in the bell at the top."
           />
           <FeatureCard
             delay={0.3}
-            icon={<FiHeart className="w-5 h-5" />}
-            title="Favorites + My Listings count"
-            desc="Save any listing. Seller sees ♥ count per card in My Listings. Admin sees who favorited what at /admin/favorites."
+            icon={<FiMessageCircle className="w-5 h-5" />}
+            title="Chat on WhatsApp"
+            desc="Tap Contact Seller and chat on WhatsApp. No extra app needed."
           />
           <FeatureCard
             delay={0.35}
-            icon={<FiBell className="w-5 h-5" />}
-            title="Bell-only notifications"
-            desc="Favorite → seller bell (in-app pull, 30s poll). New user / new listing → admin bell. No email/WhatsApp push this bet — you see it when you return."
+            icon={<FiShield className="w-5 h-5" />}
+            title="My Listings"
+            desc="See all your items in one place. See how many days are left. Hide or delete any time."
           />
           <FeatureCard
             delay={0.4}
-            icon={<FiMessageCircle className="w-5 h-5" />}
-            title="WhatsApp contact (free)"
-            desc="Contact Seller opens wa.me with pre-filled item title/price/link. Always free — tokens never gate contact."
-          />
-          <FeatureCard
-            delay={0.45}
-            icon={<FiSmartphone className="w-5 h-5" />}
-            title="Admin: users, listings, reports, favorites"
-            desc="Dashboard shows cold listings, top favorited, bell total. Listings table shows ♥ fav + Featured + timer. Reports PENDING → IGNORED."
-          />
-          <FeatureCard
-            delay={0.5}
-            icon={<FiStar className="w-5 h-5" />}
-            title="Tokens — 3 free, then 1 token per extra"
-            desc="1 token = ₦200 = 4 units. Post 4th active, re-activate 4th, boost 24h, extend ghost 14d — each 1 token. Frederick AI 0.25-0.5 token. See pricing."
-          />
-          <FeatureCard
-            delay={0.55}
-            icon={<FiSmartphone className="w-5 h-5" />}
-            title="Mobile bell outside hamburger"
-            desc="Bell sits next to the menu button on mobile, always visible — no need to open the menu to see `●`."
+            icon={<FiTrendingUp className="w-5 h-5" />}
+            title="Make it Featured"
+            desc="Want more eyes? Pay 1 token and your card stays at the top for 24 hours."
           />
         </div>
         <div className="text-center mt-8">

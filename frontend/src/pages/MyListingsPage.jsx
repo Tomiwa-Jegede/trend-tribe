@@ -121,7 +121,8 @@ const MyListingsPage = () => {
   const freeSlotsUsed = pagination ? pagination.totalCount : listings.length;
   const FREE_LIMIT = 3;
   const freeLeft = Math.max(0, FREE_LIMIT - freeSlotsUsed);
-  const tokenDisplay = user?.tokenBalance != null ? Math.floor(user.tokenBalance / 4) : null;
+  const isAdmin = user?.role === "ADMIN";
+  const tokenDisplay = !isAdmin && user?.tokenBalance != null ? user.tokenBalance : null;
 
   return (
     <div className="container-app py-8">
@@ -133,7 +134,7 @@ const MyListingsPage = () => {
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900">My Listings</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {freeLeft} free slot{freeLeft !== 1 ? "s" : ""} left {tokenDisplay != null ? `· ${tokenDisplay} token${tokenDisplay !== 1 ? "s" : ""} (balance)` : ""} — sold & deleted → next costs 1 token. Ghosts auto-hide after {GHOST_DAYS}d.
+            {freeLeft} free space{freeLeft !== 1 ? "s" : ""} left{tokenDisplay != null ? ` · You have ${tokenDisplay} token${tokenDisplay !== 1 ? "s" : ""}` : ""}. Hide or delete one and you get your free space back.
           </p>
         </div>
         <Link to="/create-listing" className="inline-flex items-center justify-center font-bold px-6 py-3 rounded-2xl text-sm" style={{ background: "#F5C518", color: "#0F1F3D" }}>

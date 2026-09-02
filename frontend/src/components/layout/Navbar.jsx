@@ -281,7 +281,7 @@ const Navbar = () => {
 
                     </Link>
 
-                    {typeof user?.tokenBalance === "number" && (
+                    {user?.role !== "ADMIN" && typeof user?.tokenBalance === "number" && (
                       <span className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-full px-2.5 py-1">
                         🪙 {user.tokenBalance}
                       </span>
@@ -390,7 +390,7 @@ const Navbar = () => {
                 {isAuthenticated && (
                   <MobileNavLink path="/saved" label="Favorites" index={4} />
                 )}
-              {isAuthenticated && typeof user?.tokenBalance === "number" && (
+              {isAuthenticated && user?.role !== "ADMIN" && typeof user?.tokenBalance === "number" && (
                 <div className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-full px-2.5 py-1 w-fit">
                   🪙 {user.tokenBalance} tokens
                 </div>
