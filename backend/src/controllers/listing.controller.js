@@ -1,7 +1,6 @@
 // src/controllers/listing.controller.js
 
 const prisma = require("../db");
-const { toDisplayTokens } = require("../utils/tokenFormat");
 const { askGeminiVision } = require("../utils/gemini");
 const cloudinary = require("../config/cloudinary");
 
@@ -274,20 +273,20 @@ const createListing = async (req, res) => {
         select: { tokenBalance: true },
       });
 
-      if (!seller || seller.tokenBalance < 4) {
+      if (!seller || seller.tokenBalance < 1) {
         return res.status(403).json({
           error: "You've used all your free listing slots and have no tokens left. Buy tokens to post another listing.",
           limitReached: true,
           currentCount: activeListingCount,
           freeSlotLimit: FREE_LISTING_LIMIT,
-          tokenBalance: toDisplayTokens(seller?.tokenBalance ?? 0),
+          tokenBalance: seller?.tokenBalance ?? 0,
         });
       }
 
       if (!confirmSpend) {
         return res.status(402).json({
           needsTokenConfirm: true,
-          tokenBalance: toDisplayTokens(seller.tokenBalance),
+          tokenBalance: seller.tokenBalance,
           error: "This will use 1 token to post beyond your 3 free listings. Confirm to continue.",
         });
       }
@@ -305,7 +304,6 @@ const createListing = async (req, res) => {
         coverPosition: coverPosition || { x: 50, y: 50 },
         location: location || null,
         sellerId: req.user.id,
-        isFreeSlot: usingFreeSlot,
       };
 
     const listingInclude = {
@@ -325,8 +323,8 @@ const createListing = async (req, res) => {
       ? await prisma.listing.create({ data: listingData, include: listingInclude })
       : await prisma.$transaction(async (tx) => {
           const updatedSeller = await tx.user.updateMany({
-            where: { id: req.user.id, tokenBalance: { gte: 4 } },
-            data: { tokenBalance: { decrement: 4 } },
+            where: { id: req.user.id, tokenBalance: { gte: 1 } },
+            data: { tokenBalance: { decrement: 1 } },
           });
 
           if (updatedSeller.count === 0) {
@@ -377,13 +375,6 @@ const updateListing = async (req, res) => {
       req.user.id,
     );
     if (error) return res.status(status).json({ error });
-
-    if (req.user.role !== "ADMIN" && !listing.isFreeSlot && listing.editCount >= 2) {
-      return res.status(403).json({
-        error: "This listing has reached its edit limit (2). Delete it and repost with a new token to make further changes.",
-        editLimitReached: true,
-      });
-    }
 
 const {
   title,

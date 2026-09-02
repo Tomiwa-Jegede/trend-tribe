@@ -30,7 +30,7 @@ model User {
   role                 Role            @default(USER)
   aiUsesRemaining      Int             @default(0)
   numberViewsRemaining Int             @default(0)
-  tokenBalance         Int             @default(20)
+  tokenBalance         Int             @default(5)
   marketingOptIn       Boolean         @default(true)
   unsubscribeToken     String          @unique @default(cuid())
   tokenPurchases       TokenPurchase[]
@@ -105,7 +105,6 @@ model Listing {
   imagePublicIds String[]  @default([])
   coverPosition  Json?     @default("{\"x\": 50, \"y\": 50}")
   editCount      Int       @default(0)
-  isFreeSlot     Boolean   @default(true)
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   reports        Report[]
   favorites      Favorite[]

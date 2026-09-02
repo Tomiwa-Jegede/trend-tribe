@@ -77,6 +77,18 @@ const Navbar = () => {
     setMenuOpen(false);
   }, [location.pathname]);
 
+  // Lock scroll when mobile menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
+
   const handleLogout = () => {
     setShowLogoutModal(true);
     setMenuOpen(false);

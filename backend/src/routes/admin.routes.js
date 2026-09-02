@@ -195,6 +195,7 @@ router.get("/users", protect, requireAdmin, async (req, res) => {
           school: true,
           matricNumber: true,
           role: true,
+          tokenBalance: true,
           createdAt: true,
         },
       }),
