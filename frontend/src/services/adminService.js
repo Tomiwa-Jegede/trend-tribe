@@ -55,6 +55,11 @@ export const getAdminContactViews = async (listingId, params = {}) => {
   return data; // { listing, views, pagination }
 };
 
+export const notifyInboxEmail = async ({ subject, body }) => {
+  const { data } = await api.post("/admin/messages/notify-email", { subject, body });
+  return data;
+};
+
 export const getCloudinaryUsage = async () => {
   const { data } = await api.get("/admin/cloudinary-usage");
   return data; // { usage }

@@ -36,6 +36,9 @@ const AdminDashboardPage = () => {
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState(null);
+  const [showNotifyPopup, setShowNotifyPopup] = useState(false);
+  const [lastBroadcast, setLastBroadcast] = useState(null);
+  const [notifying, setNotifying] = useState(false);
   const { toast } = useToast();
 
   const pollWeeklyEmailStatus = () => {
@@ -79,13 +82,30 @@ const AdminDashboardPage = () => {
     try {
       const res = await broadcastMessage({ subject: broadcastSubject, body: broadcastBody });
       setBroadcastResult(res);
-      toast.success(`Message sent to ${res.sent} users — they also got a notification and an inbox message`);
+      setLastBroadcast({ subject: broadcastSubject, body: broadcastBody, sent: res.sent });
+      setShowNotifyPopup(true);
+      toast.success(`Message sent to ${res.sent} inboxes`);
       setBroadcastBody("");
       setBroadcastSubject("");
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to send message");
     } finally {
       setBroadcasting(false);
+    }
+  };
+
+  const handleNotifyEmail = async () => {
+    if (!lastBroadcast) return;
+    setNotifying(true);
+    try {
+      const { notifyInboxEmail } = await import("../services/adminService");
+      await notifyInboxEmail({ subject: lastBroadcast.subject, body: lastBroadcast.body });
+      toast.success(`Email notify started for ${lastBroadcast.sent} users`);
+      setShowNotifyPopup(false);
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to start email notify");
+    } finally {
+      setNotifying(false);
     }
   };
 
@@ -253,6 +273,20 @@ const AdminDashboardPage = () => {
           {broadcastResult && <span className="text-sm text-green-600 font-medium">Sent to {broadcastResult.sent} users</span>}
         </div>
       </div>
+
+      {/* Subtle popup: notify to mail or ignore */}
+      {showNotifyPopup && lastBroadcast && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setShowNotifyPopup(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl border border-sage-100" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900">Notify also via email?</h3>
+            <p className="text-sm text-gray-500 mt-1">Inbox + notification sent. Also send <span className="font-semibold">“You have a message on Trend Tribe”</span> with <span className="font-semibold">View → Inbox</span> to their real email?</p>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setShowNotifyPopup(false)} className="flex-1 btn-secondary text-sm">Ignore</button>
+              <button onClick={handleNotifyEmail} disabled={notifying} className="flex-1 btn-primary text-sm">{notifying ? "Sending..." : "Notify to mail"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-8 pt-6 border-t border-sage-100">
         <h2 className="text-sm font-semibold text-navy-900 mb-1">Weekly Email</h2>

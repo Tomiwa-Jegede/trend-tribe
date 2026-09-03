@@ -140,4 +140,27 @@ const html = wrapMarketingEmail(`
   });
 };
 
-module.exports = { sendOTPEmail, sendPasswordResetEmail, sendMarketingEmail };
+const sendInboxEmail = async (toEmail, fullName, subject, body) => {
+  const preview = body.length > 120 ? body.slice(0, 120) + "…" : body;
+  const html = wrapEmail(`
+    <h2 style="color: #111827; font-size: 18px;">You have a message on Trend Tribe</h2>
+    ${subject ? `<p style="color: #111827; font-weight: 600; font-size: 14px; margin: 12px 0 4px;">${subject}</p>` : ""}
+    <p style="color: #4B5563; font-size: 14px; line-height: 1.6; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 12px;">
+      ${preview}
+    </p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="https://trendtribee.netlify.app/inbox"
+         style="background: #1340B8; color: white; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 600; font-size: 14px; display: inline-block;">
+        View → Inbox
+      </a>
+    </div>
+    <p style="color: #9CA3AF; font-size: 12px;">Hi ${fullName}, you have a new message waiting in your Trend Tribe inbox.</p>
+  `);
+  return sendViaBrevo({
+    to: toEmail,
+    subject: subject ? `Trend Tribe: ${subject}` : "You have a message on Trend Tribe",
+    html,
+  });
+};
+
+module.exports = { sendOTPEmail, sendPasswordResetEmail, sendMarketingEmail, sendInboxEmail };

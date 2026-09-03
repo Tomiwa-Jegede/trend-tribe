@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminListings, deleteAdminListing } from "../services/adminService";
 import { shareListingToInbox } from "../services/messageService";
+import { notifyInboxEmail } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { CATEGORIES, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 import { FiSend } from "react-icons/fi";
@@ -60,7 +61,16 @@ const AdminListingsPage = () => {
     if (!window.confirm(`Send "${listing.title}" to inbox of all users? They will get a notification with View → Inbox.`)) return;
     try {
       await shareListingToInbox(listing.id);
-      alert(`Sent "${listing.title}" to all users' inbox`);
+      if (window.confirm(`Sent to inbox. Also notify via email ("You have a message on Trend Tribe" to their real email)?`)) {
+        try {
+          await notifyInboxEmail({ subject: listing.title, body: `Check this on Trend Tribe: ${listing.title} — tap View to open inbox` });
+          alert("Email notify started");
+        } catch (e) {
+          alert(e.response?.data?.error || "Failed to notify via email");
+        }
+      } else {
+        alert(`Sent "${listing.title}" to all users' inbox`);
+      }
     } catch (err) {
       alert(err.response?.data?.error || "Failed to share");
     }

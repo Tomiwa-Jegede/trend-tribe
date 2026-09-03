@@ -7,6 +7,7 @@ const prisma = require("../db");
 const cloudinary = require("../config/cloudinary");
 const config = require("../config/env");
 const { sendWeeklyEmail } = require("../scripts/sendWeeklyEmail");
+const { sendInboxEmail } = require("../utils/email");
 
 const router = express.Router();
 
@@ -382,6 +383,37 @@ router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("[ADMIN BROADCAST ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/admin/messages/notify-email ← ADMIN ONLY
+// After inbox broadcast, optionally also email "you have a message on Trend Tribe" to actual emails
+// Body: { subject?, body } — same as broadcast, sent in background with View → Inbox button
+// ─────────────────────────────────────────────────────────────
+router.post("/messages/notify-email", protect, requireAdmin, async (req, res) => {
+  try {
+    const { subject, body } = req.body;
+    const text = (body || "").trim();
+    if (!text) return res.status(400).json({ error: "Message body is required" });
+    res.status(202).json({ message: "Email notify started in background" });
+    // background send without blocking response
+    const users = await prisma.user.findMany({ where: { isVerified: true }, select: { email: true, fullName: true } });
+    let sent = 0, failed = 0;
+    for (const u of users) {
+      if (u.id === req.user.id) continue;
+      try {
+        await sendInboxEmail(u.email, u.fullName || "there", subject, text);
+        sent++;
+        await new Promise((r) => setTimeout(r, 400)); // brevo free: ~300/day, throttle
+      } catch (e) {
+        failed++;
+        console.error(`[INBOX EMAIL FAIL] ${u.email}:`, e.message);
+      }
+    }
+    console.log(`[INBOX EMAIL DONE] sent ${sent}, failed ${failed}`);
+  } catch (err) {
+    console.error("[ADMIN NOTIFY EMAIL ERROR]", err);
   }
 });
 
