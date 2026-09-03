@@ -1,6 +1,7 @@
 // src/pages/AdminDashboardPage.jsx — Marketplace health snapshot (no charts, per scope)
 
 import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, getCloudinaryUsage } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
@@ -8,14 +9,14 @@ import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 
 const STAT_CONFIG = [
-  { key: "totalUsers", label: "Total Users" },
-  { key: "totalListings", label: "Total Listings" },
-  { key: "activeListings", label: "Active Listings" },
-  { key: "newUsers", label: "New Users (Last 7 Days)" },
-  { key: "newListings", label: "New Listings (Last 7 Days)" },
-  { key: "totalFavorites", label: "Total Favorites" },
-  { key: "newFavorites", label: "New Favorites (Last 7 Days)" },
-  { key: "coldListings", label: "Cold Listings (0 fav, active)" },
+  { key: "totalUsers", label: "Total Users", to: "/admin/users" },
+  { key: "totalListings", label: "Total Listings", to: "/admin/listings" },
+  { key: "activeListings", label: "Active Listings", to: "/admin/listings" },
+  { key: "newUsers", label: "New Users (Last 7 Days)", to: "/admin/users" },
+  { key: "newListings", label: "New Listings (Last 7 Days)", to: "/admin/listings" },
+  { key: "totalFavorites", label: "Total Favorites", to: "/admin/favorites" },
+  { key: "newFavorites", label: "New Favorites (Last 7 Days)", to: "/admin/favorites" },
+  { key: "coldListings", label: "Cold Listings (0 fav, active)", to: "/admin/listings" },
   { key: "totalNotifications", label: "Bell Notifications" },
   { key: "totalContactViews", label: "Total Contact Clicks" },
   { key: "newContactViews", label: "Contact Clicks (Last 7 Days)" },
@@ -117,19 +118,26 @@ const AdminDashboardPage = () => {
       {stats && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {STAT_CONFIG.map(({ key, label }) => (
-              <div
-                key={key}
-                className="bg-white border border-sage-100 rounded-xl p-5"
-              >
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-                  {label}
-                </p>
-                <p className="text-2xl font-bold text-navy-900">
-                  {stats[key] ?? 0}
-                </p>
-              </div>
-            ))}
+            {STAT_CONFIG.map(({ key, label, to }) => {
+              const Card = (
+                <div className={`bg-white border border-sage-100 rounded-xl p-5 ${to ? "hover:border-primary-200 hover:shadow-sm cursor-pointer transition-all" : ""}`}>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2 flex items-center justify-between">
+                    {label}
+                    {to && <span className="text-[10px] font-bold text-primary-600">View →</span>}
+                  </p>
+                  <p className="text-2xl font-bold text-navy-900">
+                    {stats[key] ?? 0}
+                  </p>
+                </div>
+              );
+              return to ? (
+                <Link key={key} to={to} className="block">
+                  {Card}
+                </Link>
+              ) : (
+                <div key={key}>{Card}</div>
+              );
+            })}
           </div>
 
           {/* Cloudinary Free Quota Usage — Admin Only */}

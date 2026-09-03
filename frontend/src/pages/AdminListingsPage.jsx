@@ -1,6 +1,7 @@
 // src/pages/AdminListingsPage.jsx — Listings moderation (Phase: view, search, filter, delete)
 
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminListings, deleteAdminListing } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
@@ -139,10 +140,10 @@ const AdminListingsPage = () => {
                   >
                     <td className="px-4 py-3 font-medium text-navy-900">
                       <div className="flex flex-col">
-                        <span className="flex items-center gap-2">
+                        <Link to={`/listings/${l.id}`} className="flex items-center gap-2 hover:text-primary-600 transition-colors">
                           {l.title}
                           {boosted && <span className="text-[10px] bg-amber-400 text-amber-900 px-1.5 py-0.5 rounded-full font-bold">★ Featured</span>}
-                        </span>
+                        </Link>
                         {l.isAvailable && (
                           <div className="w-full h-1 bg-black/10 rounded-full mt-1 overflow-hidden max-w-[120px]">
                             <div className="h-full bg-amber-400" style={{ width: `${pct}%` }} />
@@ -208,9 +209,10 @@ const AdminListingsPage = () => {
       {!loading && !error && (
         <div className="block md:hidden flex flex-col gap-3">
           {listings.map((l) => (
-            <div
+            <Link
               key={l.id}
-              className="bg-white border border-sage-100 rounded-xl p-4"
+              to={`/listings/${l.id}`}
+              className="bg-white border border-sage-100 rounded-xl p-4 block hover:border-primary-200 hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between mb-2">
                 <p className="font-medium text-navy-900">{l.title}</p>
@@ -236,12 +238,12 @@ const AdminListingsPage = () => {
                 </p>
               </div>
               <button
-                onClick={() => handleDelete(l.id)}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(l.id); }}
                 className="text-red-500 hover:text-red-600 text-xs font-medium mt-3"
               >
                 Delete
               </button>
-            </div>
+            </Link>
           ))}
           {listings.length === 0 && (
             <p className="text-center text-gray-400 py-6 text-sm">
