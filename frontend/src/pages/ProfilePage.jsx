@@ -27,6 +27,8 @@ const ProfilePage = () => {
 
   const [seller, setSeller] = useState(null);
   const [listings, setListings] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [activeCount, setActiveCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -84,6 +86,18 @@ const ProfilePage = () => {
         const data = await getListingsByUser(id);
         setSeller(data.seller);
         setListings(data.listings);
+        setPagination(data.pagination || null);
+        // For own profile, also fetch active count to show free slots left (3 free)
+        if (currentUser?.id === parseInt(id, 10)) {
+          try {
+            const activeData = await getListingsByUser(id, { available: "true", limit: 1 });
+            setActiveCount(activeData.pagination?.totalCount ?? 0);
+          } catch {
+            setActiveCount(null);
+          }
+        } else {
+          setActiveCount(null);
+        }
       } catch (err) {
         if (err.response?.status === 404) setNotFound(true);
       } finally {
@@ -91,7 +105,7 @@ const ProfilePage = () => {
       }
     };
     fetchProfile();
-  }, [id]);
+  }, [id, currentUser?.id]);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
@@ -348,12 +362,21 @@ const ProfilePage = () => {
         <h3 className="text-lg sm:text-2xl font-semibold text-gray-900 flex flex-wrap items-center gap-2 break-words">
           <span>{isOwnProfile ? "Your Listings" : `${seller.fullName}'s Listings`}</span>
           <span className="inline-flex items-center justify-center bg-gray-100 text-gray-600 font-medium text-sm px-2.5 py-1 rounded-full">
-            {listings.length}
+            {pagination?.totalCount ?? listings.length}
           </span>
         </h3>
-        <p className="text-sm text-gray-500 mt-1 sm:hidden">
-          {listings.length} item{listings.length !== 1 ? "s" : ""} {listings.length === 1 ? "listed" : "listed"}
-        </p>
+        {isOwnProfile && activeCount !== null ? (
+          <p className="text-sm text-gray-600 mt-1 break-words">
+            {Math.max(0, 3 - activeCount)} free space{Math.max(0, 3 - activeCount) !== 1 ? "s" : ""} left · {activeCount} active{pagination?.totalCount != null && pagination.totalCount !== activeCount ? ` / ${pagination.totalCount} total` : ""} · <Link to="/my-listings" className="text-primary-600 font-medium hover:text-primary-700">Manage →</Link>
+          </p>
+        ) : (
+          <p className="text-sm text-gray-500 mt-1 sm:hidden">
+            {pagination?.totalCount ?? listings.length} item{(pagination?.totalCount ?? listings.length) !== 1 ? "s" : ""} listed
+          </p>
+        )}
+        {isOwnProfile && pagination && pagination.totalPages > 1 && (
+          <p className="text-xs text-gray-400 mt-1">Showing {listings.length} of {pagination.totalCount} — page 1 · <Link to="/my-listings" className="text-primary-600">view all in My Listings</Link></p>
+        )}
       </div>
 
       {listings.length > 0 ? (
