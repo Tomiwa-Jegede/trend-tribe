@@ -324,7 +324,7 @@ const MarketplacePage = () => {
                     {boostedListings.length} featured
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                   {boostedListings.map((listing) => (
                     <div key={`boosted-${listing.id}`} className="relative">
                       <span className="absolute top-2 left-2 z-10 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-1 rounded-full">★ Featured</span>
@@ -344,7 +344,7 @@ const MarketplacePage = () => {
               initial="hidden"
               animate="show"
               exit="exit"
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+              className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
             >
               {Array.from({ length: 6 }).map((_, i) => (
                 <ListingCardSkeleton key={i} />
@@ -359,7 +359,7 @@ const MarketplacePage = () => {
               exit="exit"
             >
               <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
                 variants={gridVariants}
                 initial="hidden"
                 animate="show"
