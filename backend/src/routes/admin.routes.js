@@ -358,6 +358,60 @@ router.get("/cloudinary-usage", protect, requireAdmin, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// POST /api/admin/messages/broadcast ← ADMIN ONLY
+// Body: { subject?, body } — admin types message, sent to inbox of every user
+// Also creates notification preview + (optional) email "you have a message on Trend Tribe"
+// ─────────────────────────────────────────────────────────────
+router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
+  try {
+    const { subject, body, bodyText } = req.body;
+    const text = (body || bodyText || "").trim();
+    if (!text) return res.status(400).json({ error: "Message body is required" });
+    if (text.length > 5000) return res.status(400).json({ error: "Message too long (max 5000)" });
+    const users = await prisma.user.findMany({ select: { id: true } });
+    const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
+    if (recipientIds.length === 0) return res.status(200).json({ sent: 0 });
+    const messagesData = recipientIds.map((rid) => ({ subject: subject?.trim() || null, body: text, senderId: req.user.id, recipientId: rid }));
+    await prisma.message.createMany({ data: messagesData });
+    // notifications with preview (first 80 chars)
+    const preview = text.slice(0, 80) + (text.length > 80 ? "…" : "");
+    const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: null }));
+    // store preview in notification via raw? For MVP, notifications will show generic text, inbox has full body
+    await prisma.notification.createMany({ data: notifs });
+    return res.status(200).json({ sent: recipientIds.length, preview });
+  } catch (err) {
+    console.error("[ADMIN BROADCAST ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/admin/listings/:id/share ← ADMIN ONLY
+// Sends that listing to inbox of every user (product broadcast)
+// Body: { body? } optional custom text, else default
+// ─────────────────────────────────────────────────────────────
+router.post("/listings/:id/share", protect, requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
+    const listing = await prisma.listing.findUnique({ where: { id }, select: { id: true, title: true } });
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+    const custom = (req.body.body || "").trim();
+    const body = custom || `Check this on Trend Tribe: ${listing.title} — tap to view`;
+    const users = await prisma.user.findMany({ select: { id: true } });
+    const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
+    const messagesData = recipientIds.map((rid) => ({ subject: null, body, senderId: req.user.id, recipientId: rid, listingId: id }));
+    await prisma.message.createMany({ data: messagesData });
+    const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: id }));
+    await prisma.notification.createMany({ data: notifs });
+    return res.status(200).json({ sent: recipientIds.length });
+  } catch (err) {
+    console.error("[ADMIN SHARE ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /api/admin/listings/:id/contact-views ← PROTECTED + ADMIN ONLY
 // Detailed per-listing contact click log (admin only)
 // ─────────────────────────────────────────────────────────────

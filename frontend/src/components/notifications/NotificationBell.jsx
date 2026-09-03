@@ -51,7 +51,12 @@ const NotificationBell = () => {
   const handleOpen = async () => {
     const next = !open;
     setOpen(next);
-    if (next) await fetchList();
+    if (next) {
+      await fetchList();
+      // requirement: opening notification marks all as read (both bell and inbox)
+      try { await api.post("/notifications/read-all"); setUnread(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); } catch {}
+      try { await api.post("/messages/read-all"); } catch {}
+    }
     if (!next) {
       setSelecting(false);
       setSelected(new Set());
@@ -162,6 +167,7 @@ const NotificationBell = () => {
             <div className="flex items-center gap-2">
               {!selecting ? (
                 <>
+                  <Link to="/inbox" onClick={() => setOpen(false)} className="text-xs font-semibold text-primary-600 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-1 hover:bg-primary-100">View → Inbox</Link>
                   {items.length > 0 && (
                     <button onClick={() => setSelecting(true)} className="text-xs font-semibold text-gray-600 hover:text-gray-800 px-2 py-1 rounded-lg hover:bg-gray-50">
                       Select
@@ -191,7 +197,8 @@ const NotificationBell = () => {
               <p className="text-sm text-gray-500 text-center py-8">No notification yet</p>
             ) : (
               items.map((n) => {
-                const to = n.type === "NEW_USER" ? "/admin/users" : n.listing ? `/listings/${n.listing.id}` : "/my-listings";
+                const isMessage = n.type === "MESSAGE";
+                const to = isMessage ? "/inbox" : n.type === "NEW_USER" ? "/admin/users" : n.listing ? `/listings/${n.listing.id}` : "/my-listings";
                 const isSelected = selected.has(n.id);
                 return (
                   <div key={n.id} className={`flex items-start gap-2 px-2 py-1 hover:bg-gray-50 border-b border-gray-50 last:border-0 ${!n.read ? "bg-primary-50/50" : ""}`}>
@@ -230,9 +237,18 @@ const NotificationBell = () => {
                             <span className="font-semibold">{n.actor?.username || "someone"}</span>
                           </>
                         )}
-                        {!["FAVORITE", "NEW_USER", "NEW_LISTING"].includes(n.type) && <>{n.type}</>}
+                        {n.type === "MESSAGE" && (
+                          <>
+                            <span className="font-semibold">You have a message on Trend Tribe</span>
+                            <span className="block text-xs text-gray-500 mt-1 truncate">{n.listing?.title ? `📦 ${n.listing.title}` : "Tap View to open inbox"}</span>
+                          </>
+                        )}
+                        {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE"].includes(n.type) && <>{n.type}</>}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                      {isMessage && !selecting && (
+                        <span className="inline-flex mt-2 text-xs font-semibold text-primary-600 bg-primary-50 border border-primary-100 rounded-full px-3 py-1">View →</span>
+                      )}
                     </Link>
                     <button
                       onClick={(e) => handleDeleteOne(e, n.id)}

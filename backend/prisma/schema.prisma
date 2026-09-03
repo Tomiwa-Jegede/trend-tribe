@@ -39,6 +39,8 @@ model User {
   favorites            Favorite[]
   notifications        Notification[]
   contactViews         ContactView[]
+  sentMessages         Message[] @relation("SentMessages")
+  receivedMessages     Message[] @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -112,6 +114,7 @@ model Listing {
   favorites      Favorite[]
   notifications  Notification[]
   contactViewLogs ContactView[]
+  messages       Message[]
 
   @@map("listings")
 }
@@ -171,6 +174,25 @@ model ContactView {
   @@index([listingId, createdAt])
   @@index([viewerId])
   @@map("contact_views")
+}
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  subject     String?
+  body        String
+  senderId    Int
+  recipientId Int
+  listingId   Int?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User     @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  listing     Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, read])
+  @@index([recipientId, createdAt])
+  @@index([listingId])
+  @@map("messages")
 }
 
 enum Role {

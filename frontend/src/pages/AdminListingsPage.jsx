@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminListings, deleteAdminListing } from "../services/adminService";
+import { shareListingToInbox } from "../services/messageService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { CATEGORIES, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
+import { FiSend } from "react-icons/fi";
 
 const GHOST_DAYS = 30;
 const isBoosted = (l) => l.boostedUntil && new Date(l.boostedUntil) > new Date();
@@ -51,6 +53,16 @@ const AdminListingsPage = () => {
       setListings((prev) => prev.filter((l) => l.id !== id));
     } catch {
       alert("Failed to delete listing.");
+    }
+  };
+
+  const handleShare = async (listing) => {
+    if (!window.confirm(`Send "${listing.title}" to inbox of all users? They will get a notification with View → Inbox.`)) return;
+    try {
+      await shareListingToInbox(listing.id);
+      alert(`Sent "${listing.title}" to all users' inbox`);
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to share");
     }
   };
 
@@ -180,12 +192,21 @@ const AdminListingsPage = () => {
                     {new Date(l.createdAt).toLocaleDateString()}
                   </td>
                     <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleDelete(l.id)}
-                      className="text-red-500 hover:text-red-600 text-xs font-medium"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleShare(l)}
+                        className="text-primary-600 hover:text-primary-700 p-1.5 rounded-full hover:bg-primary-50"
+                        title="Send to all users' inbox"
+                      >
+                        <FiSend className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(l.id)}
+                        className="text-red-500 hover:text-red-600 text-xs font-medium"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 );
@@ -237,12 +258,20 @@ const AdminListingsPage = () => {
                   {new Date(l.createdAt).toLocaleDateString()}
                 </p>
               </div>
-              <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(l.id); }}
-                className="text-red-500 hover:text-red-600 text-xs font-medium mt-3"
-              >
-                Delete
-              </button>
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare(l); }}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 bg-primary-50 border border-primary-100 rounded-full px-3 py-1 hover:bg-primary-100"
+                >
+                  <FiSend className="w-3 h-3" /> Send to inbox
+                </button>
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(l.id); }}
+                  className="text-red-500 hover:text-red-600 text-xs font-medium"
+                >
+                  Delete
+                </button>
+              </div>
             </Link>
           ))}
           {listings.length === 0 && (

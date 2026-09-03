@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, getCloudinaryUsage } from "../services/adminService";
+import { broadcastMessage } from "../services/messageService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -31,6 +32,10 @@ const AdminDashboardPage = () => {
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [cloudinaryUsage, setCloudinaryUsage] = useState(null);
   const [cloudinaryError, setCloudinaryError] = useState("");
+  const [broadcastSubject, setBroadcastSubject] = useState("");
+  const [broadcastBody, setBroadcastBody] = useState("");
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [broadcastResult, setBroadcastResult] = useState(null);
   const { toast } = useToast();
 
   const pollWeeklyEmailStatus = () => {
@@ -64,6 +69,23 @@ const AdminDashboardPage = () => {
       toast.error(err.response?.data?.error || "Failed to start weekly email send.");
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const handleBroadcast = async () => {
+    if (!broadcastBody.trim()) { toast.error("Message body is required"); return; }
+    setBroadcasting(true);
+    setBroadcastResult(null);
+    try {
+      const res = await broadcastMessage({ subject: broadcastSubject, body: broadcastBody });
+      setBroadcastResult(res);
+      toast.success(`Message sent to ${res.sent} users — they also got a notification and an inbox message`);
+      setBroadcastBody("");
+      setBroadcastSubject("");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to send message");
+    } finally {
+      setBroadcasting(false);
     }
   };
 
@@ -202,6 +224,36 @@ const AdminDashboardPage = () => {
           )}
         </>
       )}
+      <div className="mt-8 pt-6 border-t border-sage-100">
+        <h2 className="text-sm font-semibold text-navy-900 mb-1">Send message to all users</h2>
+        <p className="text-sm text-gray-500 mb-3">Type what you want to send. They will get <span className="font-semibold">"You have a message on Trend Tribe"</span> email + notification with preview and a <span className="font-semibold">View → Inbox</span> button. Full message lives in their inbox.</p>
+        <input
+          type="text"
+          placeholder="Subject (optional)"
+          value={broadcastSubject}
+          onChange={(e) => setBroadcastSubject(e.target.value)}
+          className="w-full border border-sage-100 rounded-lg px-3 py-2 text-sm mb-2"
+        />
+        <textarea
+          placeholder="Type your message here..."
+          value={broadcastBody}
+          onChange={(e) => setBroadcastBody(e.target.value)}
+          rows={4}
+          className="w-full border border-sage-100 rounded-lg px-3 py-2 text-sm"
+        />
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            type="button"
+            onClick={handleBroadcast}
+            disabled={broadcasting || !broadcastBody.trim()}
+            className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {broadcasting ? "Sending..." : "Send to inbox + notify all"}
+          </button>
+          {broadcastResult && <span className="text-sm text-green-600 font-medium">Sent to {broadcastResult.sent} users</span>}
+        </div>
+      </div>
+
       <div className="mt-8 pt-6 border-t border-sage-100">
         <h2 className="text-sm font-semibold text-navy-900 mb-1">Weekly Email</h2>
         <p className="text-sm text-gray-500 mb-3">

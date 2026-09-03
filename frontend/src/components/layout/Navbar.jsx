@@ -15,8 +15,10 @@ import {
   FiLogOut,
   FiHelpCircle,
   FiHeart,
+  FiMail,
 } from "react-icons/fi";
 import NotificationBell from "../notifications/NotificationBell";
+import api from "../../api/axios";
 
 // ── Reduced-motion helper ──────────────────────────────────────
 const useReducedMotion = () => {
@@ -66,6 +68,17 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [inboxUnread, setInboxUnread] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) { setInboxUnread(0); return; }
+    const fetchInbox = async () => {
+      try { const { data } = await api.get("/messages/unread-count"); setInboxUnread(data.unreadCount); } catch {}
+    };
+    fetchInbox();
+    const id = setInterval(fetchInbox, 30000);
+    return () => clearInterval(id);
+  }, [isAuthenticated, location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -214,6 +227,9 @@ const Navbar = () => {
                 {isAuthenticated && (
                   <NavLink path="/saved" label="Favorites" />
                 )}
+                {isAuthenticated && (
+                  <NavLink path="/inbox" label="Inbox" />
+                )}
                 {user?.role === "ADMIN" && (
                   <NavLink path="/admin" label="Admin" />
                 )}
@@ -299,6 +315,15 @@ const Navbar = () => {
                       </span>
                     )}
 
+                    <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Inbox">
+                      <FiMail className="w-5 h-5 text-gray-600" />
+                      {inboxUnread > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                          {inboxUnread > 99 ? "99+" : inboxUnread}
+                        </span>
+                      )}
+                    </Link>
+
                     <NotificationBell />
 
                     <motion.button
@@ -348,6 +373,14 @@ const Navbar = () => {
 
             {/* ── Mobile Bell + Menu Toggle (outside hamburger) ── */}
             <div className="md:hidden flex items-center gap-1">
+              <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Inbox">
+                <FiMail className="w-5 h-5 text-gray-600" />
+                {inboxUnread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                    {inboxUnread > 99 ? "99+" : inboxUnread}
+                  </span>
+                )}
+              </Link>
               <NotificationBell />
               <motion.button
                 className="p-2 rounded-lg text-gray-600 hover:bg-sage-50 transition-colors"
@@ -401,6 +434,9 @@ const Navbar = () => {
                 )}
                 {isAuthenticated && (
                   <MobileNavLink path="/saved" label="Favorites" index={4} />
+                )}
+                {isAuthenticated && (
+                  <MobileNavLink path="/inbox" label="Inbox" index={4} />
                 )}
               {isAuthenticated && user?.role !== "ADMIN" && typeof user?.tokenBalance === "number" && (
                 <div className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-full px-2.5 py-1 w-fit">

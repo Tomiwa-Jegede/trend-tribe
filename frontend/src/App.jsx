@@ -35,6 +35,7 @@ const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const AdminReportsPage = lazy(() => import("./pages/AdminReportsPage"));
 const AdminFavoritesPage = lazy(() => import("./pages/AdminFavoritesPage"));
 const MyListingsPage = lazy(() => import("./pages/MyListingsPage"));
+const InboxPage = lazy(() => import("./pages/InboxPage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -210,7 +211,8 @@ const App = () => {
             <Route path="/features" element={<FeaturesPage />} />
             <Route path="/pricing" element={<PricingPage />} />
               <Route path="/coming-soon" element={<ComingSoonPage />} />
-              <Route path="/messages" element={<ComingSoonPage />} />
+              <Route path="/messages" element={<Navigate to="/inbox" replace />} />
+              <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
               <Route
                 path="/saved"
                 element={
