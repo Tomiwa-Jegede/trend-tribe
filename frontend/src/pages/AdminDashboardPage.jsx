@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
-import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus } from "../services/adminService";
+import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, getCloudinaryUsage } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -28,6 +28,8 @@ const AdminDashboardPage = () => {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailRun, setEmailRun] = useState(null);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const [cloudinaryUsage, setCloudinaryUsage] = useState(null);
+  const [cloudinaryError, setCloudinaryError] = useState("");
   const { toast } = useToast();
 
   const pollWeeklyEmailStatus = () => {
@@ -93,6 +95,12 @@ const AdminDashboardPage = () => {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    getCloudinaryUsage()
+      .then((d) => setCloudinaryUsage(d.usage))
+      .catch((e) => setCloudinaryError(e.response?.data?.error || "Could not load Cloudinary usage"));
+  }, []);
+
   return (
     <AdminLayout>
       <h1 className="text-xl font-bold text-navy-900 mb-6">Dashboard</h1>
@@ -122,6 +130,41 @@ const AdminDashboardPage = () => {
                 </p>
               </div>
             ))}
+          </div>
+
+          {/* Cloudinary Free Quota Usage — Admin Only */}
+          <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Cloudinary Free Quota (25 credits)</p>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${cloudinaryUsage?.credits?.used_percent > 80 ? "bg-red-50 text-red-600" : cloudinaryUsage?.credits?.used_percent > 60 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
+                {cloudinaryUsage ? `${cloudinaryUsage.credits?.used_percent ?? 0}% used` : cloudinaryError ? "Error" : "Loading..."}
+              </span>
+            </div>
+            {cloudinaryUsage ? (
+              <>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+                  <div className={`h-full transition-all ${cloudinaryUsage.credits?.used_percent > 80 ? "bg-red-500" : cloudinaryUsage.credits?.used_percent > 60 ? "bg-amber-400" : "bg-primary-600"}`} style={{ width: `${Math.min(100, cloudinaryUsage.credits?.used_percent || 0)}%` }} />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div><p className="text-xs text-gray-400">Credits</p><p className="font-semibold text-navy-900">{cloudinaryUsage.credits?.usage ?? 0} / {cloudinaryUsage.credits?.limit ?? 25}</p></div>
+                  <div><p className="text-xs text-gray-400">Storage</p><p className="font-semibold text-navy-900">{((cloudinaryUsage.storage?.usage || 0) / (1024*1024*1024)).toFixed(2)} GB</p></div>
+                  <div><p className="text-xs text-gray-400">Transformations</p><p className="font-semibold text-navy-900">{cloudinaryUsage.transformations?.usage ?? 0}</p></div>
+                  <div><p className="text-xs text-gray-400">Bandwidth</p><p className="font-semibold text-navy-900">{((cloudinaryUsage.bandwidth?.usage || 0) / (1024*1024*1024)).toFixed(2)} GB</p></div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-gray-500 mt-3">
+                  <div>Resources: {cloudinaryUsage.resources ?? 0} / {cloudinaryUsage.resources_limit ?? "—"}</div>
+                  <div>Derived: {cloudinaryUsage.derived_resources ?? 0}</div>
+                  <div>Plan: {cloudinaryUsage.plan ?? "Free"}</div>
+                </div>
+                {cloudinaryUsage.credits?.used_percent > 80 && (
+                  <p className="text-xs text-red-600 mt-3 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ Over 80% — new image uploads may fail if you hit 100%. Old listings already trimmed to 3 images (was 5) to save credits.</p>
+                )}
+              </>
+            ) : cloudinaryError ? (
+              <p className="text-sm text-red-500">{cloudinaryError} — check <a href="https://console.cloudinary.com" target="_blank" rel="noreferrer" className="underline">Cloudinary Console → Usage</a></p>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading Cloudinary usage…</div>
+            )}
           </div>
           {stats.topFavorited?.length > 0 && (
             <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">

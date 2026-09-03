@@ -54,3 +54,8 @@ export const getAdminContactViews = async (listingId, params = {}) => {
   const { data } = await api.get(`/admin/listings/${listingId}/contact-views`, { params });
   return data; // { listing, views, pagination }
 };
+
+export const getCloudinaryUsage = async () => {
+  const { data } = await api.get("/admin/cloudinary-usage");
+  return data; // { usage }
+};

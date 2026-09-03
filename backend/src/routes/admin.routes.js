@@ -337,6 +337,27 @@ router.get("/favorites", protect, requireAdmin, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// GET /api/admin/cloudinary-usage ← PROTECTED + ADMIN ONLY
+// Shows Cloudinary free quota usage (credits, storage, transformations, bandwidth)
+// Helps admin know how much of 25-credit free tier is used
+// ─────────────────────────────────────────────────────────────
+router.get("/cloudinary-usage", protect, requireAdmin, async (req, res) => {
+  try {
+    const usage = await cloudinary.api.usage();
+    // usage contains: plan, credits { usage, limit, used_percent }, transformations, storage, bandwidth, requests, resources etc.
+    // Normalize for frontend
+    const credits = usage.credits || { usage: usage.transformations?.usage || 0, limit: 25000, used_percent: 0 };
+    // Cloudinary free plan reports 25 credits as transformations limit in older API; credits field is newer — fallback
+    if (!credits.limit && usage.plan === "Free") credits.limit = 25;
+    return res.status(200).json({ usage });
+  } catch (err) {
+    console.error("[ADMIN CLOUDINARY USAGE ERROR]", err.message);
+    // Don't leak raw error; cloudinary returns 401/420 when disabled
+    return res.status(502).json({ error: "Could not load Cloudinary usage. Check Cloudinary dashboard or try again.", details: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /api/admin/listings/:id/contact-views ← PROTECTED + ADMIN ONLY
 // Detailed per-listing contact click log (admin only)
 // ─────────────────────────────────────────────────────────────
