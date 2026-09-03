@@ -441,15 +441,29 @@ const Navbar = () => {
               style={{ originY: 0 }}
             >
               <MobileNavLink path="/" label="Home" index={0} />
-              <MobileNavLink
-                path="/marketplace"
-                label="Marketplace"
-                index={1}
-
-              />
-              <MobileNavLink path="/features" label="Features" index={2} />
-              <MobileNavLink path="/pricing" label="Pricing" index={2} />
-              <MobileNavLink path="/about" label="About" index={3} />
+              <MobileNavLink path="/marketplace" label="Marketplace" index={1} />
+              <motion.div custom={2} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
+                <button
+                  onClick={() => setShowMore((v) => !v)}
+                  className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
+                >
+                  <span>More</span> <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
+                </button>
+              </motion.div>
+              <AnimatePresence>
+                {showMore && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden"
+                  >
+                    <MobileNavLink path="/features" label="Features" index={3} />
+                    <MobileNavLink path="/pricing" label="Pricing" index={3} />
+                    <MobileNavLink path="/about" label="About" index={3} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
 
                              {isAuthenticated && (
