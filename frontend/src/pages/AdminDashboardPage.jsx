@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
-import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, getCloudinaryUsage } from "../services/adminService";
+import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, getCloudinaryUsage, getDbUsage } from "../services/adminService";
 import { broadcastMessage } from "../services/messageService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
@@ -32,6 +32,8 @@ const AdminDashboardPage = () => {
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [cloudinaryUsage, setCloudinaryUsage] = useState(null);
   const [cloudinaryError, setCloudinaryError] = useState("");
+  const [dbUsage, setDbUsage] = useState(null);
+  const [dbError, setDbError] = useState("");
   const [broadcastSubject, setBroadcastSubject] = useState("");
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
@@ -143,6 +145,11 @@ const AdminDashboardPage = () => {
       .then((d) => setCloudinaryUsage(d.usage))
       .catch((e) => setCloudinaryError(e.response?.data?.error || "Could not load Cloudinary usage"));
   }, []);
+  useEffect(() => {
+    getDbUsage()
+      .then((d) => setDbUsage(d))
+      .catch((e) => setDbError(e.response?.data?.error || "Could not load DB usage"));
+  }, []);
 
   return (
     <AdminLayout>
@@ -216,6 +223,31 @@ const AdminDashboardPage = () => {
               <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading Cloudinary usage…</div>
             )}
           </div>
+          {/* DB Free Space Left — Neon Postgres */}
+          {dbUsage ? (
+            <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Database — Free Space Left (Neon)</p>
+                <span className={`text-xs font-bold px-2 py-1 rounded-full ${dbUsage.percent > 80 ? "bg-red-50 text-red-600" : dbUsage.percent > 60 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>{dbUsage.percent}% used</span>
+              </div>
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+                <div className={`h-full transition-all ${dbUsage.percent > 80 ? "bg-red-500" : dbUsage.percent > 60 ? "bg-amber-400" : "bg-primary-600"}`} style={{ width: `${Math.min(100, dbUsage.percent)}%` }} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div><p className="text-xs text-gray-400">Used</p><p className="font-semibold text-navy-900">{dbUsage.pretty} / {dbUsage.limitPretty}</p></div>
+                <div><p className="text-xs text-gray-400">Left</p><p className="font-semibold text-navy-900">{((dbUsage.limitBytes - dbUsage.size) / (1024 * 1024 * 1024)).toFixed(2)} GB</p></div>
+                <div><p className="text-xs text-gray-400">Listings</p><p className="font-semibold text-navy-900">{dbUsage.counts?.listings}</p></div>
+                <div><p className="text-xs text-gray-400">Users</p><p className="font-semibold text-navy-900">{dbUsage.counts?.users}</p></div>
+              </div>
+              {dbUsage.tables?.length > 0 && <p className="text-xs text-gray-500 mt-3">Largest tables: {dbUsage.tables.slice(0, 3).map((t) => `${t.table} ${t.size}`).join(" · ")}</p>}
+              {dbUsage.percent > 80 && <p className="text-xs text-red-600 mt-3 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ Over 80% — consider archiving old listings/messages.</p>}
+            </div>
+          ) : dbError ? (
+            <p className="text-sm text-red-500 mt-6">{dbError}</p>
+          ) : (
+            <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5 flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading DB usage…</div>
+          )}
+
           {stats.topFavorited?.length > 0 && (
             <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Favorited (click to view)</p>

@@ -60,6 +60,11 @@ export const notifyInboxEmail = async ({ subject, body }) => {
   return data;
 };
 
+export const getDbUsage = async () => {
+  const { data } = await api.get("/admin/db-usage");
+  return data;
+};
+
 export const getCloudinaryUsage = async () => {
   const { data } = await api.get("/admin/cloudinary-usage");
   return data; // { usage }
