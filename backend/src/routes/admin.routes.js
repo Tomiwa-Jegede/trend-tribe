@@ -367,8 +367,8 @@ router.get("/db-usage", protect, requireAdmin, async (req, res) => {
     const [db] = await prisma.$queryRaw`SELECT pg_database_size(current_database())::bigint as size, pg_size_pretty(pg_database_size(current_database())) as pretty`;
     const tablesRaw = await prisma.$queryRaw`SELECT relname as table, pg_size_pretty(pg_total_relation_size(relid)) as size, pg_total_relation_size(relid) as bytes FROM pg_catalog.pg_statio_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 10`;
     const tables = tablesRaw.map((t) => ({ ...t, bytes: Number(t.bytes) }));
-    // Neon free limit approx 5GB (5120 MB) — use 5GB for percent, show raw size主要
-    const limitBytes = 5 * 1024 * 1024 * 1024;
+    // Neon Free: 0.5 GB per project (not 5GB) — 5GB is transfer, storage is 0.5GB
+    const limitBytes = 0.5 * 1024 * 1024 * 1024;
     const used = Number(db.size);
     const percent = Math.min(100, (used / limitBytes) * 100);
     const counts = {
@@ -378,7 +378,7 @@ router.get("/db-usage", protect, requireAdmin, async (req, res) => {
       notifications: await prisma.notification.count(),
       favorites: await prisma.favorite.count(),
     };
-    return res.status(200).json({ size: used, pretty: db.pretty, limitBytes, limitPretty: "5 GB", percent: Number(percent.toFixed(2)), tables, counts });
+    return res.status(200).json({ size: used, pretty: db.pretty, limitBytes, limitPretty: "0.5 GB", percent: Number(percent.toFixed(2)), tables, counts });
   } catch (err) {
     console.error("[ADMIN DB USAGE ERROR]", err.message);
     return res.status(500).json({ error: "Could not load DB usage" });
