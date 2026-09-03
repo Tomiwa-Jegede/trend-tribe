@@ -224,12 +224,6 @@ const Navbar = () => {
 
                   />
                 )}
-                {isAuthenticated && (
-                  <NavLink path="/saved" label="Favorites" />
-                )}
-                {isAuthenticated && (
-                  <NavLink path="/inbox" label="Inbox" />
-                )}
                 {user?.role === "ADMIN" && (
                   <NavLink path="/admin" label="Admin" />
                 )}
@@ -315,8 +309,14 @@ const Navbar = () => {
                       </span>
                     )}
 
+                    {isAuthenticated && (
+                      <Link to="/saved" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Favorites">
+                        <FiHeart className={`w-5 h-5 ${location.pathname === "/saved" ? "text-primary-600 fill-primary-600" : "text-gray-600"}`} />
+                      </Link>
+                    )}
+
                     <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Inbox">
-                      <FiMail className="w-5 h-5 text-gray-600" />
+                      <FiMail className={`w-5 h-5 ${location.pathname === "/inbox" ? "text-primary-600" : "text-gray-600"}`} />
                       {inboxUnread > 0 && (
                         <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                           {inboxUnread > 99 ? "99+" : inboxUnread}
@@ -373,6 +373,11 @@ const Navbar = () => {
 
             {/* ── Mobile Bell + Menu Toggle (outside hamburger) ── */}
             <div className="md:hidden flex items-center gap-1">
+              {isAuthenticated && (
+                <Link to="/saved" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Favorites">
+                  <FiHeart className="w-5 h-5 text-gray-600" />
+                </Link>
+              )}
               <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Inbox">
                 <FiMail className="w-5 h-5 text-gray-600" />
                 {inboxUnread > 0 && (
@@ -431,12 +436,6 @@ const Navbar = () => {
                     index={3}
 
                   />
-                )}
-                {isAuthenticated && (
-                  <MobileNavLink path="/saved" label="Favorites" index={4} />
-                )}
-                {isAuthenticated && (
-                  <MobileNavLink path="/inbox" label="Inbox" index={4} />
                 )}
               {isAuthenticated && user?.role !== "ADMIN" && typeof user?.tokenBalance === "number" && (
                 <div className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-full px-2.5 py-1 w-fit">
