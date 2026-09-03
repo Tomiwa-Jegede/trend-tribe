@@ -1,6 +1,6 @@
 // src/pages/ListingDetailPage.jsx — Live API Version
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { revealContact } from "../services/contactService";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -62,6 +62,10 @@ const ListingDetailPage = () => {
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const galleryRef = useRef(null);
+  const startXRef = useRef(0);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -95,6 +99,28 @@ const ListingDetailPage = () => {
 
     fetchListing();
   }, [id]);
+
+  const onGalleryStart = (clientX) => {
+    startXRef.current = clientX;
+    setIsDragging(true);
+  };
+  const onGalleryMove = (clientX) => {
+    if (!isDragging) return;
+    const diff = clientX - startXRef.current;
+    const maxIdx = Math.max(0, (listing?.images?.length || 1) - 1);
+    let clamped = diff;
+    if ((activeImage === 0 && diff > 0) || (activeImage === maxIdx && diff < 0)) clamped = diff * 0.35;
+    setDragOffset(clamped);
+  };
+  const onGalleryEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const threshold = Math.min(80, (galleryRef.current?.offsetWidth || 320) * 0.22);
+    const maxIdx = Math.max(0, (listing?.images?.length || 1) - 1);
+    if (dragOffset < -threshold && activeImage < maxIdx) setActiveImage((p) => p + 1);
+    else if (dragOffset > threshold && activeImage > 0) setActiveImage((p) => p - 1);
+    setDragOffset(0);
+  };
 
   const isOwner = isAuthenticated && listing && user?.id === listing.seller.id;
   const handleCopyLink = async () => {
@@ -253,70 +279,83 @@ const ListingDetailPage = () => {
       )}
 
       <div className="grid lg:grid-cols-2 gap-10">
-        {/* ── Image Gallery ──────────────────────────── */}
+        {/* ── Image Gallery — swipe follows finger (mobile) ── */}
         <div>
           <div
-            className="aspect-square bg-gray-100 rounded-2xl overflow-hidden mb-3
-                          relative"
+            ref={galleryRef}
+            className="aspect-square bg-gray-100 rounded-2xl overflow-hidden mb-3 relative select-none touch-pan-y"
+            onTouchStart={(e) => onGalleryStart(e.touches[0].clientX)}
+            onTouchMove={(e) => onGalleryMove(e.touches[0].clientX)}
+            onTouchEnd={onGalleryEnd}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onGalleryStart(e.clientX);
+              const move = (ev) => onGalleryMove(ev.clientX);
+              const up = () => {
+                onGalleryEnd();
+                window.removeEventListener("mousemove", move);
+                window.removeEventListener("mouseup", up);
+              };
+              window.addEventListener("mousemove", move);
+              window.addEventListener("mouseup", up);
+            }}
+            style={{ cursor: images.length > 1 ? (isDragging ? "grabbing" : "grab") : "default" }}
           >
-            {images[activeImage] ? (
-              <img
-                src={images[activeImage]}
-                alt={listing.title}
-                className="w-full h-full object-cover"
-                style={{
-                  objectPosition:
-                    activeImage === 0
-                      ? `${listing.coverPosition?.x ?? 50}% ${listing.coverPosition?.y ?? 50}%`
-                      : "center",
-                }}
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center
-                              bg-gradient-to-br from-primary-50 to-purple-50"
-              >
-                <span className="text-6xl opacity-40">🛍️</span>
+            <div
+              className="flex h-full"
+              style={{
+                width: `${images.length * 100}%`,
+                transform: `translateX(calc(-${activeImage * (100 / images.length)}% + ${dragOffset}px))`,
+                transition: isDragging ? "none" : "transform 0.32s cubic-bezier(0.32,0.72,0,1)",
+              }}
+            >
+              {images.map((img, i) => (
+                <div key={i} className="h-full flex-shrink-0" style={{ width: `${100 / images.length}%` }}>
+                  {img ? (
+                    <img
+                      src={img}
+                      alt={`${listing.title} ${i + 1}`}
+                      className="w-full h-full object-cover pointer-events-none"
+                      style={{
+                        objectPosition: i === 0 ? `${listing.coverPosition?.x ?? 50}% ${listing.coverPosition?.y ?? 50}%` : "center",
+                      }}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-50 to-purple-50">
+                      <span className="text-6xl opacity-40">🛍️</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {!listing.isAvailable && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center pointer-events-none">
+                <span className="bg-white text-gray-900 font-bold px-6 py-2 rounded-xl text-lg">SOLD</span>
               </div>
             )}
 
-            {!listing.isAvailable && (
-              <div
-                className="absolute inset-0 bg-black/60 flex items-center
-                              justify-center"
-              >
-                <span
-                  className="bg-white text-gray-900 font-bold px-6 py-2
-                                 rounded-xl text-lg"
-                >
-                  SOLD
-                </span>
+            {images.length > 1 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
+                {images.map((_, i) => (
+                  <span key={i} className={`rounded-full transition-all duration-200 ${i === activeImage ? "w-5 h-1.5 bg-white shadow" : "w-1.5 h-1.5 bg-white/60"}`} />
+                ))}
               </div>
             )}
           </div>
 
           {images.length > 1 && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {images.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveImage(i)}
-                  className={`w-16 h-16 rounded-xl overflow-hidden border-2
-                             transition-colors flex-shrink-0 ${
-                               activeImage === i
-                                 ? "border-primary-600"
-                                 : "border-transparent"
-                             }`}
+                  className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors flex-shrink-0 ${
+                    activeImage === i ? "border-primary-600" : "border-transparent"
+                  }`}
                 >
-                  {img ? (
-                    <img
-                      src={img}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-100" />
-                  )}
+                  {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-100" />}
                 </button>
               ))}
             </div>

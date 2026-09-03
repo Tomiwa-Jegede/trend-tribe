@@ -133,9 +133,6 @@ const NotificationBell = () => {
               })
             )}
           </div>
-          <Link to="/my-listings" onClick={() => setOpen(false)} className="block text-center text-sm text-primary-600 font-semibold py-3 hover:bg-gray-50 border-t border-gray-100">
-            View My Listings
-          </Link>
         </div>
       )}
     </div>
