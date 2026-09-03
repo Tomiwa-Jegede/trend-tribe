@@ -188,7 +188,7 @@ const NotificationBell = () => {
 
           <div className="max-h-96 overflow-auto">
             {items.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-8">No notifications yet — when someone saves your listing, it will appear here.</p>
+              <p className="text-sm text-gray-500 text-center py-8">No notification yet</p>
             ) : (
               items.map((n) => {
                 const to = n.type === "NEW_USER" ? "/admin/users" : n.listing ? `/listings/${n.listing.id}` : "/my-listings";
