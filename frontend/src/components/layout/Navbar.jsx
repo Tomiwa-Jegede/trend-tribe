@@ -16,6 +16,7 @@ import {
   FiHelpCircle,
   FiHeart,
   FiMail,
+  FiChevronDown,
 } from "react-icons/fi";
 import NotificationBell from "../notifications/NotificationBell";
 import api from "../../api/axios";
@@ -69,6 +70,8 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [inboxUnread, setInboxUnread] = useState(0);
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef(null);
 
   useEffect(() => {
     if (!isAuthenticated) { setInboxUnread(0); return; }
@@ -88,7 +91,16 @@ const Navbar = () => {
 
   useEffect(() => {
     setMenuOpen(false);
+    setShowMore(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const h = (e) => {
+      if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
 
   // Lock scroll when mobile menu is open
   useEffect(() => {
@@ -206,27 +218,38 @@ const Navbar = () => {
             </Link>
 
             {/* ── Desktop Nav Links ─────────────────────────── */}
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-6">
               <NavLink path="/" label="Home" />
-              <NavLink
-                path="/marketplace"
-                label="Marketplace"
-
-              />
-              <NavLink path="/features" label="Features" />
-              <NavLink path="/pricing" label="Pricing" />
-              <NavLink path="/about" label="About" />
-
-                          {isAuthenticated && (
-                  <NavLink
-                    path={`/profile/${user?.id}`}
-                    label="My Profile"
-
-                  />
-                )}
-                {user?.role === "ADMIN" && (
-                  <NavLink path="/admin" label="Admin" />
-                )}
+              <NavLink path="/marketplace" label="Marketplace" />
+              <div className="relative" ref={moreRef}>
+                <button
+                  onClick={() => setShowMore((v) => !v)}
+                  className="flex items-center gap-1 text-sm font-medium pb-1 text-gray-600 hover:text-primary-600"
+                >
+                  More <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
+                </button>
+                <AnimatePresence>
+                  {showMore && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute top-8 left-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-44 z-50"
+                    >
+                      <Link to="/features" onClick={() => setShowMore(false)} className={`block px-4 py-2 text-sm ${isActive("/features") ? "text-primary-600 bg-primary-50" : "text-gray-700 hover:bg-gray-50"}`}>Features</Link>
+                      <Link to="/pricing" onClick={() => setShowMore(false)} className={`block px-4 py-2 text-sm ${isActive("/pricing") ? "text-primary-600 bg-primary-50" : "text-gray-700 hover:bg-gray-50"}`}>Pricing</Link>
+                      <Link to="/about" onClick={() => setShowMore(false)} className={`block px-4 py-2 text-sm ${isActive("/about") ? "text-primary-600 bg-primary-50" : "text-gray-700 hover:bg-gray-50"}`}>About</Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              {isAuthenticated && (
+                <NavLink path={`/profile/${user?.id}`} label="My Profile" />
+              )}
+              {user?.role === "ADMIN" && (
+                <NavLink path="/admin" label="Admin" />
+              )}
             </div>
 
             {/* ── Desktop Auth Buttons ──────────────────────── */}
