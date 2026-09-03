@@ -6,11 +6,15 @@ import { useAuth } from "../context/AuthContext";
 import ListingForm from "../components/listings/ListingForm";
 import { updateListing, getListingById } from "../services/listingService";
 import { FiAlertCircle } from "react-icons/fi";
+import BuyTokens from "../components/ui/BuyTokens";
 
 const EditListingPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const [pendingEdit, setPendingEdit] = useState(null); // { formData, tokenBalance, totalCost, error }
+  const [confirming, setConfirming] = useState(false);
+  const [buyTokensOpen, setBuyTokensOpen] = useState(false);
 
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,11 +40,34 @@ const EditListingPage = () => {
     return () => clearTimeout(timer);
   }, [id, user]);
 
-  // Mock submit handler — real API wiring in Step 18
-const handleSubmit = async (formData) => {
-  await updateListing(id, formData);
-  navigate(`/listings/${id}`);
-};
+  const handleSubmit = async (formData) => {
+    try {
+      await updateListing(id, formData);
+      refreshUser?.();
+      navigate(`/listings/${id}`);
+    } catch (err) {
+      const data = err.response?.data;
+      if (data?.needsTokenConfirm) {
+        setPendingEdit({ formData, tokenBalance: data.tokenBalance, totalCost: data.totalCost ?? 1, error: data.error });
+      }
+      throw err;
+    }
+  };
+
+  const handleConfirmSpend = async () => {
+    if (!pendingEdit) return;
+    setConfirming(true);
+    try {
+      await updateListing(id, { ...pendingEdit.formData, confirmSpend: true });
+      refreshUser?.();
+      navigate(`/listings/${id}`);
+    } catch (err) {
+      // keep pending for retry
+      throw err;
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -99,6 +126,25 @@ const handleSubmit = async (formData) => {
           submitLabel="Save Changes"
           loadingLabel="Saving..."
         />
+        {pendingEdit && (
+          pendingEdit.tokenBalance >= (pendingEdit.totalCost ?? 1) ? (
+            <button
+              onClick={handleConfirmSpend}
+              disabled={confirming}
+              className="mt-3 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-4 py-2 hover:bg-primary-100 disabled:opacity-50"
+            >
+              {confirming ? "Saving..." : pendingEdit.error || `This will use ${pendingEdit.totalCost ?? 1} token${(pendingEdit.totalCost ?? 1) !== 1 ? "s" : ""} — confirm & save`}
+            </button>
+          ) : (
+            <button
+              onClick={() => setBuyTokensOpen(true)}
+              className="mt-3 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-4 py-2 hover:bg-primary-100"
+            >
+              Out of tokens — buy more ({pendingEdit.error || `${pendingEdit.totalCost ?? 1} needed`})
+            </button>
+          )
+        )}
+        <BuyTokens isOpen={buyTokensOpen} onClose={() => setBuyTokensOpen(false)} />
       </div>
     </div>
   );

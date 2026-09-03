@@ -59,7 +59,7 @@ const [pendingListing, setPendingListing] = useState(null); // { formData, token
 
     if (!result.ok) {
       if (result.needsTokenConfirm) {
-        setPendingListing({ formData, tokenBalance: result.tokenBalance });
+        setPendingListing({ formData, tokenBalance: result.tokenBalance, totalCost: result.totalCost ?? 1, error: result.error });
       }
       throw { response: { data: { error: result.error } } };
     }
@@ -98,20 +98,20 @@ const [pendingListing, setPendingListing] = useState(null); // { formData, token
           loadingLabel="Posting..."
         />
         {pendingListing && (
-          pendingListing.tokenBalance >= 1 ? (
+          pendingListing.tokenBalance >= (pendingListing.totalCost ?? 1) ? (
             <button
               onClick={handleConfirmSpend}
               disabled={confirming}
               className="mt-3 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-4 py-2 hover:bg-primary-100 disabled:opacity-50"
             >
-              {confirming ? "Posting..." : "This will use 1 token — confirm & post"}
+              {confirming ? "Posting..." : pendingListing.error || `This will use ${pendingListing.totalCost ?? 1} token${(pendingListing.totalCost ?? 1) !== 1 ? "s" : ""} — confirm & post`}
             </button>
           ) : (
             <button
               onClick={() => setBuyTokensOpen(true)}
               className="mt-3 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-4 py-2 hover:bg-primary-100"
             >
-              Out of tokens — buy more
+              Out of tokens — buy more ({pendingListing.error || `${pendingListing.totalCost ?? 1} needed`})
             </button>
           )
         )}

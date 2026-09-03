@@ -277,27 +277,44 @@ const createListing = async (req, res) => {
     let usingFreeSlot = isAdmin || activeListingCount < FREE_LISTING_LIMIT;
     const { confirmSpend } = req.body;
 
-    if (!isAdmin && !usingFreeSlot) {
+    // ── 0.5 token per extra image beyond 3 (max 5 images)
+    const imageCount = Array.isArray(images) ? images.length : 0;
+    const extraImages = Math.max(0, imageCount - 3);
+    const imageCost = extraImages * 0.5;
+    const listingCost = usingFreeSlot ? 0 : 1;
+    const totalCost = listingCost + imageCost;
+
+    if (!isAdmin && totalCost > 0) {
       const seller = await prisma.user.findUnique({
         where: { id: req.user.id },
         select: { tokenBalance: true },
       });
 
-      if (!seller || seller.tokenBalance < 1) {
+      if (!seller || seller.tokenBalance < totalCost) {
+        const parts = [];
+        if (listingCost) parts.push("1 token for extra listing (beyond 3 free)");
+        if (imageCost) parts.push(`${imageCost} token${imageCost !== 1 ? "s" : ""} for ${extraImages} extra image${extraImages !== 1 ? "s" : ""} (3 free)`);
         return res.status(403).json({
-          error: "You've used all your free listing slots and have no tokens left. Buy tokens to post another listing.",
-          limitReached: true,
+          error: `Not enough tokens. Need ${totalCost} tokens: ${parts.join(" + ")}. You have ${seller?.tokenBalance ?? 0}.`,
+          limitReached: !usingFreeSlot,
           currentCount: activeListingCount,
           freeSlotLimit: FREE_LISTING_LIMIT,
           tokenBalance: seller?.tokenBalance ?? 0,
+          totalCost,
+          breakdown: { listingCost, imageCost, extraImages },
         });
       }
 
       if (!confirmSpend) {
+        const parts = [];
+        if (listingCost) parts.push("1 token for extra listing");
+        if (imageCost) parts.push(`${imageCost} tokens for ${extraImages} extra image${extraImages !== 1 ? "s" : ""}`);
         return res.status(402).json({
           needsTokenConfirm: true,
           tokenBalance: seller.tokenBalance,
-          error: "This will use 1 token to post beyond your 3 free listings. Confirm to continue.",
+          totalCost,
+          breakdown: { listingCost, imageCost, extraImages },
+          error: `This will use ${totalCost} token${totalCost !== 1 ? "s" : ""} (${parts.join(" + ")}). Confirm to continue.`,
         });
       }
     }
@@ -329,12 +346,13 @@ const createListing = async (req, res) => {
       },
     };
 
-    const listing = usingFreeSlot
+    const needsPayment = !isAdmin && totalCost > 0;
+    const listing = !needsPayment
       ? await prisma.listing.create({ data: listingData, include: listingInclude })
       : await prisma.$transaction(async (tx) => {
           const updatedSeller = await tx.user.updateMany({
-            where: { id: req.user.id, tokenBalance: { gte: 1 } },
-            data: { tokenBalance: { decrement: 1 } },
+            where: { id: req.user.id, tokenBalance: { gte: totalCost } },
+            data: { tokenBalance: { decrement: totalCost } },
           });
 
           if (updatedSeller.count === 0) {
@@ -401,35 +419,63 @@ const {
   confirmSpend,
 } = req.body;
 
-    // ── Re-activation guard: hide→show that would exceed 3 active costs 1 token ──
-    let reactivationRequiresToken = false;
+    // ── Combined token cost: re-activation (1) + extra images beyond 3 (0.5 each, delta only) ──
+    const isAdmin = req.user.role === "ADMIN";
+    let reactivationCost = 0;
+    let imageDeltaCost = 0;
+    let activeCountForMsg = null;
+
     if (isAvailable === true && listing.isAvailable === false) {
       const activeCount = await prisma.listing.count({
         where: { sellerId: req.user.id, isAvailable: true },
       });
-      const isAdmin = req.user.role === "ADMIN";
+      activeCountForMsg = activeCount;
       if (!isAdmin && activeCount >= FREE_LISTING_LIMIT) {
-        const seller = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          select: { tokenBalance: true },
+        reactivationCost = 1;
+      }
+    }
+
+    if (images !== undefined) {
+      const newCount = Array.isArray(images) ? images.length : 0;
+      const oldCount = Array.isArray(listing.images) ? listing.images.length : 0;
+      const newExtra = Math.max(0, newCount - 3);
+      const oldExtra = Math.max(0, oldCount - 3);
+      const deltaExtra = Math.max(0, newExtra - oldExtra);
+      if (deltaExtra > 0) imageDeltaCost = deltaExtra * 0.5;
+    }
+
+    const totalUpdateCost = reactivationCost + imageDeltaCost;
+
+    if (!isAdmin && totalUpdateCost > 0) {
+      const seller = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { tokenBalance: true },
+      });
+      if (!seller || seller.tokenBalance < totalUpdateCost) {
+        const parts = [];
+        if (reactivationCost) parts.push("1 token to re-activate (beyond 3 free)");
+        if (imageDeltaCost) parts.push(`${imageDeltaCost} token${imageDeltaCost !== 1 ? "s" : ""} for ${imageDeltaCost / 0.5} extra image${imageDeltaCost / 0.5 !== 1 ? "s" : ""} (3 free)`);
+        return res.status(403).json({
+          error: `Not enough tokens. Need ${totalUpdateCost} tokens: ${parts.join(" + ")}. You have ${seller?.tokenBalance ?? 0}.`,
+          limitReached: reactivationCost > 0,
+          currentCount: activeCountForMsg,
+          freeSlotLimit: FREE_LISTING_LIMIT,
+          tokenBalance: seller?.tokenBalance ?? 0,
+          totalCost: totalUpdateCost,
+          breakdown: { reactivationCost, imageDeltaCost },
         });
-        if (!seller || seller.tokenBalance < 1) {
-          return res.status(403).json({
-            error: "Re-activating this would give you 4 active listings. You need 1 token to have 4 up at once.",
-            limitReached: true,
-            currentCount: activeCount,
-            freeSlotLimit: FREE_LISTING_LIMIT,
-            tokenBalance: seller?.tokenBalance ?? 0,
-          });
-        }
-        if (!confirmSpend) {
-          return res.status(402).json({
-            needsTokenConfirm: true,
-            tokenBalance: seller.tokenBalance,
-            error: "Re-activating this will use 1 token to have 4 active listings. Confirm to continue.",
-          });
-        }
-        reactivationRequiresToken = true;
+      }
+      if (!confirmSpend) {
+        const parts = [];
+        if (reactivationCost) parts.push("1 token to re-activate");
+        if (imageDeltaCost) parts.push(`${imageDeltaCost} tokens for extra image${imageDeltaCost / 0.5 !== 1 ? "s" : ""}`);
+        return res.status(402).json({
+          needsTokenConfirm: true,
+          tokenBalance: seller.tokenBalance,
+          totalCost: totalUpdateCost,
+          breakdown: { reactivationCost, imageDeltaCost },
+          error: `This will use ${totalUpdateCost} token${totalUpdateCost !== 1 ? "s" : ""} (${parts.join(" + ")}). Confirm to continue.`,
+        });
       }
     }
 
@@ -468,17 +514,15 @@ const {
       await deleteFromCloudinary(removedPublicIds);
     }
 
-    if (!listing.isFreeSlot) {
-      updateData.editCount = { increment: 1 };
-    }
+    updateData.editCount = { increment: 1 };
 
     let updated;
-    if (reactivationRequiresToken) {
+    if (totalUpdateCost > 0 && !isAdmin) {
       try {
         updated = await prisma.$transaction(async (tx) => {
           const updatedSeller = await tx.user.updateMany({
-            where: { id: req.user.id, tokenBalance: { gte: 1 } },
-            data: { tokenBalance: { decrement: 1 } },
+            where: { id: req.user.id, tokenBalance: { gte: totalUpdateCost } },
+            data: { tokenBalance: { decrement: totalUpdateCost } },
           });
           if (updatedSeller.count === 0) throw new Error("TOKEN_BALANCE_RACE");
           return tx.listing.update({

@@ -48,7 +48,7 @@ const PricingPage = () => {
           {isAuthenticated && user && (
             <p className="text-white/90 text-sm mt-4">You have: <span className="font-bold">{user.tokenBalance || 0} tokens</span></p>
           )}
-          <p className="text-white/60 text-sm mt-2">You get 3 free items at a time. Tokens are only for extra.</p>
+          <p className="text-white/60 text-sm mt-2">You get 3 free items (3 images each) at a time. Tokens are only for extra.</p>
         </div>
       </section>
 
@@ -86,6 +86,10 @@ const PricingPage = () => {
               <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 token</span> — You get 3 items free at the same time. To add a 4th, use 1 token.</p>
             </div>
             <div className="card p-5">
+              <h4 className="font-bold text-gray-900">Add extra images</h4>
+              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">0.5 token</span> — 3 images free per item. Need a 4th or 5th? 0.5 token per extra image.</p>
+            </div>
+            <div className="card p-5">
               <h4 className="font-bold text-gray-900">Make your item Featured</h4>
               <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 token</span> — Shows your card at the top of Marketplace for 24 hours.</p>
             </div>
@@ -99,7 +103,7 @@ const PricingPage = () => {
             </div>
             <div className="card p-5">
               <h4 className="font-bold text-gray-900">Ask Frederick for help</h4>
-              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">Less than 1 token</span> — Small fee for AI help.</p>
+              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 token</span> — Per new chat session.</p>
             </div>
             <div className="card p-5">
               <h4 className="font-bold text-gray-900">Everything else is free</h4>

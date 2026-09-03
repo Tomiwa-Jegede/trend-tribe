@@ -21,7 +21,7 @@ const DEFAULT_FORM = {
 };
 
 const MAX_IMAGES = 5;
-const MAX_FILE_MB = 5;
+const MAX_FILE_MB = 3;
 
 const ListingForm = ({
   initialData,
@@ -325,7 +325,7 @@ const ListingForm = ({
         <label className="input-label">
           Photos{" "}
           <span className="font-normal text-gray-400">
-            (optional, max {MAX_IMAGES})
+            (optional, max {MAX_IMAGES} — 3 free, 0.5 token per extra)
           </span>
         </label>
 
@@ -564,6 +564,8 @@ const ListingForm = ({
           <p className="text-xs text-gray-400 mt-2">
             {formData.images.length} of {MAX_IMAGES} photo
             {formData.images.length !== 1 ? "s" : ""} added
+            {formData.images.length > 3 ? ` · ${(formData.images.length - 3) * 0.5} token${formData.images.length - 3 !== 2 ? "" : "s"} for extra` : " · 3 free"}
+            {formData.images.length === 5 ? " — max reached" : formData.images.length >= 3 ? ` · ${5 - formData.images.length} more costs 0.5 each` : ""}
           </p>
         )}
       </div>

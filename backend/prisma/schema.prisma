@@ -30,7 +30,7 @@ model User {
   role                 Role            @default(USER)
   aiUsesRemaining      Int             @default(0)
   numberViewsRemaining Int             @default(0)
-  tokenBalance         Int             @default(5)
+  tokenBalance         Float           @default(5)
   marketingOptIn       Boolean         @default(true)
   unsubscribeToken     String          @unique @default(cuid())
   tokenPurchases       TokenPurchase[]

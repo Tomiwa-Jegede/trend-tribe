@@ -76,8 +76,8 @@ const createListingRules = [
 
   body("images")
     .optional()
-    .isArray({ max: 3 })
-    .withMessage("Images must be an array of up to 3 URLs"),
+    .isArray({ max: 5 })
+    .withMessage("Images must be an array of up to 5 URLs (3 free, 0.5 token per extra)"),
 
   body("images.*")
     .optional()
@@ -135,8 +135,8 @@ const updateListingRules = [
 
   body("images")
     .optional()
-    .isArray({ max: 3 })
-    .withMessage("Images must be an array of up to 3 URLs"),
+    .isArray({ max: 5 })
+    .withMessage("Images must be an array of up to 5 URLs (3 free, 0.5 token per extra)"),
 
   body("images.*")
     .optional()

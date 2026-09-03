@@ -44,7 +44,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: listingStorage,
   fileFilter,
-  limits: { fileSize: 3 * 1024 * 1024, files: 3 }, // reduced from 5 files / 5MB to 3 / 3MB to stay under 25-credit free quota
+  limits: { fileSize: 3 * 1024 * 1024, files: 5 }, // 3 free, 2 extra cost 0.5 token each (kept 3MB to limit Cloudinary credits)
 });
 const uploadAvatar = multer({
   storage: avatarStorage,
