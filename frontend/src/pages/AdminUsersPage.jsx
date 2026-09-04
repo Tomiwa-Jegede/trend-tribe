@@ -112,8 +112,9 @@ const AdminUsersPage = () => {
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">School</th>
                 <th className="px-4 py-3">Tokens</th>
-                {roleFilter !== "BUYER" && <><th className="px-4 py-3">Listings</th><th className="px-4 py-3">👁 Contacts</th></>}
-                <th className="px-4 py-3">Matric No.</th>
+                <th className="px-4 py-3">Listings</th>
+                <th className="px-4 py-3">Views</th>
+                {roleFilter !== "BUYER" && <th className="px-4 py-3">Matric No.</th>}
                 <th className="px-4 py-3">Joined</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -136,27 +137,19 @@ const AdminUsersPage = () => {
                   <td className="px-4 py-3 text-gray-600">{u.email}</td>
                   <td className="px-4 py-3 text-gray-600">{u.school}</td>
                   <td className="px-4 py-3 text-center font-bold text-navy-900"><span className="inline-flex items-center justify-center gap-1"><TokenIcon size={12} /> {u.tokenBalance ?? 0}</span></td>
-                  {roleFilter !== "BUYER" ? (
-                    <>
-                      <td className="px-4 py-3 text-center font-bold text-navy-900">{u._count?.listings ?? 0}</td>
-                      <td className="px-4 py-3 text-center font-bold text-navy-900">{u.totalContactViews ?? 0}</td>
-                    </>
-                  ) : (
-                    <td className="px-4 py-3 text-center">
-                      <Link to={`/profile/${u.slug || u.id}`} className="text-xs font-semibold text-primary-600 hover:text-primary-700 px-2 py-1 rounded-full border border-primary-100 hover:bg-primary-50">View</Link>
+                  <td className="px-4 py-3 text-center font-bold text-navy-900">{u._count?.listings ?? 0}</td>
+                  <td className="px-4 py-3 text-center font-bold text-navy-900">{u.totalContactViews ?? 0}</td>
+                  {roleFilter !== "BUYER" && (
+                    <td className="px-4 py-3 text-gray-600">
+                      {u.matricNumber || "—"}
                     </td>
                   )}
-                  <td className="px-4 py-3 text-gray-600">
-                    {u.matricNumber || "—"}
-                  </td>
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(u.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      {roleFilter === "BUYER" && (
-                        <Link to={`/profile/${u.slug || u.id}`} className="text-primary-600 hover:text-primary-700 text-xs font-semibold">View</Link>
-                      )}
+                      <Link to={`/profile/${u.slug || u.id}`} className="text-primary-600 hover:text-primary-700 text-xs font-semibold">View</Link>
                       {u.id !== currentAdmin?.id && (
                         <button
                           onClick={() => handleDelete(u.id)}
@@ -209,23 +202,15 @@ const AdminUsersPage = () => {
               </p>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1"><TokenIcon size={12} /> {u.tokenBalance ?? 0} tokens</span>
-                {roleFilter !== "BUYER" ? (
-                  <>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1">📦 {u._count?.listings ?? 0} listings</span>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-amber-50 border border-amber-100 rounded-full px-2.5 py-1">👁 {u.totalContactViews ?? 0} contacts</span>
-                  </>
-                ) : (
-                  <Link to={`/profile/${u.slug || u.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-1 hover:bg-primary-100">View →</Link>
-                )}
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1">📦 {u._count?.listings ?? 0} listings</span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-amber-50 border border-amber-100 rounded-full px-2.5 py-1">👁 {u.totalContactViews ?? 0} views</span>
               </div>
               <div className="flex items-center justify-between mt-3 gap-2">
                 <p className="text-xs text-gray-400">
                   Joined {new Date(u.createdAt).toLocaleDateString()}
                 </p>
                 <div className="flex items-center gap-2">
-                  {roleFilter === "BUYER" && (
-                    <Link to={`/profile/${u.slug || u.id}`} className="text-primary-600 hover:text-primary-700 text-xs font-semibold">View</Link>
-                  )}
+                  <Link to={`/profile/${u.slug || u.id}`} className="text-primary-600 hover:text-primary-700 text-xs font-semibold">View</Link>
                   {u.id !== currentAdmin?.id && (
                     <button
                       onClick={() => handleDelete(u.id)}
