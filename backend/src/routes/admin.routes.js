@@ -36,6 +36,10 @@ router.get("/stats", protect, requireAdmin, async (req, res) => {
       totalContactViews,
       newContactViews,
       topContacted,
+      totalSellers,
+      totalBuyers,
+      totalAdmins,
+      totalRegularUsers,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.listing.count(),
@@ -49,15 +53,19 @@ router.get("/stats", protect, requireAdmin, async (req, res) => {
       prisma.listing.findMany({
         orderBy: { favorites: { _count: "desc" } },
         take: 5,
-        select: { id: true, title: true, _count: { select: { favorites: true } } },
+        select: { id: true, title: true, slug: true, _count: { select: { favorites: true } } },
       }),
       prisma.contactView.count(),
       prisma.contactView.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
       prisma.listing.findMany({
         orderBy: { contactViews: "desc" },
         take: 5,
-        select: { id: true, title: true, contactViews: true },
+        select: { id: true, title: true, slug: true, contactViews: true },
       }),
+      prisma.user.count({ where: { role: "SELLER" } }),
+      prisma.user.count({ where: { role: "BUYER" } }),
+      prisma.user.count({ where: { role: "ADMIN" } }),
+      prisma.user.count({ where: { role: "USER" } }),
     ]);
 
     return res.status(200).json({
@@ -70,10 +78,14 @@ router.get("/stats", protect, requireAdmin, async (req, res) => {
       newFavorites,
       coldListings,
       totalNotifications,
-      topFavorited: topFavorited.map((l) => ({ id: l.id, title: l.title, favoriteCount: l._count.favorites })),
+      topFavorited: topFavorited.map((l) => ({ id: l.id, slug: l.slug, title: l.title, favoriteCount: l._count.favorites })),
       totalContactViews,
       newContactViews,
       topContacted,
+      totalSellers,
+      totalBuyers,
+      totalAdmins,
+      totalRegularUsers,
     });
   } catch (err) {
     console.error("[GET ADMIN STATS ERROR]", err);
@@ -334,6 +346,74 @@ router.get("/favorites", protect, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("[ADMIN GET FAVORITES ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/admin/brevo-usage ← PROTECTED + ADMIN ONLY
+// Shows how many free Brevo emails are left this month/day
+// Brevo free: 300/day (9000/month) — uses /v3/account + /v3/smtp/statistics
+// ─────────────────────────────────────────────────────────────
+router.get("/brevo-usage", protect, requireAdmin, async (req, res) => {
+  try {
+    const apiKey = config.email.brevoApiKey;
+    if (!apiKey) return res.status(500).json({ error: "BREVO_API_KEY not set" });
+
+    // 1. Account / plan info
+    const accountRes = await fetch("https://api.brevo.com/v3/account", {
+      headers: { "api-key": apiKey, "accept": "application/json" },
+    });
+    const account = accountRes.ok ? await accountRes.json() : null;
+
+    // 2. Daily stats for today (Brevo free limit is per-day)
+    const today = new Date().toISOString().slice(0, 10);
+    const statsRes = await fetch(
+      `https://api.brevo.com/v3/smtp/statistics/aggregatedReport?startDate=${today}&endDate=${today}`,
+      { headers: { "api-key": apiKey, "accept": "application/json" } }
+    );
+    const stats = statsRes.ok ? await statsRes.json() : null;
+
+    // Extract plan limit — free = 300/day, paid varies
+    let dailyLimit = 300;
+    let planName = "Free";
+    if (account?.plan) {
+      const freePlan = Array.isArray(account.plan) ? account.plan.find((p) => p.type === "free") : null;
+      const anyPlan = Array.isArray(account.plan) ? account.plan[0] : null;
+      if (freePlan?.credits) dailyLimit = freePlan.credits;
+      else if (anyPlan?.credits) dailyLimit = anyPlan.credits;
+      else if (account.plan?.credits) dailyLimit = account.plan.credits;
+      planName = freePlan ? "Free" : anyPlan?.type || account.plan?.type || "Free";
+      // Brevo sometimes returns plan as object
+      if (typeof account.plan === "object" && !Array.isArray(account.plan) && account.plan.type) {
+        planName = account.plan.type;
+        if (account.plan.credits) dailyLimit = account.plan.credits;
+      }
+    }
+    // Fallback: if account has `relay.data` etc, keep 300
+    const sentToday = stats?.statistics?.[today]?.statistics?.globalStats?.sent ?? stats?.sent ?? 0;
+    // Monthly: sum from 1st to today if stats available, else estimate
+    let sentThisMonth = 0;
+    if (stats?.statistics) {
+      Object.values(stats.statistics).forEach((day) => {
+        sentThisMonth += day.statistics?.globalStats?.sent ?? 0;
+      });
+    }
+
+    return res.status(200).json({
+      plan: planName,
+      email: account?.email || null,
+      companyName: account?.companyName || null,
+      dailyLimit,
+      sentToday,
+      remainingToday: Math.max(0, dailyLimit - sentToday),
+      sentThisMonth,
+      monthlyLimit: dailyLimit * 30,
+      remainingMonth: Math.max(0, dailyLimit * 30 - sentThisMonth),
+      raw: { account, stats },
+    });
+  } catch (err) {
+    console.error("[ADMIN BREVO USAGE ERROR]", err.message);
+    return res.status(502).json({ error: "Could not load Brevo usage", details: err.message });
   }
 });
 

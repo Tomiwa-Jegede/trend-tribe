@@ -69,3 +69,8 @@ export const getCloudinaryUsage = async () => {
   const { data } = await api.get("/admin/cloudinary-usage");
   return data; // { usage }
 };
+
+export const getBrevoUsage = async () => {
+  const { data } = await api.get("/admin/brevo-usage");
+  return data; // { plan, dailyLimit, sentToday, remainingToday, ... }
+};

@@ -3,14 +3,18 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
-import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, getCloudinaryUsage, getDbUsage } from "../services/adminService";
+import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, getCloudinaryUsage, getDbUsage, getBrevoUsage } from "../services/adminService";
 import { broadcastMessage } from "../services/messageService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import { FiInstagram, FiMessageCircle } from "react-icons/fi";
 
 const STAT_CONFIG = [
   { key: "totalUsers", label: "Total Users", to: "/admin/users" },
+  { key: "totalSellers", label: "Sellers", to: "/admin/users" },
+  { key: "totalBuyers", label: "Buyers", to: "/admin/users" },
+  { key: "totalAdmins", label: "Admins", to: "/admin/users" },
   { key: "totalListings", label: "Total Listings", to: "/admin/listings" },
   { key: "activeListings", label: "Active Listings", to: "/admin/listings" },
   { key: "newUsers", label: "New Users (Last 7 Days)", to: "/admin/users" },
@@ -34,6 +38,8 @@ const AdminDashboardPage = () => {
   const [cloudinaryError, setCloudinaryError] = useState("");
   const [dbUsage, setDbUsage] = useState(null);
   const [dbError, setDbError] = useState("");
+  const [brevoUsage, setBrevoUsage] = useState(null);
+  const [brevoError, setBrevoError] = useState("");
   const [broadcastSubject, setBroadcastSubject] = useState("");
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
@@ -150,6 +156,11 @@ const AdminDashboardPage = () => {
       .then((d) => setDbUsage(d))
       .catch((e) => setDbError(e.response?.data?.error || "Could not load DB usage"));
   }, []);
+  useEffect(() => {
+    getBrevoUsage()
+      .then((d) => setBrevoUsage(d))
+      .catch((e) => setBrevoError(e.response?.data?.error || "Could not load Brevo usage"));
+  }, []);
 
   return (
     <AdminLayout>
@@ -189,6 +200,35 @@ const AdminDashboardPage = () => {
             })}
           </div>
 
+          {/* Brevo Free Emails Left — Admin Only */}
+          <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Brevo Free Emails — {brevoUsage ? brevoUsage.plan : "Loading..."}</p>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${brevoUsage && brevoUsage.remainingToday <= 30 ? "bg-red-50 text-red-600" : brevoUsage && brevoUsage.remainingToday <= 80 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
+                {brevoUsage ? `${brevoUsage.remainingToday} left today` : brevoError ? "Error" : "Loading..."}
+              </span>
+            </div>
+            {brevoUsage ? (
+              <>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+                  <div className={`h-full transition-all ${brevoUsage.remainingToday <= 30 ? "bg-red-500" : brevoUsage.remainingToday <= 80 ? "bg-amber-400" : "bg-primary-600"}`} style={{ width: `${Math.min(100, (brevoUsage.sentToday / brevoUsage.dailyLimit) * 100)}%` }} />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div><p className="text-xs text-gray-400">Sent today</p><p className="font-semibold text-navy-900">{brevoUsage.sentToday} / {brevoUsage.dailyLimit}</p></div>
+                  <div><p className="text-xs text-gray-400">Left today</p><p className="font-semibold text-navy-900">{brevoUsage.remainingToday}</p></div>
+                  <div><p className="text-xs text-gray-400">Plan</p><p className="font-semibold text-navy-900">{brevoUsage.plan}</p></div>
+                  <div><p className="text-xs text-gray-400">Month left ~</p><p className="font-semibold text-navy-900">{brevoUsage.remainingMonth}</p></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">Free plan: 300/day · Resets midnight UTC · <a href="https://app.brevo.com/statistics" target="_blank" rel="noreferrer" className="underline">Brevo Dashboard →</a></p>
+                {brevoUsage.remainingToday <= 30 && <p className="text-xs text-red-600 mt-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ Low on free emails — batch sends will throttle/skip.</p>}
+              </>
+            ) : brevoError ? (
+              <p className="text-sm text-red-500">{brevoError} — check Brevo API key or try again.</p>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading Brevo usage…</div>
+            )}
+          </div>
+
           {/* Cloudinary Free Quota Usage — Admin Only */}
           <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
@@ -223,6 +263,19 @@ const AdminDashboardPage = () => {
               <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading Cloudinary usage…</div>
             )}
           </div>
+          {/* Community Links — Admin quick access */}
+          <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Community</p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a href="https://chat.whatsapp.com/HWJAMqgI9ebITZp4CorXOm?mode=gi_t" target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 bg-green-50 border border-green-200 text-green-700 font-semibold px-4 py-3 rounded-xl hover:bg-green-100 transition-colors">
+                <FiMessageCircle className="w-5 h-5" /> Join WhatsApp Group
+              </a>
+              <a href="https://www.instagram.com/trendtribe_marketplace?igsh=MWxuMnA3bzF6Y2ttbg%3D%3D&utm_source=qr" target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 bg-pink-50 border border-pink-200 text-pink-700 font-semibold px-4 py-3 rounded-xl hover:bg-pink-100 transition-colors">
+                <FiInstagram className="w-5 h-5" /> Instagram
+              </a>
+            </div>
+          </div>
+
           {/* DB Free Space Left — Neon Postgres */}
           {dbUsage ? (
             <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">

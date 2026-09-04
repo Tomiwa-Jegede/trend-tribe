@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FiShoppingBag } from "react-icons/fi";
+import { FiShoppingBag, FiInstagram, FiMessageCircle } from "react-icons/fi";
 
 const Footer = () => {
   return (
@@ -62,6 +62,30 @@ const Footer = () => {
                     {l.label}
                   </Link>
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/25 mb-4">
+                Community
+              </p>
+              <div className="flex flex-col gap-3">
+                <a
+                  href="https://chat.whatsapp.com/HWJAMqgI9ebITZp4CorXOm?mode=gi_t"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-white/50 hover:text-white transition-colors duration-200 inline-flex items-center gap-2"
+                >
+                  <FiMessageCircle className="w-4 h-4" /> WhatsApp Group
+                </a>
+                <a
+                  href="https://www.instagram.com/trendtribe_marketplace?igsh=MWxuMnA3bzF6Y2ttbg%3D%3D&utm_source=qr"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-white/50 hover:text-white transition-colors duration-200 inline-flex items-center gap-2"
+                >
+                  <FiInstagram className="w-4 h-4" /> Instagram
+                </a>
               </div>
             </div>
           </div>
