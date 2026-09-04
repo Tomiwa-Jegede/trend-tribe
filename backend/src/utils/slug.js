@@ -31,6 +31,23 @@ const generateUniqueSlug = async (prisma, title, excludeId = null) => {
   return slug;
 };
 
+const generateUniqueUserSlug = async (prisma, username, excludeId = null) => {
+  const base = slugify(username);
+  const genHash = () => Math.random().toString(36).substring(2, 8).toLowerCase();
+  let slug = `${base}-${genHash()}`;
+  if (slug.length > 100) slug = slug.slice(0, 100);
+  let attempts = 0;
+  while (true) {
+    const existing = await prisma.user.findUnique({ where: { slug } });
+    if (!existing || (excludeId && existing.id === excludeId)) break;
+    slug = `${base}-${genHash()}`;
+    if (slug.length > 100) slug = slug.slice(0, 100);
+    attempts++;
+    if (attempts > 10) throw new Error("Failed to generate unique user slug");
+  }
+  return slug;
+};
+
 const resolveListingWhere = (identifier) => {
   // Prefer slug lookup; fallback to numeric id for backwards compat
   const asInt = parseInt(identifier, 10);
@@ -43,4 +60,4 @@ const resolveListingWhere = (identifier) => {
   return { isNumeric: false, slug: identifier };
 };
 
-module.exports = { slugify, generateUniqueSlug, resolveListingWhere };
+module.exports = { slugify, generateUniqueSlug, generateUniqueUserSlug, resolveListingWhere };

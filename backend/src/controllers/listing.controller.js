@@ -119,6 +119,7 @@ const getAllListings = async (req, res) => {
           seller: {
             select: {
               id: true,
+              slug: true,
               username: true,
               fullName: true,
               avatar: true,
@@ -223,6 +224,7 @@ const getListingById = async (req, res) => {
       seller: {
         select: {
           id: true,
+              slug: true,
           username: true,
           fullName: true,
           avatar: true,
@@ -343,6 +345,7 @@ const createListing = async (req, res) => {
       seller: {
         select: {
           id: true,
+              slug: true,
           username: true,
           fullName: true,
           avatar: true,
@@ -537,7 +540,8 @@ const {
             where: { id: listing.id },
             data: updateData,
             include: {
-              seller: { select: { id: true, username: true, fullName: true, avatar: true, school: true, whatsapp: true } },
+              seller: { select: { id: true,
+              slug: true, username: true, fullName: true, avatar: true, school: true, whatsapp: true } },
             },
           });
         });
@@ -555,6 +559,7 @@ const {
           seller: {
             select: {
               id: true,
+              slug: true,
               username: true,
               fullName: true,
               avatar: true,
@@ -715,28 +720,41 @@ const boostListing = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// GET /api/listings/user/:userId
+// GET /api/listings/user/:identifier (slug or id)
 // ─────────────────────────────────────────────────────────────
 const getListingsByUser = async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId, 10);
-    if (isNaN(userId))
-      return res.status(400).json({ error: "Invalid user ID" });
+    const identifier = req.params.userId;
+    if (!identifier) return res.status(400).json({ error: "Invalid user identifier" });
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        avatar: true,
-        school: true,
-        bio: true,
-        role: true,
-      },
+    let user = await prisma.user.findUnique({
+      where: { slug: identifier },
+      select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true },
     });
+    if (!user) {
+      const asInt = parseInt(identifier, 10);
+      if (!isNaN(asInt) && String(asInt) === String(identifier).trim()) {
+        user = await prisma.user.findUnique({
+          where: { id: asInt },
+          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true },
+        });
+        // fallback prefix for old slugs without hash
+        if (!user) {
+          user = await prisma.user.findFirst({
+            where: { slug: { startsWith: identifier } },
+            select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true },
+          });
+        }
+      } else {
+        user = await prisma.user.findFirst({
+          where: { slug: { startsWith: identifier } },
+          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true },
+        });
+      }
+    }
 
     if (!user) return res.status(404).json({ error: "User not found" });
+    const userId = user.id;
 
     const { available, page = 1, limit = 12, sort = "newest" } = req.query;
 
@@ -966,6 +984,7 @@ const getMyFavorites = async (req, res) => {
               seller: {
                 select: {
                   id: true,
+              slug: true,
                   username: true,
                   fullName: true,
                   avatar: true,

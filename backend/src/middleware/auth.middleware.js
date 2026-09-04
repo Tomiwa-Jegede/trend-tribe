@@ -49,14 +49,16 @@ const user = await prisma.user.findUnique({
   where: { id: decoded.id },
   select: {
     id: true,
+    slug: true,
     email: true,
     username: true,
     fullName: true,
     school: true,
     bio: true,
     avatar: true,
-    isVerified: true, // ← added
+    isVerified: true,
     role: true,
+    tokenBalance: true,
     createdAt: true,
     updatedAt: true,
   },

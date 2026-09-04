@@ -9,6 +9,7 @@ const { generateOTP, getOTPExpiry } = require("../utils/otp");
 const { sendOTPEmail, sendPasswordResetEmail } = require("../utils/email");
 const config = require("../config/env");
 const { normalizeWhatsapp } = require("../utils/phone");
+const { generateUniqueUserSlug } = require("../utils/slug");
 // ─── Helper: strip sensitive fields from user object ──────────
 const sanitizeUser = (user) => {
   const {
@@ -205,8 +206,10 @@ const verifyRegistration = async (req, res) => {
       });
     }
 
+    const slug = await generateUniqueUserSlug(prisma, pending.username);
     const newUser = await prisma.user.create({
       data: {
+        slug,
         email: pending.email,
         username: pending.username,
         password: pending.password,
@@ -302,6 +305,7 @@ const getMe = async (req, res) => {
       where: { id: req.user.id },
       select: {
         id: true,
+        slug: true,
         email: true,
         username: true,
         fullName: true,

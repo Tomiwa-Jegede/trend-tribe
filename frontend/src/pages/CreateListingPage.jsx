@@ -24,7 +24,7 @@ const [pendingListing, setPendingListing] = useState(null); // { formData, token
             message="Only seller accounts can create listings."
           />
           <Link
-            to={`/profile/${user.id}`}
+            to={`/profile/${user.slug || user.id}`}
             className="text-primary-600 font-semibold mt-4 inline-block"
           >
             Upgrade to Seller →

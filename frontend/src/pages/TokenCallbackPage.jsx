@@ -47,7 +47,7 @@ const TokenCallbackPage = () => {
   useEffect(() => {
     if (status === "success" && user?.id) {
       const timer = setTimeout(() => {
-        navigate(`/profile/${user.id}`, { replace: true });
+        navigate(`/profile/${user.slug || user.id}`, { replace: true });
       }, 1500);
       return () => clearTimeout(timer);
     }
@@ -67,7 +67,7 @@ const TokenCallbackPage = () => {
           <FiCheckCircle className="w-10 h-10 text-green-600 mx-auto mb-4" />
           <h2 className="text-gray-900 mb-2">Tokens added ✅</h2>
           <p className="text-gray-500 mb-6">Your balance has been updated.</p>
-          <Link to={`/profile/${user?.id}`} className="btn-primary inline-flex">
+          <Link to={`/profile/${user?.slug || user?.id}`} className="btn-primary inline-flex">
             Continue
           </Link>
         </>

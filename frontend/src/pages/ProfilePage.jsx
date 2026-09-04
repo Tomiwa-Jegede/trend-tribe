@@ -13,7 +13,8 @@ import api from "../api/axios";
 import BuyTokens from "../components/ui/BuyTokens";
 
 const ProfilePage = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const id = slug;
   const { user: currentUser, setUser } = useAuth();
   const { toast } = useToast();
   const handleCopyProfileLink = async () => {
@@ -76,7 +77,7 @@ const ProfilePage = () => {
     }
   };
 
-  const isOwnProfile = currentUser?.id === parseInt(id, 10);
+  const isOwnProfile = currentUser?.slug ? currentUser.slug === id : currentUser?.id === parseInt(id, 10) || currentUser?.username === id;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -88,7 +89,8 @@ const ProfilePage = () => {
         setListings(data.listings);
         setPagination(data.pagination || null);
         // For own profile, also fetch active count to show free slots left (3 free)
-        if (currentUser?.id === parseInt(id, 10)) {
+        const own = currentUser?.slug ? currentUser.slug === id : currentUser?.id === parseInt(id, 10);
+        if (own) {
           try {
             const activeData = await getListingsByUser(id, { available: "true", limit: 1 });
             setActiveCount(activeData.pagination?.totalCount ?? 0);
@@ -273,7 +275,7 @@ const ProfilePage = () => {
                 <FiZap className="w-3.5 h-3.5" />
                 {currentUser?.tokenBalance ?? 0} tokens
               </button>
-              <Link to={`/profile/${id}/edit`} aria-label="Edit profile" className="btn-secondary flex items-center justify-center px-3 py-2"><FiEdit2 className="w-4 h-4" /></Link>
+              <Link to={`/profile/${seller.slug || currentUser?.slug || id}/edit`} aria-label="Edit profile" className="btn-secondary flex items-center justify-center px-3 py-2"><FiEdit2 className="w-4 h-4" /></Link>
               <Link
                 to="/create-listing"
                 className="btn-primary flex items-center gap-2 whitespace-nowrap flex-1 sm:flex-none justify-center text-sm"

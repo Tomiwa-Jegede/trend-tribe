@@ -124,8 +124,8 @@ const App = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/verify-registration" element={<VerifyOtpPage />} />
-            <Route path="/profile/:id" element={<ProfilePage />} />
-            <Route path="/profile/:id/edit" element={<EditProfilePage />} />
+            <Route path="/profile/:slug" element={<ProfilePage />} />
+            <Route path="/profile/:slug/edit" element={<EditProfilePage />} />
 
             {/* Protected */}
             <Route

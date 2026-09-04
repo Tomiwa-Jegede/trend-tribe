@@ -424,7 +424,7 @@ const ListingDetailPage = () => {
           </div>
 
           <Link
-            to={`/profile/${listing.seller.id}`}
+            to={`/profile/${listing.seller.slug || listing.seller.id}`}
             className="card p-4 flex items-center gap-3 mb-6 hover:border-primary-200
                        transition-colors group"
           >

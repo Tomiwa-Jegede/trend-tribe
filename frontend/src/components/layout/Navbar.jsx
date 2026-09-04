@@ -257,7 +257,7 @@ const Navbar = () => {
                 </AnimatePresence>
               </div>
               {isAuthenticated && (
-                <NavLink path={`/profile/${user?.id}`} label="My Profile" />
+                <NavLink path={`/profile/${user?.slug || user?.id}`} label="My Profile" />
               )}
               {user?.role === "ADMIN" && (
                 <NavLink path="/admin" label="Admin" />
@@ -288,7 +288,7 @@ const Navbar = () => {
                                    <div className="flex items-center gap-2 pl-3 border-l border-sage-100">
                     <Link
 
-                      to={`/profile/${user?.id}`}
+                      to={`/profile/${user?.slug || user?.id}`}
 
                       className="flex items-center gap-2 text-sm text-gray-700
 
@@ -482,7 +482,7 @@ const Navbar = () => {
 
                              {isAuthenticated && (
                   <MobileNavLink
-                    path={`/profile/${user?.id}`}
+                    path={`/profile/${user?.slug || user?.id}`}
                     label="My Profile"
                     index={3}
 

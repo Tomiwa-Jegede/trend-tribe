@@ -69,7 +69,7 @@ const EditProfilePage = () => {
       if (avatarFile) fields.avatar = avatarFile;
       const updated = await updateProfile(fields);
       if (setUser) setUser((prev) => ({ ...prev, ...updated }));
-      navigate(`/profile/${currentUser.id}`);
+      navigate(`/profile/${currentUser.slug || currentUser.id}`);
     } catch (err) {
       setError("Failed to save changes. Please try again.");
       console.error(err);
@@ -123,7 +123,7 @@ const EditProfilePage = () => {
             <motion.button
               variants={fadeSlideUp}
               type="button"
-              onClick={() => navigate(`/profile/${currentUser.id}`)}
+              onClick={() => navigate(`/profile/${currentUser.slug || currentUser.id}`)}
               className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm font-medium transition-colors w-fit"
             >
               <FiArrowLeft className="w-4 h-4" />
@@ -258,7 +258,7 @@ const EditProfilePage = () => {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => navigate(`/profile/${currentUser.id}`)}
+                  onClick={() => navigate(`/profile/${currentUser.slug || currentUser.id}`)}
                   disabled={saving}
                 >
                   Cancel
