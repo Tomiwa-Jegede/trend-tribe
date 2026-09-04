@@ -158,4 +158,46 @@ router.get("/trust", async (req, res) => {
   }
 });
 
+// ─── AI: Jegede credits & usage ───────────────────────────────
+router.get("/ai", async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const FREE_LIMIT_GUEST = 10;
+    const FREE_LIMIT_USER = 20;
+    const [freeTodayAgg, totalFreeAgg, totalPaidSessions, tokensSpentAgg, recentFree] = await Promise.all([
+      prisma.aiFreeUsage.aggregate({ where: { date: today }, _sum: { count: true } }),
+      prisma.aiFreeUsage.aggregate({ _sum: { count: true } }),
+      prisma.frederickSession.count(),
+      prisma.frederickSession.aggregate({ _sum: { cost: true } }),
+      prisma.aiFreeUsage.findMany({ orderBy: { updatedAt: "desc" }, take: 20 }),
+    ]);
+    const freeToday = freeTodayAgg._sum.count || 0;
+    const totalFree = totalFreeAgg._sum.count || 0;
+    const tokensSpent = tokensSpentAgg._sum.cost || 0;
+    const geminiKeySet = !!process.env.GEMINI_API_KEY;
+    return res.json({
+      today,
+      free: {
+        limitGuest: FREE_LIMIT_GUEST,
+        limitUser: FREE_LIMIT_USER,
+        usedToday: freeToday,
+        totalFree,
+        recentFree,
+      },
+      paid: {
+        sessions: totalPaidSessions,
+        tokensSpent,
+      },
+      gemini: {
+        keySet: geminiKeySet,
+        // Gemini free quota is per Google Cloud, not queryable via API — we show our own usage
+        note: "Gemini free tier: 60 req/min, 1500/day. Track via Google Cloud Console → APIs → Generative AI.",
+      },
+    });
+  } catch (err) {
+    console.error("[ANALYTICS AI ERROR]", err);
+    return res.status(500).json({ error: "Failed to load AI analytics" });
+  }
+});
+
 module.exports = router;

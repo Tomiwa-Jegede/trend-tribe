@@ -24,3 +24,7 @@ export const getTrustAnalytics = async () => {
   const { data } = await api.get("/admin/analytics/trust");
   return data;
 };
+export const getAiAnalytics = async () => {
+  const { data } = await api.get("/admin/analytics/ai");
+  return data;
+};

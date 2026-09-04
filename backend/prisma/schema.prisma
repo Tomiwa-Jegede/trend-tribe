@@ -210,6 +210,18 @@ model SearchLog {
   @@map("search_logs")
 }
 
+model AiFreeUsage {
+  id         Int      @id @default(autoincrement())
+  identifier String   // userId or ip
+  date       String   // YYYY-MM-DD
+  count      Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, date])
+  @@map("ai_free_usages")
+}
+
 enum Role {
   USER
   ADMIN

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
-import { getMoneyAnalytics, getFunnelAnalytics, getSearchAnalytics } from "../services/analyticsService";
+import { getMoneyAnalytics, getFunnelAnalytics, getSearchAnalytics, getAiAnalytics } from "../services/analyticsService";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const TABS = [
@@ -11,6 +11,7 @@ const TABS = [
   { id: "money", label: "Money" },
   { id: "funnel", label: "Funnel" },
   { id: "search", label: "Search" },
+  { id: "ai", label: "AI" },
 ];
 
 const Card = ({ title, value, sub }) => (
@@ -26,18 +27,20 @@ const AdminAnalyticsPage = () => {
   const [money, setMoney] = useState(null);
   const [funnel, setFunnel] = useState(null);
   const [search, setSearch] = useState(null);
+  const [ai, setAi] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [m, f, se] = await Promise.all([
+        const [m, f, se, a] = await Promise.all([
           getMoneyAnalytics(30).catch(() => null),
           getFunnelAnalytics().catch(() => null),
           getSearchAnalytics().catch(() => null),
+          getAiAnalytics().catch(() => null),
         ]);
-        setMoney(m); setFunnel(f); setSearch(se);
+        setMoney(m); setFunnel(f); setSearch(se); setAi(a);
       } finally { setLoading(false); }
     };
     load();
@@ -64,7 +67,7 @@ const AdminAnalyticsPage = () => {
           <Card title="Contact Views" value={funnel?.funnel?.[2]?.count ?? 0} sub="WhatsApp taps" />
           <Card title="Zero-result searches" value={search?.zeroResults?.length ?? 0} sub="What users can't find" />
           <Card title="Messages" value={funnel?.funnel?.[3]?.count ?? 0} sub="Inbox messages" />
-          <Card title="Listings" value={funnel?.funnel?.[0]?.count ?? 0} sub="Active listings" />
+          <Card title="AI Free today" value={ai?.free?.usedToday ?? 0} sub={`${ai?.free?.limitUser || 20}/user · ${ai?.free?.limitGuest || 10}/guest`} />
         </div>
       )}
 
@@ -123,6 +126,28 @@ const AdminAnalyticsPage = () => {
             {search.zeroResults?.length ? search.zeroResults.map((r) => (
               <div key={r.id} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span className="truncate pr-4">{r.query} {r.category ? `· ${r.category}` : ""}</span><span className="text-gray-400 text-xs">{new Date(r.createdAt).toLocaleDateString()}</span></div>
             )) : <p className="text-sm text-gray-400">No zero-result searches</p>}
+          </div>
+        </div>
+      )}
+
+      {tab === "ai" && ai && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Card title="Free used today" value={ai.free.usedToday} sub={`${ai.free.limitGuest} guest / ${ai.free.limitUser} user`} />
+            <Card title="Total free" value={ai.free.totalFree} sub="All time" />
+            <Card title="Paid sessions" value={ai.paid.sessions} sub={`${ai.paid.tokensSpent} tokens spent`} />
+            <Card title="Gemini key" value={ai.gemini.keySet ? "Set ✅" : "Missing ❌"} sub={ai.gemini.keySet ? "Ready" : "Add GEMINI_API_KEY"} />
+          </div>
+          <div className="bg-white border border-sage-100 rounded-xl p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Free help limits</p>
+            <p className="text-sm text-gray-600">Guest: <span className="font-bold">{ai.free.limitGuest}/day</span> per IP · User: <span className="font-bold">{ai.free.limitUser}/day</span> per user. Shopping uses <span className="font-bold">1 token/session</span>.</p>
+            <p className="text-xs text-gray-500 mt-2">{ai.gemini.note}</p>
+          </div>
+          <div className="bg-white border border-sage-100 rounded-xl p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Recent free uses</p>
+            {ai.free.recentFree?.length ? ai.free.recentFree.map((r) => (
+              <div key={r.id} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span className="truncate pr-4">{r.identifier}</span><span className="font-bold">{r.count} on {r.date}</span></div>
+            )) : <p className="text-sm text-gray-400">No free uses yet</p>}
           </div>
         </div>
       )}

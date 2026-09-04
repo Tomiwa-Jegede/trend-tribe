@@ -16,6 +16,33 @@ const isShoppingIntent = (message, hasImage) => {
   return SHOPPING_KEYWORDS.some((k) => lower.includes(k));
 };
 
+const FREE_LIMIT_GUEST = 10;
+const FREE_LIMIT_USER = 20;
+
+const getFreeIdentifier = (req) => {
+  if (req.user) return `user:${req.user.id}`;
+  const ip = (req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "unknown").slice(0, 100);
+  return `ip:${ip}`;
+};
+
+const checkFreeLimit = async (identifier, limit) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const existing = await prisma.aiFreeUsage.findUnique({
+    where: { identifier_date: { identifier, date: today } },
+  });
+  const count = existing?.count || 0;
+  return { allowed: count < limit, count, remaining: Math.max(0, limit - count), limit, today };
+};
+
+const incrementFreeUsage = async (identifier) => {
+  const today = new Date().toISOString().slice(0, 10);
+  await prisma.aiFreeUsage.upsert({
+    where: { identifier_date: { identifier, date: today } },
+    create: { identifier, date: today, count: 1 },
+    update: { count: { increment: 1 } },
+  });
+};
+
 const HELP_SYSTEM_PROMPT = (shopperName, message) => `
 You are Jegede, TrendTribe's help assistant for the Trend Tribe campus marketplace (students buy/sell fashion, gadgets, beauty, etc. at trendtribe.app).
 
@@ -107,24 +134,46 @@ const chat = async (req, res) => {
     const isGuest = !req.user;
     const shopperName = req.user?.username || "friend";
 
-    // ─── Guest: always free, help only ───────────────────────
+    // ─── Guest: always free, help only (with daily limit) ─────
     if (isGuest) {
+      const identifier = getFreeIdentifier(req);
+      const limit = FREE_LIMIT_GUEST;
+      const check = await checkFreeLimit(identifier, limit);
+      if (!check.allowed) {
+        return res.status(429).json({
+          error: `Free help limit reached (${limit}/day). Please try again tomorrow or log in for more free help.`,
+          remaining: 0,
+          limit,
+        });
+      }
       if (isShopping) {
-        // Don't give catalog, invite to log in
         const prompt = HELP_SYSTEM_PROMPT(shopperName, message) + `\n\nIf they asked for product shopping, add at end: "For product search and image search, please log in — then I can shop the catalog for you (1 token per session)."`;
         const reply = await askGemini(prompt);
-        return res.status(200).json({ reply: reply.trim(), products: [] });
+        await incrementFreeUsage(identifier);
+        return res.status(200).json({ reply: reply.trim(), products: [], remaining: check.remaining - 1, limit });
       }
       const prompt = HELP_SYSTEM_PROMPT(shopperName, message);
       const reply = await askGemini(prompt);
-      return res.status(200).json({ reply: reply.trim(), products: [] });
+      await incrementFreeUsage(identifier);
+      return res.status(200).json({ reply: reply.trim(), products: [], remaining: check.remaining - 1, limit });
     }
 
-    // ─── Logged-in + free help (navigation) ─────────────────
+    // ─── Logged-in + free help (navigation) with limit ──────
     if (!isShopping) {
+      const identifier = getFreeIdentifier(req);
+      const limit = FREE_LIMIT_USER;
+      const check = await checkFreeLimit(identifier, limit);
+      if (!check.allowed) {
+        return res.status(429).json({
+          error: `Free help limit reached (${limit}/day). Shopping help uses 1 token per session instead.`,
+          remaining: 0,
+          limit,
+        });
+      }
       const prompt = HELP_SYSTEM_PROMPT(shopperName, message);
       const reply = await askGemini(prompt);
-      return res.status(200).json({ reply: reply.trim(), products: [] });
+      await incrementFreeUsage(identifier);
+      return res.status(200).json({ reply: reply.trim(), products: [], remaining: check.remaining - 1, limit });
     }
 
     // ─── Logged-in + shopping → charge 1 token per session ─
