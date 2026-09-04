@@ -22,12 +22,15 @@ const stripAdminFields = (listing) => {
 const findListingByIdentifier = async (identifier, extraInclude = undefined) => {
   const { isNumeric, id, slug } = resolveListingWhere(identifier);
   if (isNumeric) {
-    // Try slug first, then id
     let listing = await prisma.listing.findUnique({ where: { slug }, include: extraInclude });
     if (listing) return listing;
     return prisma.listing.findUnique({ where: { id }, include: extraInclude });
   }
-  return prisma.listing.findUnique({ where: { slug }, include: extraInclude });
+  let listing = await prisma.listing.findUnique({ where: { slug }, include: extraInclude });
+  if (listing) return listing;
+  // Fallback for old slugs without hash (e.g., "plain-tees" → "plain-tees-a1b2c3")
+  // Try prefix match so old shared links still show product image
+  return prisma.listing.findFirst({ where: { slug: { startsWith: slug } }, include: extraInclude });
 };
 
 // ─── Helper: check listing exists + verify ownership ──────────

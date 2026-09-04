@@ -14,16 +14,19 @@ const slugify = (text) => {
 
 const generateUniqueSlug = async (prisma, title, excludeId = null) => {
   const base = slugify(title);
-  let slug = base;
-  let counter = 2;
-  // Check existence, append -2, -3...
+  // Always append 6-char hash for uniqueness (e.g., "plain-tees-a1b2c3")
+  const genHash = () => Math.random().toString(36).substring(2, 8).toLowerCase();
+  let slug = `${base}-${genHash()}`;
+  if (slug.length > 100) slug = slug.slice(0, 100);
+  let attempts = 0;
   while (true) {
     const existing = await prisma.listing.findUnique({ where: { slug } });
     if (!existing || (excludeId && existing.id === excludeId)) break;
-    slug = `${base}-${counter}`;
-    counter++;
-    // safety: if base was 80 chars, ensure slug still <= 100
+    // collision — regen hash
+    slug = `${base}-${genHash()}`;
     if (slug.length > 100) slug = slug.slice(0, 100);
+    attempts++;
+    if (attempts > 10) throw new Error("Failed to generate unique slug");
   }
   return slug;
 };
