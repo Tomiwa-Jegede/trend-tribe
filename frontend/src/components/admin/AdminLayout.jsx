@@ -13,10 +13,12 @@ import {
   FiLogOut,
   FiMenu,
   FiX,
+  FiBarChart2,
 } from "react-icons/fi";
 
 const navItems = [
   { label: "Dashboard", path: "/admin", icon: FiGrid },
+  { label: "Analytics", path: "/admin/analytics", icon: FiBarChart2 },
   { label: "Users", path: "/admin/users", icon: FiUsers },
   { label: "Listings", path: "/admin/listings", icon: FiShoppingBag },
   { label: "Reports", path: "/admin/reports", icon: FiFlag },

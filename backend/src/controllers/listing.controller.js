@@ -133,6 +133,18 @@ const getAllListings = async (req, res) => {
 
     const totalPages = Math.ceil(totalCount / limitNum);
 
+    // Log search for analytics (non-blocking)
+    if (search?.trim()) {
+      prisma.searchLog.create({
+        data: {
+          query: search.trim().slice(0, 100),
+          category: category || null,
+          userId: req.user?.id || null,
+          results: totalCount,
+        },
+      }).catch(() => {});
+    }
+
     return res.status(200).json({
       listings: listings.map((l) => formatListing(stripAdminFields(l))),
       pagination: {

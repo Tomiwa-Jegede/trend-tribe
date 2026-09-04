@@ -197,6 +197,19 @@ model Message {
   @@map("messages")
 }
 
+model SearchLog {
+  id        Int      @id @default(autoincrement())
+  query     String
+  category  String?
+  userId    Int?
+  results   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([query])
+  @@index([createdAt])
+  @@map("search_logs")
+}
+
 enum Role {
   USER
   ADMIN

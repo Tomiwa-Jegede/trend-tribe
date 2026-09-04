@@ -36,6 +36,7 @@ const AdminReportsPage = lazy(() => import("./pages/AdminReportsPage"));
 const AdminFavoritesPage = lazy(() => import("./pages/AdminFavoritesPage"));
 const MyListingsPage = lazy(() => import("./pages/MyListingsPage"));
 const InboxPage = lazy(() => import("./pages/InboxPage"));
+const AdminAnalyticsPage = lazy(() => import("./pages/AdminAnalyticsPage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -199,6 +200,14 @@ const App = () => {
               element={
                 <AdminRoute>
                   <AdminFavoritesPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics"
+              element={
+                <AdminRoute>
+                  <AdminAnalyticsPage />
                 </AdminRoute>
               }
             />
