@@ -30,10 +30,15 @@ const app = express();
 // ─── Middleware ────────────────────────────────────────────────
 app.use(helmet());
 
+const allowedOrigins = config.clientUrl.split(",").map((s) => s.trim()).filter(Boolean);
 app.use(
   cors({
-    origin: config.clientUrl, // only allow our frontend
-    credentials: true, // allow cookies/auth headers
+    origin: (origin, callback) => {
+      // allow non-browser requests (curl/health) and any allowed web origin
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
+    credentials: true,
   }),
 );
 

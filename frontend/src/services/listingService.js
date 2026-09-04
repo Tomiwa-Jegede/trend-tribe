@@ -33,9 +33,9 @@ export const getListings = async (filters = {}) => {
   return data; // { listings, pagination, filters }
 };
 
-// ─── GET /api/listings/:id ──────────────────────────────────────
-export const getListingById = async (id) => {
-  const { data } = await api.get(`/listings/${id}`);
+// ─── GET /api/listings/:slug ──────────────────────────────────────
+export const getListingById = async (slugOrId) => {
+  const { data } = await api.get(`/listings/${slugOrId}`);
   return data.listing;
 };
 
@@ -53,9 +53,9 @@ export const createListing = async (listingData, confirmSpend = false) => {
     throw err;
   }
 };
-// ─── DELETE /api/listings/:id ────────────────────────────────────
-export const deleteListing = async (id) => {
-  const { data } = await api.delete(`/listings/${id}`);
+// ─── DELETE /api/listings/:slug ────────────────────────────────────
+export const deleteListing = async (slugOrId) => {
+  const { data } = await api.delete(`/listings/${slugOrId}`);
   return data;
 };
 
@@ -65,19 +65,19 @@ export const getListingsByUser = async (userId, params = {}) => {
   return data; // { seller, listings, pagination }
 };
 
-// ─── POST /api/listings/:id/report ──────────────────────────────
-export const reportListing = async (id, reason) => {
-  const { data } = await api.post(`/listings/${id}/report`, { reason });
+// ─── POST /api/listings/:slug/report ──────────────────────────────
+export const reportListing = async (slugOrId, reason) => {
+  const { data } = await api.post(`/listings/${slugOrId}/report`, { reason });
   return data; // { message }
 };
-// ─── PUT /api/listings/:id ───────────────────────────────────────
-export const updateListing = async (id, formData) => {
-  const { data } = await api.put(`/listings/${id}`, formData);
+// ─── PUT /api/listings/:slug ───────────────────────────────────────
+export const updateListing = async (slugOrId, formData) => {
+  const { data } = await api.put(`/listings/${slugOrId}`, formData);
   return data.listing;
 };
-// ─── POST /api/listings/:id/favorite ─────────────────────────────
-export const toggleFavorite = async (id) => {
-  const { data } = await api.post(`/listings/${id}/favorite`);
+// ─── POST /api/listings/:slug/favorite ─────────────────────────────
+export const toggleFavorite = async (slugOrId) => {
+  const { data } = await api.post(`/listings/${slugOrId}/favorite`);
   return data; // { favorited }
 };
 

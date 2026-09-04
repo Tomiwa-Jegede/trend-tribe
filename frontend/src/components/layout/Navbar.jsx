@@ -1,10 +1,11 @@
 // src/components/layout/Navbar.jsx
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
+import useRealtimePolling from "../../hooks/useRealtimePolling";
 
 import {
   FiShoppingBag,
@@ -60,7 +61,7 @@ const mobileItemVariants = {
 };
 
 const Navbar = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, token, logout } = useAuth();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,15 +76,22 @@ const Navbar = () => {
   const [showMoreMobile, setShowMoreMobile] = useState(false);
   const moreMobileRef = useRef(null);
 
+  const fetchInbox = useCallback(async () => {
+    if (!isAuthenticated || !token) { setInboxUnread(0); return; }
+    try { const { data } = await api.get("/messages/unread-count"); setInboxUnread(data.unreadCount); } catch (err) { if (import.meta.env.DEV) console.warn("[Navbar inbox unread]", err?.response?.data || err.message); }
+  }, [isAuthenticated, token]);
+
   useEffect(() => {
-    if (!isAuthenticated) { setInboxUnread(0); return; }
-    const fetchInbox = async () => {
-      try { const { data } = await api.get("/messages/unread-count"); setInboxUnread(data.unreadCount); } catch {}
-    };
+    if (!isAuthenticated || !token || !user?.id) {
+      setInboxUnread(0);
+      return;
+    }
+    setInboxUnread(0);
     fetchInbox();
-    const id = setInterval(fetchInbox, 30000);
-    return () => clearInterval(id);
-  }, [isAuthenticated, location.pathname]);
+  }, [isAuthenticated, token, user?.id, fetchInbox, location.pathname]);
+
+  // Real-time: poll every 10s + refetch on focus / tab visible / route change
+  useRealtimePolling(fetchInbox, 10000, isAuthenticated && !!token);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);

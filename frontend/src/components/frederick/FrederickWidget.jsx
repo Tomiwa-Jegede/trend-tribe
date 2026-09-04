@@ -298,7 +298,7 @@ const FrederickWidget = () => {
                         {m.products.map((p) => (
                           <Link
                             key={p.id}
-                            to={`/listings/${p.id}`}
+                            to={`/listings/${p.slug || p.id}`}
                             onClick={closeWidget}
                             className="flex items-center gap-2 bg-white rounded-lg p-2 hover:bg-sage-100 transition-colors"
                           >

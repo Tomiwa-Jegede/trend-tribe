@@ -11,6 +11,7 @@ import Alert from "../components/ui/Alert";
 import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
+import useRealtimePolling from "../hooks/useRealtimePolling";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
@@ -87,6 +88,9 @@ const MarketplacePage = () => {
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
+
+  // Real-time: auto-refresh listings every 15s + on focus / tab visible
+  useRealtimePolling(fetchListings, 15000, Boolean(filters.category && (SUBCATEGORIES_BY_CATEGORY[filters.category] ? filters.subcategory : true)));
 
   // ── Sync filters + page to URL ───────────────────────────
   useEffect(() => {

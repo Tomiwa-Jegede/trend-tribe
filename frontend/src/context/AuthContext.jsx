@@ -1,7 +1,8 @@
 // src/context/AuthContext.jsx — Global Auth State
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import api from "../api/axios";
+import useRealtimePolling from "../hooks/useRealtimePolling";
 
 const AuthContext = createContext(null);
 
@@ -29,12 +30,30 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // ── Refresh user data from server ────────────────────────────
+  // Never auto-logout: if /auth/me fails (network, 401, expired token)
+  // we keep the cached session and just skip the refresh. Only explicit
+  // logout() clears storage.
+  const refreshUser = useCallback(async () => {
+    if (!localStorage.getItem("tt_token")) return;
+    try {
+      const { data } = await api.get("/auth/me");
+      setUser(data.user);
+      localStorage.setItem("tt_user", JSON.stringify(data.user));
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn("[AuthContext refreshUser]", err?.response?.data || err.message);
+      // keep existing cached user/token — do not logout
+    }
+  }, []);
+
   useEffect(() => {
     if (token) {
       refreshUser();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, refreshUser]);
+
+  // Real-time: keep user (tokenBalance, profile, etc.) fresh every 30s + on focus
+  useRealtimePolling(refreshUser, 30000, !!token);
 
   // ── Login: save token + user to state + localStorage ────────
   const login = (tokenValue, userData) => {
@@ -50,17 +69,6 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem("tt_token");
     localStorage.removeItem("tt_user");
-  };
-
-  // ── Refresh user data from server ────────────────────────────
-  const refreshUser = async () => {
-    try {
-      const { data } = await api.get("/auth/me");
-      setUser(data.user);
-      localStorage.setItem("tt_user", JSON.stringify(data.user));
-    } catch {
-      logout();
-    }
   };
 
   const value = {

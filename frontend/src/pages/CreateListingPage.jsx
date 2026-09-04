@@ -65,7 +65,7 @@ const [pendingListing, setPendingListing] = useState(null); // { formData, token
     }
 
     refreshUser();
-    navigate(`/listings/${result.listing.id}`);
+    navigate(`/listings/${result.listing.slug || result.listing.id}`);
   };
 
   const handleConfirmSpend = async () => {
@@ -75,7 +75,7 @@ const [pendingListing, setPendingListing] = useState(null); // { formData, token
       const result = await createListing(pendingListing.formData, true);
       if (result.ok) {
         refreshUser();
-        navigate(`/listings/${result.listing.id}`);
+        navigate(`/listings/${result.listing.slug || result.listing.id}`);
       }
     } finally {
       setConfirming(false);

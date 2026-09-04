@@ -10,6 +10,7 @@ import Alert from "../components/ui/Alert";
 import { getMyFavorites } from "../services/listingService";
 import { useFavorites } from "../context/FavoritesContext";
 import { FiHeart } from "react-icons/fi";
+import useRealtimePolling from "../hooks/useRealtimePolling";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -37,6 +38,7 @@ const FavoritesPage = () => {
       setListings(data.listings);
       setPagination(data.pagination);
     } catch (err) {
+      if (import.meta.env.DEV) console.error("[FavoritesPage fetch]", err?.response?.data || err.message, err);
       setError(
         err.response?.data?.error ||
           "Failed to load your favorites. Please check your connection and try again.",
@@ -53,6 +55,20 @@ const FavoritesPage = () => {
     // unfavorites a listing from this very page and the list should shrink)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchFavorites, favoriteIds.size]);
+
+  // Real-time: keep favorites fresh every 15s + on focus
+  const pollFavorites = useCallback(() => {
+    // silent refresh without loader flash
+    const silent = async () => {
+      try {
+        const data = await getMyFavorites({ page: currentPage, limit: ITEMS_PER_PAGE });
+        setListings(data.listings);
+        setPagination(data.pagination);
+      } catch {}
+    };
+    silent();
+  }, [currentPage]);
+  useRealtimePolling(pollFavorites, 15000, true);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);

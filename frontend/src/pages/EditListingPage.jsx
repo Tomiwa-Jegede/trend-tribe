@@ -9,7 +9,8 @@ import { FiAlertCircle } from "react-icons/fi";
 import BuyTokens from "../components/ui/BuyTokens";
 
 const EditListingPage = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const id = slug;
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [pendingEdit, setPendingEdit] = useState(null); // { formData, tokenBalance, totalCost, error }
@@ -42,9 +43,9 @@ const EditListingPage = () => {
 
   const handleSubmit = async (formData) => {
     try {
-      await updateListing(id, formData);
+      const updated = await updateListing(id, formData);
       refreshUser?.();
-      navigate(`/listings/${id}`);
+      navigate(`/listings/${updated?.slug || listing?.slug || id}`);
     } catch (err) {
       const data = err.response?.data;
       if (data?.needsTokenConfirm) {
@@ -58,9 +59,9 @@ const EditListingPage = () => {
     if (!pendingEdit) return;
     setConfirming(true);
     try {
-      await updateListing(id, { ...pendingEdit.formData, confirmSpend: true });
+      const updated = await updateListing(id, { ...pendingEdit.formData, confirmSpend: true });
       refreshUser?.();
-      navigate(`/listings/${id}`);
+      navigate(`/listings/${updated?.slug || listing?.slug || id}`);
     } catch (err) {
       // keep pending for retry
       throw err;

@@ -4,8 +4,11 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye } from "react-icons/fi";
 import { getMyMessages, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
+import useRealtimePolling from "../hooks/useRealtimePolling";
+import { useAuth } from "../context/AuthContext";
 
 const InboxPage = () => {
+  const { isAuthenticated, token, user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,17 +16,39 @@ const InboxPage = () => {
   const [selecting, setSelecting] = useState(false);
   const [expanded, setExpanded] = useState(null); // id
 
-  const fetchMessages = useCallback(async () => {
-    setLoading(true);
+  const fetchMessages = useCallback(async (showLoader = true) => {
+    if (!isAuthenticated || !token) return;
+    if (showLoader) setLoading(true);
     try {
       const data = await getMyMessages({ limit: 20 });
       setMessages(data.messages);
       setPagination(data.pagination);
-    } catch {}
-    finally { setLoading(false); }
-  }, []);
+    } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage fetchMessages]", err?.response?.data || err.message); }
+    finally { if (showLoader) setLoading(false); }
+  }, [isAuthenticated, token]);
 
-  useEffect(() => { fetchMessages(); }, [fetchMessages]);
+  // Clear stale inbox on logout or account switch, then fetch for new account
+  useEffect(() => {
+    if (!isAuthenticated || !token || !user?.id) {
+      setMessages([]);
+      setPagination(null);
+      setSelected(new Set());
+      setSelecting(false);
+      setExpanded(null);
+      setLoading(false);
+      return;
+    }
+    setMessages([]);
+    setPagination(null);
+    setSelected(new Set());
+    setSelecting(false);
+    setExpanded(null);
+    fetchMessages(true);
+  }, [isAuthenticated, token, user?.id, fetchMessages]);
+
+  // Real-time: refresh inbox every 10s + on focus / tab visible (without full loader flash)
+  const pollInbox = useCallback(() => fetchMessages(false), [fetchMessages]);
+  useRealtimePolling(pollInbox, 10000, isAuthenticated && !!token);
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -42,26 +67,26 @@ const InboxPage = () => {
     if (selecting) { toggleSelect(m.id); return; }
     setExpanded(expanded === m.id ? null : m.id);
     if (!m.read) {
-      try { await markMessageRead(m.id); } catch {}
+      try { await markMessageRead(m.id); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage markRead]", err?.response?.data || err.message); }
       setMessages((prev) => prev.map((x) => x.id === m.id ? { ...x, read: true } : x));
     }
   };
 
   const handleDeleteOne = async (e, id) => {
     e.stopPropagation();
-    try { await deleteMessage(id); setMessages((prev) => prev.filter((x) => x.id !== id)); setSelected((p) => { const n = new Set(p); n.delete(id); return n; }); } catch {}
+    try { await deleteMessage(id); setMessages((prev) => prev.filter((x) => x.id !== id)); setSelected((p) => { const n = new Set(p); n.delete(id); return n; }); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage deleteOne]", err?.response?.data || err.message); }
   };
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
     if (!window.confirm(`Delete ${selected.size} message${selected.size !== 1 ? "s" : ""}?`)) return;
-    try { await deleteMessagesBulk(Array.from(selected)); setMessages((prev) => prev.filter((x) => !selected.has(x.id))); setSelected(new Set()); setSelecting(false); } catch {}
+    try { await deleteMessagesBulk(Array.from(selected)); setMessages((prev) => prev.filter((x) => !selected.has(x.id))); setSelected(new Set()); setSelecting(false); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage bulkDelete]", err?.response?.data || err.message); }
   };
   const handleDeleteAll = async () => {
     if (!window.confirm(`Delete all ${messages.length} messages?`)) return;
-    try { await deleteAllMessages(); setMessages([]); setSelected(new Set()); setSelecting(false); } catch {}
+    try { await deleteAllMessages(); setMessages([]); setSelected(new Set()); setSelecting(false); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage deleteAll]", err?.response?.data || err.message); }
   };
   const handleMarkAllRead = async () => {
-    try { await markAllMessagesRead(); setMessages((prev) => prev.map((x) => ({ ...x, read: true }))); } catch {}
+    try { await markAllMessagesRead(); setMessages((prev) => prev.map((x) => ({ ...x, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage markAllRead]", err?.response?.data || err.message); }
   };
 
   return (
@@ -120,7 +145,7 @@ const InboxPage = () => {
                       </span>
                     </div>
                     {m.listing && (
-                      <Link to={`/listings/${m.listing.id}`} onClick={(e) => e.stopPropagation()} className="mt-3 flex items-center gap-3 bg-white border border-sage-100 rounded-xl p-3 hover:border-primary-200 transition-colors">
+                      <Link to={`/listings/${m.listing.slug || m.listing.id}`} onClick={(e) => e.stopPropagation()} className="mt-3 flex items-center gap-3 bg-white border border-sage-100 rounded-xl p-3 hover:border-primary-200 transition-colors">
                         {m.listing.images?.[0] ? <img src={m.listing.images[0]} alt={m.listing.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" /> : <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center">🛍️</div>}
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{m.listing.title}</p>
@@ -131,7 +156,7 @@ const InboxPage = () => {
                     {isExpanded && (
                       <div className="mt-3 flex gap-2">
                         <button onClick={(e) => { e.stopPropagation(); setExpanded(null); }} className="text-xs text-gray-500 hover:text-gray-700">Collapse</button>
-                        {m.listing && <Link to={`/listings/${m.listing.id}`} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiEye className="w-3 h-3" /> View product</Link>}
+                        {m.listing && <Link to={`/listings/${m.listing.slug || m.listing.id}`} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiEye className="w-3 h-3" /> View product</Link>}
                       </div>
                     )}
                   </div>

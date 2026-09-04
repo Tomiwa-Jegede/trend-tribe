@@ -120,7 +120,7 @@ const App = () => {
             {/* Public */}
             <Route path="/" element={<HomePage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />
-            <Route path="/listings/:id" element={<ListingDetailPage />} />
+            <Route path="/listings/:slug" element={<ListingDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/verify-registration" element={<VerifyOtpPage />} />
@@ -136,8 +136,8 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-           <Route
-              path="/listings/:id/edit"
+            <Route
+              path="/listings/:slug/edit"
               element={
                 <ProtectedRoute>
                   <EditListingPage />

@@ -57,12 +57,12 @@ const MyListingsPage = () => {
     try {
       const nextAvailable = !listing.isAvailable;
       try {
-        await api.put(`/listings/${listing.id}`, { isAvailable: nextAvailable });
+        await api.put(`/listings/${listing.slug || listing.id}`, { isAvailable: nextAvailable });
       } catch (e) {
         if (e.response?.status === 402 && e.response?.data?.needsTokenConfirm) {
           const ok = confirm(e.response.data.error + "\n\nConfirm to spend 1 token?");
           if (!ok) throw e;
-          await api.put(`/listings/${listing.id}`, { isAvailable: nextAvailable, confirmSpend: true });
+          await api.put(`/listings/${listing.slug || listing.id}`, { isAvailable: nextAvailable, confirmSpend: true });
           refreshUser?.();
         } else {
           throw e;
@@ -84,7 +84,7 @@ const MyListingsPage = () => {
   const handleDelete = async (listing) => {
     if (!confirm(`Delete "${listing.title}"? This cannot be undone.`)) return;
     try {
-      await api.delete(`/listings/${listing.id}`);
+      await api.delete(`/listings/${listing.slug || listing.id}`);
       setListings((prev) => prev.filter((l) => l.id !== listing.id));
       refreshUser?.();
     } catch (e) {
@@ -97,14 +97,14 @@ const MyListingsPage = () => {
     setErr(null);
     try {
       try {
-        const { data } = await api.post(`/listings/${listing.id}/boost`, {});
+        const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, {});
         setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil } : l)));
         refreshUser?.();
       } catch (e) {
         if (e.response?.status === 402 && e.response?.data?.needsTokenConfirm) {
           const ok = confirm(e.response.data.error + "\n\nConfirm to spend 1 token for 24h Featured on top of Marketplace?");
           if (!ok) throw e;
-          const { data } = await api.post(`/listings/${listing.id}/boost`, { confirmSpend: true });
+          const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, { confirmSpend: true });
           setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil } : l)));
           refreshUser?.();
         } else {
@@ -182,7 +182,7 @@ const MyListingsPage = () => {
                     {l.isAvailable && <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/10"><div className="h-full bg-amber-400 transition-all" style={{ width: `${pctLeft}%`, opacity: 0.9 }} /></div>}
                   </div>
                   <div className="p-4">
-                    <Link to={`/listings/${l.id}`} className="font-bold text-gray-900 line-clamp-1 hover:text-primary-600">{l.title}</Link>
+                    <Link to={`/listings/${l.slug || l.id}`} className="font-bold text-gray-900 line-clamp-1 hover:text-primary-600">{l.title}</Link>
                     <p className="text-primary-600 font-extrabold mt-1">₦{Number(l.price).toLocaleString()}</p>
                     <p className="text-xs text-gray-500 mt-1">
                       {l.category} {l.subcategory ? `· ${l.subcategory}` : ""} · {l.condition} · {new Date(l.createdAt).toLocaleDateString()} · ♥ {l.favoriteCount ?? 0} {l.reportCount ? `· ⚑ ${l.reportCount}` : ""}
@@ -207,7 +207,7 @@ const MyListingsPage = () => {
                         </button>
                       )}
                       {boosted && <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">★ Featured {bLeft}h</span>}
-                      <Link to={`/listings/${l.id}/edit`} className="text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50">
+                      <Link to={`/listings/${l.slug || l.id}/edit`} className="text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50">
                         Edit
                       </Link>
                       <button onClick={() => handleDelete(l)} className="text-xs font-bold px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50">

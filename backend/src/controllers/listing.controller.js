@@ -3,6 +3,7 @@
 const prisma = require("../db");
 const { askGeminiVision } = require("../utils/gemini");
 const cloudinary = require("../config/cloudinary");
+const { generateUniqueSlug, resolveListingWhere } = require("../utils/slug");
 
 // ─── Helper: format listing for API response ──────────────────
 const formatListing = (listing) => ({
@@ -17,21 +18,25 @@ const stripAdminFields = (listing) => {
   return rest;
 };
 
-// ─── Helper: check listing exists + verify ownership ──────────
-const findAndVerifyListing = async (listingId, userId) => {
-  const listing = await prisma.listing.findUnique({
-    where: { id: listingId },
-  });
-
-  if (!listing) return { error: "Listing not found", status: 404 };
-
-  if (listing.sellerId !== userId) {
-    return {
-      error: "You are not authorized to modify this listing",
-      status: 403,
-    };
+// ─── Helper: resolve listing by slug or numeric id (backwards compat) ──
+const findListingByIdentifier = async (identifier, extraInclude = undefined) => {
+  const { isNumeric, id, slug } = resolveListingWhere(identifier);
+  if (isNumeric) {
+    // Try slug first, then id
+    let listing = await prisma.listing.findUnique({ where: { slug }, include: extraInclude });
+    if (listing) return listing;
+    return prisma.listing.findUnique({ where: { id }, include: extraInclude });
   }
+  return prisma.listing.findUnique({ where: { slug }, include: extraInclude });
+};
 
+// ─── Helper: check listing exists + verify ownership ──────────
+const findAndVerifyListing = async (identifier, userId) => {
+  const listing = await findListingByIdentifier(identifier);
+  if (!listing) return { error: "Listing not found", status: 404 };
+  if (listing.sellerId !== userId) {
+    return { error: "You are not authorized to modify this listing", status: 403 };
+  }
   return { listing };
 };
 
@@ -204,27 +209,24 @@ const searchListingsByImage = async (req, res) => {
   }
 };
 // ─────────────────────────────────────────────────────────────
-// GET /api/listings/:id
+// GET /api/listings/:slug (also accepts numeric id for backwards compat)
 // ─────────────────────────────────────────────────────────────
 const getListingById = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
 
-    const listing = await prisma.listing.findUnique({
-      where: { id },
-      include: {
-        seller: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-            avatar: true,
-            school: true,
-            bio: true,
-            createdAt: true,
-            listings: { where: { isAvailable: true }, select: { id: true } },
-          },
+    const listing = await findListingByIdentifier(identifier, {
+      seller: {
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          avatar: true,
+          school: true,
+          bio: true,
+          createdAt: true,
+          listings: { where: { isAvailable: true }, select: { id: true } },
         },
       },
     });
@@ -233,7 +235,6 @@ const getListingById = async (req, res) => {
 
     const { listings: sellerListings, ...sellerFields } = listing.seller;
     const cleaned = stripAdminFields(listing);
-    // keep seller override after stripping
     cleaned.seller = undefined;
 
     return res.status(200).json({
@@ -319,7 +320,9 @@ const createListing = async (req, res) => {
       }
     }
 
+      const slug = await generateUniqueSlug(prisma, title);
       const listingData = {
+        slug,
         title,
         description,
         price,
@@ -391,17 +394,14 @@ const createListing = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// PUT /api/listings/:id ← PROTECTED + OWNER ONLY
+// PUT /api/listings/:slug ← PROTECTED + OWNER ONLY
 // ─────────────────────────────────────────────────────────────
 const updateListing = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
 
-    const { error, status, listing } = await findAndVerifyListing(
-      id,
-      req.user.id,
-    );
+    const { error, status, listing } = await findAndVerifyListing(identifier, req.user.id);
     if (error) return res.status(status).json({ error });
 
 const {
@@ -480,7 +480,12 @@ const {
     }
 
     const updateData = {};
-    if (title !== undefined) updateData.title = title;
+    if (title !== undefined) {
+      updateData.title = title;
+      if (title !== listing.title) {
+        updateData.slug = await generateUniqueSlug(prisma, title, listing.id);
+      }
+    }
     if (description !== undefined) updateData.description = description;
     if (price !== undefined) updateData.price = price;
          if (category !== undefined) updateData.category = category;
@@ -526,7 +531,7 @@ const {
           });
           if (updatedSeller.count === 0) throw new Error("TOKEN_BALANCE_RACE");
           return tx.listing.update({
-            where: { id },
+            where: { id: listing.id },
             data: updateData,
             include: {
               seller: { select: { id: true, username: true, fullName: true, avatar: true, school: true, whatsapp: true } },
@@ -541,7 +546,7 @@ const {
       }
     } else {
       updated = await prisma.listing.update({
-        where: { id },
+        where: { id: listing.id },
         data: updateData,
         include: {
           seller: {
@@ -569,23 +574,20 @@ const {
 };
 
 // ─────────────────────────────────────────────────────────────
-// DELETE /api/listings/:id ← PROTECTED + OWNER ONLY
+// DELETE /api/listings/:slug ← PROTECTED + OWNER ONLY
 // ─────────────────────────────────────────────────────────────
 const deleteListing = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
 
-    const { error, status, listing } = await findAndVerifyListing(
-      id,
-      req.user.id,
-    );
+    const { error, status, listing } = await findAndVerifyListing(identifier, req.user.id);
     if (error) return res.status(status).json({ error });
 
     // Delete images from Cloudinary first
     await deleteFromCloudinary(listing.imagePublicIds);
 
-    await prisma.listing.delete({ where: { id } });
+    await prisma.listing.delete({ where: { id: listing.id } });
 
     return res.status(200).json({ message: "Listing deleted successfully ✅" });
   } catch (err) {
@@ -673,14 +675,14 @@ const archiveGhostListings = async () => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/listings/:id/boost ← PROTECTED (Marketplace top only)
+// POST /api/listings/:slug/boost ← PROTECTED (Marketplace top only)
 // 1 token = 24h featured product card on Marketplace top
 // ─────────────────────────────────────────────────────────────
 const boostListing = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
-    const { error, status, listing } = await findAndVerifyListing(id, req.user.id);
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
+    const { error, status, listing } = await findAndVerifyListing(identifier, req.user.id);
     if (error) return res.status(status).json({ error });
     if (!listing.isAvailable) return res.status(400).json({ error: "Only active listings can be boosted" });
     if (listing.boostedUntil && new Date(listing.boostedUntil) > new Date()) {
@@ -699,7 +701,7 @@ const boostListing = async (req, res) => {
     const updated = await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: 1 } }, data: { tokenBalance: { decrement: 1 } } });
       if (ok.count === 0) throw new Error("TOKEN_BALANCE_RACE");
-      return tx.listing.update({ where: { id }, data: { boostedAt: now, boostedUntil: until } });
+      return tx.listing.update({ where: { id: listing.id }, data: { boostedAt: now, boostedUntil: until } });
     });
     return res.status(200).json({ message: "Listing boosted for 24h ✅", listing: formatListing(updated) });
   } catch (err) {
@@ -777,13 +779,12 @@ const getListingsByUser = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/listings/:id/report ← PROTECTED
+// POST /api/listings/:slug/report ← PROTECTED
 // ─────────────────────────────────────────────────────────────
 const reportListing = async (req, res) => {
   try {
-    const listingId = parseInt(req.params.id, 10);
-    if (isNaN(listingId))
-      return res.status(400).json({ error: "Invalid listing ID" });
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
 
     const { reason } = req.body;
     const validReasons = ["SCAM", "FAKE_ITEM", "INAPPROPRIATE_CONTENT", "OTHER"];
@@ -791,8 +792,9 @@ const reportListing = async (req, res) => {
       return res.status(400).json({ error: "Invalid report reason" });
     }
 
-    const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+    const listing = await findListingByIdentifier(identifier);
     if (!listing) return res.status(404).json({ error: "Listing not found" });
+    const listingId = listing.id;
 
     if (listing.sellerId === req.user.id) {
       return res.status(400).json({ error: "You cannot report your own listing" });
@@ -817,15 +819,19 @@ const reportListing = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// GET /api/listings/:id/contact ← PROTECTED
+// GET /api/listings/:slug/contact ← PROTECTED
 // Reveals the seller's WhatsApp/phone number, gated by token credits.
 // 1 token = 4 views, every view counts (no caching of "already viewed").
 // Now also tracks contact view clicks per listing for seller analytics.
 // ─────────────────────────────────────────────────────────────
 const revealContact = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
+
+    const _listing = await findListingByIdentifier(identifier);
+    if (!_listing) return res.status(404).json({ error: "Listing not found" });
+    const id = _listing.id;
 
     const listing = await prisma.listing.findUnique({
       where: { id },
@@ -868,15 +874,17 @@ const revealContact = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/listings/:id/favorite ← PROTECTED
+// POST /api/listings/:slug/favorite ← PROTECTED
 // Toggles a favorite on/off for the current user.
 // ─────────────────────────────────────────────────────────────
 const toggleFavorite = async (req, res) => {
   try {
-    const listingId = parseInt(req.params.id, 10);
-    if (isNaN(listingId))
-      return res.status(400).json({ error: "Invalid listing ID" });
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
 
+    const _l = await findListingByIdentifier(identifier);
+    if (!_l) return res.status(404).json({ error: "Listing not found" });
+    const listingId = _l.id;
     const listing = await prisma.listing.findUnique({
       where: { id: listingId },
       select: { id: true, sellerId: true },

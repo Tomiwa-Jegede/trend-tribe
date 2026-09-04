@@ -253,7 +253,7 @@ const AdminDashboardPage = () => {
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Favorited (click to view)</p>
               <div className="flex flex-col gap-2">
                 {stats.topFavorited.map((l) => (
-                  <a key={l.id} href={`/listings/${l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
+                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
                     <span className="truncate pr-4">{l.title}</span>
                     <span className="font-bold">♥ {l.favoriteCount}</span>
                   </a>
@@ -266,7 +266,7 @@ const AdminDashboardPage = () => {
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Contact Clicks (admin only)</p>
               <div className="flex flex-col gap-2">
                 {stats.topContacted.map((l) => (
-                  <a key={l.id} href={`/listings/${l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
+                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
                     <span className="truncate pr-4">{l.title}</span>
                     <span className="font-bold">👁 {l.contactViews}</span>
                   </a>
@@ -278,7 +278,7 @@ const AdminDashboardPage = () => {
       )}
       <div className="mt-8 pt-6 border-t border-sage-100">
         <h2 className="text-sm font-semibold text-navy-900 mb-1">Send message to all users</h2>
-        <p className="text-sm text-gray-500 mb-3">Type what you want to send. They will get <span className="font-semibold">"You have a message on Trend Tribe"</span> email + notification with preview and a <span className="font-semibold">View → Inbox</span> button. Full message lives in their inbox.</p>
+        <p className="text-sm text-gray-500 mb-3">Type what you want to send. They will get <span className="font-semibold">"You have a message on Trend Tribe"</span> email + notification with preview. Tap the notification to open inbox. Full message lives in their inbox.</p>
         <input
           type="text"
           placeholder="Subject (optional)"
@@ -311,7 +311,7 @@ const AdminDashboardPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setShowNotifyPopup(false)}>
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl border border-sage-100" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold text-gray-900">Notify also via email?</h3>
-            <p className="text-sm text-gray-500 mt-1">Inbox + notification sent. Also send <span className="font-semibold">“You have a message on Trend Tribe”</span> with <span className="font-semibold">View → Inbox</span> to their real email?</p>
+            <p className="text-sm text-gray-500 mt-1">Inbox + notification sent. Also send <span className="font-semibold">“You have a message on Trend Tribe”</span> to their real email?</p>
             <div className="flex gap-2 mt-4">
               <button onClick={() => setShowNotifyPopup(false)} className="flex-1 btn-secondary text-sm">Ignore</button>
               <button onClick={handleNotifyEmail} disabled={notifying} className="flex-1 btn-primary text-sm">{notifying ? "Sending..." : "Notify to mail"}</button>

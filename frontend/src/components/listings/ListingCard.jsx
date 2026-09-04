@@ -91,10 +91,11 @@ const ListingCard = ({ listing }) => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { isFavorited, toggleFavorite } = useFavorites();
-  const { id, title, price, category, condition, images, location, seller } =
+  const { id, slug, title, price, category, condition, images, location, seller } =
     listing;
   const thumbnail = images?.[0] || null;
   const favorited = isFavorited(id);
+  const listingSlug = slug || id;
 
   const handleFavoriteClick = (e) => {
     e.preventDefault();
@@ -132,7 +133,7 @@ const ListingCard = ({ listing }) => {
       style={{ willChange: "transform" }}
     >
       <Link
-        to={`/listings/${id}`}
+        to={`/listings/${listingSlug}`}
         className="flex flex-col h-full focus:outline-none 
                    focus-visible:ring-2 focus-visible:ring-primary-600 
                    focus-visible:ring-offset-2 rounded-2xl"

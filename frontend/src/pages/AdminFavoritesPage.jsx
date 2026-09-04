@@ -58,7 +58,7 @@ const AdminFavoritesPage = () => {
               {favorites.map((f) => (
                 <tr key={f.id} className="border-b border-sage-50 last:border-0">
                   <td className="px-4 py-3 font-medium text-navy-900">
-                    <a href={`/listings/${f.listing.id}`} className="hover:text-primary-600">
+                    <a href={`/listings/${f.listing.slug || f.listing.id}`} className="hover:text-primary-600">
                       {f.listing.title}
                     </a>
                     <span className="text-gray-400 ml-2">{f.listing.isAvailable ? "Active" : "Hidden"}</span>

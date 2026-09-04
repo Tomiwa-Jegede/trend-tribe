@@ -1,12 +1,14 @@
 // src/components/notifications/NotificationBell.jsx — Bell-only (in-app pull) with select/delete
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { FiBell, FiTrash2, FiCheckSquare, FiSquare } from "react-icons/fi";
 import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
+import useRealtimePolling from "../../hooks/useRealtimePolling";
 
 const NotificationBell = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, token } = useAuth();
+  const location = useLocation();
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -14,39 +16,66 @@ const NotificationBell = () => {
   const [selected, setSelected] = useState(() => new Set());
   const ref = useRef(null);
 
-  const fetchUnread = async () => {
+  const closeDropdown = () => {
+    setOpen(false);
+    setSelecting(false);
+    setSelected(new Set());
+  };
+
+  const fetchUnread = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const { data } = await api.get("/notifications/unread-count");
       setUnread(data.unreadCount);
-    } catch {}
-  };
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn("[NotificationBell fetchUnread]", err?.response?.data || err.message);
+    }
+  }, [isAuthenticated, token]);
 
-  const fetchList = async () => {
+  const fetchList = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const { data } = await api.get("/notifications", { params: { limit: 20 } });
       setItems(data.notifications);
       setUnread(data.unreadCount);
-    } catch {}
-  };
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn("[NotificationBell fetchList]", err?.response?.data || err.message);
+    }
+  }, [isAuthenticated, token]);
 
+  // Clear stale data on logout or account switch, then fetch fresh
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !token || !user?.id) {
+      setItems([]);
+      setUnread(0);
+      closeDropdown();
+      return;
+    }
+    // user switched — wipe previous account's notifications immediately before fetching
+    setItems([]);
+    setUnread(0);
+    closeDropdown();
     fetchUnread();
-    const id = setInterval(fetchUnread, 30000);
-    return () => clearInterval(id);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, token, user?.id, fetchUnread]);
+
+  // Real-time: poll every 10s + refetch on focus / tab visible
+  useRealtimePolling(fetchUnread, 10000, isAuthenticated && !!token);
 
   useEffect(() => {
     const h = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-        setSelecting(false);
-        setSelected(new Set());
+        closeDropdown();
       }
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+  // Close on any route change (fixes "stays open after navigating from notification")
+  useEffect(() => {
+    closeDropdown();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   const handleOpen = async () => {
     const next = !open;
@@ -54,8 +83,8 @@ const NotificationBell = () => {
     if (next) {
       await fetchList();
       // requirement: opening notification marks all as read (both bell and inbox)
-      try { await api.post("/notifications/read-all"); setUnread(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); } catch {}
-      try { await api.post("/messages/read-all"); } catch {}
+      try { await api.post("/notifications/read-all"); setUnread(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[read-all notif]", err?.response?.data || err.message); }
+      try { await api.post("/messages/read-all"); } catch (err) { if (import.meta.env.DEV) console.warn("[read-all messages]", err?.response?.data || err.message); }
     }
     if (!next) {
       setSelecting(false);
@@ -68,7 +97,7 @@ const NotificationBell = () => {
       await api.post("/notifications/read-all");
       setUnread(0);
       setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    } catch {}
+    } catch (err) { if (import.meta.env.DEV) console.warn("[handleMarkAll]", err?.response?.data || err.message); }
   };
 
   const handleItemClick = async (n) => {
@@ -77,10 +106,12 @@ const NotificationBell = () => {
       return;
     }
     try {
-      if (!n.read) await api.patch(`/notifications/${n.id}/read`);
+      if (!n.read) await api.patch(`/notifications/${n.slug || n.id}/read`);
       setUnread((c) => Math.max(0, c - (n.read ? 0 : 1)));
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-    } catch {}
+    } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell mark read]", err?.response?.data || err.message); }
+    // Close dropdown immediately — navigation happens via <Link to=...>
+    closeDropdown();
   };
 
   const toggleSelect = (id) => {
@@ -111,7 +142,7 @@ const NotificationBell = () => {
       // adjust unread if deleted was unread
       const wasUnread = items.find((x) => x.id === id)?.read === false;
       if (wasUnread) setUnread((c) => Math.max(0, c - 1));
-    } catch {}
+    } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell deleteOne]", err?.response?.data || err.message); }
   };
 
   const handleDeleteSelected = async () => {
@@ -125,7 +156,7 @@ const NotificationBell = () => {
       setSelected(new Set());
       setSelecting(false);
       if (removedUnread) setUnread((c) => Math.max(0, c - removedUnread));
-    } catch {}
+    } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell bulk-delete]", err?.response?.data || err.message); }
   };
 
   const handleDeleteAll = async () => {
@@ -137,7 +168,7 @@ const NotificationBell = () => {
       setSelected(new Set());
       setSelecting(false);
       setUnread(0);
-    } catch {}
+    } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell deleteAll]", err?.response?.data || err.message); }
   };
 
   if (!isAuthenticated) return null;
@@ -167,7 +198,6 @@ const NotificationBell = () => {
             <div className="flex items-center gap-2">
               {!selecting ? (
                 <>
-                  <Link to="/inbox" onClick={() => setOpen(false)} className="text-xs font-semibold text-primary-600 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-1 hover:bg-primary-100">View → Inbox</Link>
                   {items.length > 0 && (
                     <button onClick={() => setSelecting(true)} className="text-xs font-semibold text-gray-600 hover:text-gray-800 px-2 py-1 rounded-lg hover:bg-gray-50">
                       Select
@@ -198,7 +228,7 @@ const NotificationBell = () => {
             ) : (
               items.map((n) => {
                 const isMessage = n.type === "MESSAGE";
-                const to = isMessage ? "/inbox" : n.type === "NEW_USER" ? "/admin/users" : n.listing ? `/listings/${n.listing.id}` : "/my-listings";
+                const to = isMessage ? "/inbox" : n.type === "NEW_USER" ? "/admin/users" : n.listing ? `/listings/${n.listing.slug || n.listing.id}` : "/my-listings";
                 const isSelected = selected.has(n.id);
                 return (
                   <div key={n.id} className={`flex items-start gap-2 px-2 py-1 hover:bg-gray-50 border-b border-gray-50 last:border-0 ${!n.read ? "bg-primary-50/50" : ""}`}>
@@ -240,15 +270,12 @@ const NotificationBell = () => {
                         {n.type === "MESSAGE" && (
                           <>
                             <span className="font-semibold">You have a message on Trend Tribe</span>
-                            <span className="block text-xs text-gray-500 mt-1 truncate">{n.listing?.title ? `📦 ${n.listing.title}` : "Tap View to open inbox"}</span>
+                            <span className="block text-xs text-gray-500 mt-1 truncate">{n.listing?.title ? `📦 ${n.listing.title}` : "Tap to open inbox"}</span>
                           </>
                         )}
                         {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE"].includes(n.type) && <>{n.type}</>}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
-                      {isMessage && !selecting && (
-                        <span className="inline-flex mt-2 text-xs font-semibold text-primary-600 bg-primary-50 border border-primary-100 rounded-full px-3 py-1">View →</span>
-                      )}
                     </Link>
                     <button
                       onClick={(e) => handleDeleteOne(e, n.id)}

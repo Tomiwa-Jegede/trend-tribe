@@ -89,6 +89,7 @@ model FrederickSession {
 
 model Listing {
   id             Int       @id @default(autoincrement())
+  slug           String?   @unique
   title          String
   description    String
   price          Decimal   @db.Decimal(10, 2)

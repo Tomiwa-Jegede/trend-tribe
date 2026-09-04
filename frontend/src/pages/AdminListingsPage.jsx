@@ -58,12 +58,12 @@ const AdminListingsPage = () => {
   };
 
   const handleShare = async (listing) => {
-    if (!window.confirm(`Send "${listing.title}" to inbox of all users? They will get a notification with View → Inbox.`)) return;
+    if (!window.confirm(`Send "${listing.title}" to inbox of all users? They will get a notification — tap it to open inbox.`)) return;
     try {
       await shareListingToInbox(listing.id);
       if (window.confirm(`Sent to inbox. Also notify via email ("You have a message on Trend Tribe" to their real email)?`)) {
         try {
-          await notifyInboxEmail({ subject: listing.title, body: `Check this on Trend Tribe: ${listing.title} — tap View to open inbox` });
+          await notifyInboxEmail({ subject: listing.title, body: `Check this on Trend Tribe: ${listing.title} — tap the notification to open inbox` });
           alert("Email notify started");
         } catch (e) {
           alert(e.response?.data?.error || "Failed to notify via email");
@@ -162,7 +162,7 @@ const AdminListingsPage = () => {
                   >
                     <td className="px-4 py-3 font-medium text-navy-900">
                       <div className="flex flex-col">
-                        <Link to={`/listings/${l.id}`} className="flex items-center gap-2 hover:text-primary-600 transition-colors">
+                        <Link to={`/listings/${l.slug || l.id}`} className="flex items-center gap-2 hover:text-primary-600 transition-colors">
                           {l.title}
                           {boosted && <span className="text-[10px] bg-amber-400 text-amber-900 px-1.5 py-0.5 rounded-full font-bold">★ Featured</span>}
                         </Link>
@@ -242,7 +242,7 @@ const AdminListingsPage = () => {
           {listings.map((l) => (
             <Link
               key={l.id}
-              to={`/listings/${l.id}`}
+              to={`/listings/${l.slug || l.id}`}
               className="bg-white border border-sage-100 rounded-xl p-4 block hover:border-primary-200 hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between mb-2">

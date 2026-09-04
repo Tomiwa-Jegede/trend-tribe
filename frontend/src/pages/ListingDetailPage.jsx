@@ -1,7 +1,8 @@
 // src/pages/ListingDetailPage.jsx — Live API Version
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { revealContact } from "../services/contactService";
+import useRealtimePolling from "../hooks/useRealtimePolling";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -54,7 +55,8 @@ const formatDate = (dateStr) =>
   });
 
 const ListingDetailPage = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const id = slug; // slug with fallback to numeric id
   const navigate = useNavigate();
   const { user, isAuthenticated, refreshUser } = useAuth();
   const { toast } = useToast();
@@ -75,30 +77,36 @@ const ListingDetailPage = () => {
   const [contactConfirm, setContactConfirm] = useState(null); // { tokenBalance } | null
   const [contactLoading, setContactLoading] = useState(false);
 
+  const fetchListing = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    setNotFound(false);
+    setError("");
+    try {
+      const data = await getListingById(id);
+      setListing((prev) => {
+        // keep activeImage if same listing
+        if (prev?.id !== data.id) setActiveImage(0);
+        return data;
+      });
+    } catch (err) {
+      if (err.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        setError("Failed to load listing. Please try again.");
+      }
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  }, [id]);
+
   // ── Fetch real listing ───────────────────────────────────
   useEffect(() => {
-    const fetchListing = async () => {
-      setLoading(true);
-      setNotFound(false);
-      setError("");
-      setActiveImage(0);
+    fetchListing(true);
+  }, [fetchListing]);
 
-      try {
-        const data = await getListingById(id);
-        setListing(data);
-      } catch (err) {
-        if (err.response?.status === 404) {
-          setNotFound(true);
-        } else {
-          setError("Failed to load listing. Please try again.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchListing();
-  }, [id]);
+  // Real-time: refresh listing every 15s + on focus / tab visible (silent)
+  const pollListing = useCallback(() => fetchListing(false), [fetchListing]);
+  useRealtimePolling(pollListing, 15000, true);
 
   const onGalleryStart = (clientX) => {
     startXRef.current = clientX;
@@ -134,7 +142,7 @@ const ListingDetailPage = () => {
   const handleReport = async (reason) => {
     setReporting(true);
     try {
-      await reportListing(listing.id, reason);
+      await reportListing(listing.slug || listing.id, reason);
       toast.success("Listing reported. Thank you for helping keep the marketplace safe.");
       setShowReportModal(false);
     } catch (err) {
@@ -148,7 +156,7 @@ const ListingDetailPage = () => {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await deleteListing(listing.id);
+      await deleteListing(listing.slug || listing.id);
       navigate("/marketplace");
     } catch (err) {
       setError(err.response?.data?.error || "Failed to delete listing.");
@@ -211,7 +219,7 @@ const ListingDetailPage = () => {
         />
         <link
           rel="canonical"
-          href={`https://trendtribee.netlify.app/listings/${listing.id}`}
+          href={`https://trendtribe.app/listings/${listing.slug || listing.id}`}
         />
         <meta property="og:title" content={`${listing.title} — Trend Tribe`} />
         <meta
@@ -221,7 +229,7 @@ const ListingDetailPage = () => {
         {images[0] && <meta property="og:image" content={images[0]} />}
         <meta
           property="og:url"
-          content={`https://trendtribee.netlify.app/listings/${listing.id}`}
+          content={`https://trendtribe.app/listings/${listing.slug || listing.id}`}
         />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${listing.title} — Trend Tribe`} />
@@ -244,7 +252,7 @@ const ListingDetailPage = () => {
               availability: listing.isAvailable
                 ? "https://schema.org/InStock"
                 : "https://schema.org/OutOfStock",
-              url: `https://trendtribee.netlify.app/listings/${listing.id}`,
+              url: `https://trendtribe.app/listings/${listing.slug || listing.id}`,
             },
           })}
         </script>
@@ -443,7 +451,7 @@ const ListingDetailPage = () => {
           {isOwner ? (
             <div className="flex gap-3">
               <Link
-                to={`/listings/${listing.id}/edit`}
+                to={`/listings/${listing.slug || listing.id}/edit`}
                 className="btn-secondary flex-1 flex items-center justify-center gap-2"
               >
                 <FiEdit2 className="w-4 h-4" />
@@ -466,13 +474,13 @@ const ListingDetailPage = () => {
                     return;
                   }
                   setContactLoading(true);
-                  const result = await revealContact(listing.id);
+                  const result = await revealContact(listing.slug || listing.id);
                   setContactLoading(false);
                   if (result.whatsapp) {
                     const message = encodeURIComponent(`Hi ${listing.seller.fullName}, I'm interested in your listing:
 📦 Item: ${listing.title}
 💰 Price: ₦${listing.price}
-🔗 Listing: ${window.location.origin}/listings/${listing.id}
+🔗 Listing: ${window.location.origin}/listings/${listing.slug || listing.id}
 Is this still available?`);
                     window.open(`https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`, "_blank");
                   } else {

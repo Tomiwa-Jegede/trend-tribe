@@ -6,13 +6,13 @@ import { toggleFavorite as apiToggleFavorite, getFavoriteIds } from "../services
 const FavoritesContext = createContext(null);
 
 export const FavoritesProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token, user } = useAuth();
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [loading, setLoading] = useState(false);
 
-  // ── Load favorite IDs whenever auth state changes ────────────
+  // ── Load favorite IDs whenever auth/user changes — clear stale on switch ──
   const refreshFavoriteIds = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !token) {
       setFavoriteIds(new Set());
       return;
     }
@@ -25,11 +25,16 @@ export const FavoritesProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, token]);
 
   useEffect(() => {
+    if (!isAuthenticated || !token || !user?.id) {
+      setFavoriteIds(new Set());
+      return;
+    }
+    setFavoriteIds(new Set());
     refreshFavoriteIds();
-  }, [refreshFavoriteIds]);
+  }, [isAuthenticated, token, user?.id, refreshFavoriteIds]);
 
   const isFavorited = (listingId) => favoriteIds.has(listingId);
 
