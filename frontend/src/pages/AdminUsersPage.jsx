@@ -1,6 +1,7 @@
 // src/pages/AdminUsersPage.jsx — User management (Phase: view, search, delete)
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { useAuth } from "../context/AuthContext";
 import { getAdminUsers, deleteAdminUser } from "../services/adminService";
@@ -8,6 +9,8 @@ import { MiniSpinner } from "../components/ui/LoadingSpinner";
 
 const AdminUsersPage = () => {
   const { user: currentAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const roleFilter = searchParams.get("role") || "";
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -19,7 +22,7 @@ const AdminUsersPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAdminUsers({ search: search || undefined, page });
+      const data = await getAdminUsers({ search: search || undefined, role: roleFilter || undefined, page });
       setUsers(data.users);
       setPagination(data.pagination);
     } catch {
@@ -27,7 +30,7 @@ const AdminUsersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, page]);
+  }, [search, roleFilter, page]);
 
   useEffect(() => {
     fetchUsers();
@@ -51,9 +54,33 @@ const AdminUsersPage = () => {
 
   return (
     <AdminLayout>
-      <h1 className="text-xl font-bold text-navy-900 mb-6">Users</h1>
+      <div className="flex items-center justify-between mb-6 gap-2">
+        <h1 className="text-xl font-bold text-navy-900">Users</h1>
+        {roleFilter && (
+          <Link to="/admin/users" onClick={() => setPage(1)} className="text-xs font-semibold text-primary-600 bg-primary-50 border border-primary-100 rounded-full px-3 py-1.5 hover:bg-primary-100">
+            Clear filter ✕
+          </Link>
+        )}
+      </div>
 
-      <div className="mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
+        {[
+          { label: "All", value: "" },
+          { label: "Sellers", value: "SELLER" },
+          { label: "Buyers", value: "BUYER" },
+        ].map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => {
+              setPage(1);
+              if (tab.value) setSearchParams({ role: tab.value });
+              else setSearchParams({});
+            }}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${roleFilter === tab.value ? "bg-navy-900 text-white border-navy-900" : "bg-white text-gray-600 border-sage-100 hover:bg-gray-50"}`}
+          >
+            {tab.label}
+          </button>
+        ))}
         <input
           type="text"
           placeholder="Search by username or email..."
@@ -62,7 +89,7 @@ const AdminUsersPage = () => {
             setPage(1);
             setSearch(e.target.value);
           }}
-          className="w-full sm:w-80 border border-sage-100 rounded-lg px-3 py-2 text-sm"
+          className="ml-auto w-full sm:w-64 border border-sage-100 rounded-lg px-3 py-2 text-sm"
         />
       </div>
 

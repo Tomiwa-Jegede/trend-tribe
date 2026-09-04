@@ -194,7 +194,7 @@ router.delete("/listings/:id", protect, requireAdmin, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.get("/users", protect, requireAdmin, async (req, res) => {
   try {
-    const { search, page = 1, limit = 20 } = req.query;
+    const { search, role, page = 1, limit = 20 } = req.query;
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
@@ -206,6 +206,9 @@ router.get("/users", protect, requireAdmin, async (req, res) => {
         { username: { contains: search.trim(), mode: "insensitive" } },
         { email: { contains: search.trim(), mode: "insensitive" } },
       ];
+    }
+    if (role && ["BUYER", "SELLER", "ADMIN", "USER"].includes(role.toUpperCase())) {
+      where.role = role.toUpperCase();
     }
 
     const [users, totalCount] = await Promise.all([

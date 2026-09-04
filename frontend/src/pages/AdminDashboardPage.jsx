@@ -8,13 +8,12 @@ import { broadcastMessage } from "../services/messageService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
-import { FiInstagram, FiMessageCircle } from "react-icons/fi";
+
 
 const STAT_CONFIG = [
   { key: "totalUsers", label: "Total Users", to: "/admin/users" },
-  { key: "totalSellers", label: "Sellers", to: "/admin/users" },
-  { key: "totalBuyers", label: "Buyers", to: "/admin/users" },
-  { key: "totalAdmins", label: "Admins", to: "/admin/users" },
+  { key: "totalSellers", label: "Sellers", to: "/admin/users?role=SELLER" },
+  { key: "totalBuyers", label: "Buyers", to: "/admin/users?role=BUYER" },
   { key: "totalListings", label: "Total Listings", to: "/admin/listings" },
   { key: "activeListings", label: "Active Listings", to: "/admin/listings" },
   { key: "newUsers", label: "New Users (Last 7 Days)", to: "/admin/users" },
@@ -263,19 +262,6 @@ const AdminDashboardPage = () => {
               <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading Cloudinary usage…</div>
             )}
           </div>
-          {/* Community Links — Admin quick access */}
-          <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Community</p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <a href="https://chat.whatsapp.com/HWJAMqgI9ebITZp4CorXOm?mode=gi_t" target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 bg-green-50 border border-green-200 text-green-700 font-semibold px-4 py-3 rounded-xl hover:bg-green-100 transition-colors">
-                <FiMessageCircle className="w-5 h-5" /> Join WhatsApp Group
-              </a>
-              <a href="https://www.instagram.com/trendtribe_marketplace?igsh=MWxuMnA3bzF6Y2ttbg%3D%3D&utm_source=qr" target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 bg-pink-50 border border-pink-200 text-pink-700 font-semibold px-4 py-3 rounded-xl hover:bg-pink-100 transition-colors">
-                <FiInstagram className="w-5 h-5" /> Instagram
-              </a>
-            </div>
-          </div>
-
           {/* DB Free Space Left — Neon Postgres */}
           {dbUsage ? (
             <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
