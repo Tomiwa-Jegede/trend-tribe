@@ -110,7 +110,7 @@ const AdminUsersPage = () => {
                 <th className="px-4 py-3">Username</th>
                 <th className="px-4 py-3">Full Name</th>
                 <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">School</th>
+                {roleFilter !== "BUYER" && <th className="px-4 py-3">School</th>}
                 <th className="px-4 py-3">Tokens</th>
                 {roleFilter !== "BUYER" && <><th className="px-4 py-3">Listings</th><th className="px-4 py-3">Views</th></>}
                 {roleFilter !== "BUYER" && <th className="px-4 py-3">Matric No.</th>}
@@ -134,7 +134,7 @@ const AdminUsersPage = () => {
                   </td>
                   <td className="px-4 py-3 text-gray-600">{u.fullName}</td>
                   <td className="px-4 py-3 text-gray-600">{u.email}</td>
-                  <td className="px-4 py-3 text-gray-600">{u.school}</td>
+                  {roleFilter !== "BUYER" && <td className="px-4 py-3 text-gray-600">{u.school}</td>}
                   <td className="px-4 py-3 text-center font-bold text-navy-900"><span className="inline-flex items-center justify-center gap-1"><TokenIcon size={12} /> {u.tokenBalance ?? 0}</span></td>
                   {roleFilter !== "BUYER" && (
                     <>
@@ -168,7 +168,7 @@ const AdminUsersPage = () => {
               {users.length === 0 && (
                 <tr>
                   <td
-                    colSpan={roleFilter === "BUYER" ? 7 : 10}
+                    colSpan={roleFilter === "BUYER" ? 6 : 10}
                     className="px-4 py-6 text-center text-gray-400"
                   >
                     No users found.
@@ -200,9 +200,11 @@ const AdminUsersPage = () => {
               </div>
               <p className="text-sm text-gray-600">{u.fullName}</p>
               <p className="text-sm text-gray-500 break-all">{u.email}</p>
-              <p className="text-xs text-gray-400 mt-1 truncate">
-                {u.school} {u.matricNumber ? `· ${u.matricNumber}` : ""}
-              </p>
+              {roleFilter !== "BUYER" && (
+                <p className="text-xs text-gray-400 mt-1 truncate">
+                  {u.school} {u.matricNumber ? `· ${u.matricNumber}` : ""}
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1"><TokenIcon size={12} /> {u.tokenBalance ?? 0} tokens</span>
                 {roleFilter !== "BUYER" && (
