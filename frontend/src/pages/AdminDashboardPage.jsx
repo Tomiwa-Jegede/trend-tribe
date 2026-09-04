@@ -559,31 +559,6 @@ const AdminDashboardPage = () => {
             )}
           </div>
 
-          <div className="bg-white border border-sage-100 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-navy-900 mb-1">Weekly (generic) — fallback</h3>
-            <p className="text-xs text-gray-500 mb-3">Old generic weekly without custom message — kept for cron.</p>
-            <button
-              type="button"
-              onClick={() => setShowSendConfirm(true)}
-              disabled={sendingEmail || emailRun?.status === "running"}
-              className="btn-secondary text-sm disabled:opacity-60"
-            >
-              {sendingEmail || emailRun?.status === "running" ? "Sending..." : "Send Generic Weekly"}
-            </button>
-            <ConfirmDialog
-              isOpen={showSendConfirm}
-              warning
-              title="Send Weekly Email?"
-              message="This will send the generic weekly email to all opted-in, verified users."
-              confirmLabel="Send Now"
-              cancelLabel="Cancel"
-              onConfirm={handleSendWeeklyEmail}
-              onCancel={() => setShowSendConfirm(false)}
-            />
-            {emailRun?.status === "running" && <div className="flex items-center gap-2 text-sm text-gray-500 mt-3"><MiniSpinner size={16} /> Sending...</div>}
-            {emailRun?.status === "done" && <p className="text-sm text-green-600 mt-3">{emailRun.result.sent} sent · {emailRun.result.failed} failed</p>}
-            {emailRun?.status === "error" && <p className="text-sm text-red-500 mt-3">{emailRun.error}</p>}
-          </div>
         </div>
       )}
     </AdminLayout>
