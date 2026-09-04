@@ -39,6 +39,7 @@ const AdminDashboardPage = () => {
   const [dbError, setDbError] = useState("");
   const [brevoUsage, setBrevoUsage] = useState(null);
   const [brevoError, setBrevoError] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
   const [broadcastSubject, setBroadcastSubject] = useState("");
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
@@ -161,11 +162,31 @@ const AdminDashboardPage = () => {
       .catch((e) => setBrevoError(e.response?.data?.error || "Could not load Brevo usage"));
   }, []);
 
+  const TABS = [
+    { id: "overview", label: "Overview" },
+    { id: "system", label: "System" },
+    { id: "messages", label: "Messages" },
+    { id: "emails", label: "Emails" },
+  ];
+
   return (
     <AdminLayout>
-      <h1 className="text-xl font-bold text-navy-900 mb-6">Dashboard</h1>
+      <h1 className="text-xl font-bold text-navy-900 mb-2">Dashboard</h1>
+      <p className="text-sm text-gray-500 mb-4">Manage your marketplace — stats, system health, and messaging.</p>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`px-4 py-2 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${activeTab === t.id ? "bg-navy-900 text-white border-navy-900" : "bg-white text-gray-600 border-sage-100 hover:bg-gray-50"}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       {!stats && !error && (
         <div className="flex items-center gap-2 text-sm text-gray-500 py-8">
@@ -174,7 +195,7 @@ const AdminDashboardPage = () => {
         </div>
       )}
 
-      {stats && (
+      {stats && activeTab === "overview" && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {STAT_CONFIG.map(({ key, label, to }) => {
@@ -198,6 +219,37 @@ const AdminDashboardPage = () => {
               );
             })}
           </div>
+          {stats.topFavorited?.length > 0 && (
+            <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Favorited (click to view)</p>
+              <div className="flex flex-col gap-2">
+                {stats.topFavorited.map((l) => (
+                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
+                    <span className="truncate pr-4">{l.title}</span>
+                    <span className="font-bold">♥ {l.favoriteCount}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          {stats.topContacted?.length > 0 && (
+            <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Contact Clicks (admin only)</p>
+              <div className="flex flex-col gap-2">
+                {stats.topContacted.map((l) => (
+                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
+                    <span className="truncate pr-4">{l.title}</span>
+                    <span className="font-bold">👁 {l.contactViews}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {stats && activeTab === "system" && (
+        <div className="space-y-6">
 
           {/* Brevo Free Emails Left — Admin Only */}
           <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
@@ -287,36 +339,12 @@ const AdminDashboardPage = () => {
             <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5 flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading DB usage…</div>
           )}
 
-          {stats.topFavorited?.length > 0 && (
-            <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Favorited (click to view)</p>
-              <div className="flex flex-col gap-2">
-                {stats.topFavorited.map((l) => (
-                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
-                    <span className="truncate pr-4">{l.title}</span>
-                    <span className="font-bold">♥ {l.favoriteCount}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-          {stats.topContacted?.length > 0 && (
-            <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Contact Clicks (admin only)</p>
-              <div className="flex flex-col gap-2">
-                {stats.topContacted.map((l) => (
-                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between">
-                    <span className="truncate pr-4">{l.title}</span>
-                    <span className="font-bold">👁 {l.contactViews}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
-      <div className="mt-8 pt-6 border-t border-sage-100">
-        <h2 className="text-sm font-semibold text-navy-900 mb-1">Send message to all users</h2>
+
+      {activeTab === "messages" && (
+        <div className="mt-2 bg-white border border-sage-100 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-navy-900 mb-1">Send message to all users</h2>
         <p className="text-sm text-gray-500 mb-3">Type what you want to send. They will get <span className="font-semibold">"You have a message on Trend Tribe"</span> email + notification with preview. Tap the notification to open inbox. Full message lives in their inbox.</p>
         <input
           type="text"
@@ -344,6 +372,7 @@ const AdminDashboardPage = () => {
           {broadcastResult && <span className="text-sm text-green-600 font-medium">Sent to {broadcastResult.sent} users</span>}
         </div>
       </div>
+      )}
 
       {/* Subtle popup: notify to mail or ignore */}
       {showNotifyPopup && lastBroadcast && (
@@ -359,8 +388,9 @@ const AdminDashboardPage = () => {
         </div>
       )}
 
-      <div className="mt-8 pt-6 border-t border-sage-100">
-        <h2 className="text-sm font-semibold text-navy-900 mb-1">Weekly Email</h2>
+      {activeTab === "emails" && (
+        <div className="mt-2 bg-white border border-sage-100 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-navy-900 mb-1">Weekly Email</h2>
         <p className="text-sm text-gray-500 mb-3">
           Manually send the weekly marketing email to all opted-in, verified users.
         </p>
@@ -424,6 +454,7 @@ const AdminDashboardPage = () => {
           </p>
         )}
       </div>
+      )}
     </AdminLayout>
   );
 };

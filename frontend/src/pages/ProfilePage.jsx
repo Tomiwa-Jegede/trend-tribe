@@ -359,40 +359,44 @@ const ProfilePage = () => {
 
         </div>
 
-      {/* ── Listings ── */}
-      <div className="mb-4 sm:mb-6">
-        <h3 className="text-lg sm:text-2xl font-semibold text-gray-900 flex flex-wrap items-center gap-2 break-words">
-          <span>{isOwnProfile ? "Your Listings" : `${seller.fullName}'s Listings`}</span>
-          <span className="inline-flex items-center justify-center bg-gray-100 text-gray-600 font-medium text-sm px-2.5 py-1 rounded-full">
-            {pagination?.totalCount ?? listings.length}
-          </span>
-        </h3>
-        {isOwnProfile && activeCount !== null ? (
-          <p className="text-sm text-gray-600 mt-1 break-words">
-            {Math.max(0, 3 - activeCount)} free space{Math.max(0, 3 - activeCount) !== 1 ? "s" : ""} left · {activeCount} active{pagination?.totalCount != null && pagination.totalCount !== activeCount ? ` / ${pagination.totalCount} total` : ""} · <Link to="/my-listings" className="text-primary-600 font-medium hover:text-primary-700">Manage →</Link>
-          </p>
-        ) : (
-          <p className="text-sm text-gray-500 mt-1 sm:hidden">
-            {pagination?.totalCount ?? listings.length} item{(pagination?.totalCount ?? listings.length) !== 1 ? "s" : ""} listed
-          </p>
-        )}
-        {isOwnProfile && pagination && pagination.totalPages > 1 && (
-          <p className="text-xs text-gray-400 mt-1">Showing {listings.length} of {pagination.totalCount} — page 1 · <Link to="/my-listings" className="text-primary-600">view all in My Listings</Link></p>
-        )}
-      </div>
+      {/* ── Listings — sellers only (buyers have no listings) ── */}
+      {seller.role !== "BUYER" && (
+        <>
+          <div className="mb-4 sm:mb-6">
+            <h3 className="text-lg sm:text-2xl font-semibold text-gray-900 flex flex-wrap items-center gap-2 break-words">
+              <span>{isOwnProfile ? "Your Listings" : `${seller.fullName}'s Listings`}</span>
+              <span className="inline-flex items-center justify-center bg-gray-100 text-gray-600 font-medium text-sm px-2.5 py-1 rounded-full">
+                {pagination?.totalCount ?? listings.length}
+              </span>
+            </h3>
+            {isOwnProfile && activeCount !== null ? (
+              <p className="text-sm text-gray-600 mt-1 break-words">
+                {Math.max(0, 3 - activeCount)} free space{Math.max(0, 3 - activeCount) !== 1 ? "s" : ""} left · {activeCount} active{pagination?.totalCount != null && pagination.totalCount !== activeCount ? ` / ${pagination.totalCount} total` : ""} · <Link to="/my-listings" className="text-primary-600 font-medium hover:text-primary-700">Manage →</Link>
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500 mt-1 sm:hidden">
+                {pagination?.totalCount ?? listings.length} item{(pagination?.totalCount ?? listings.length) !== 1 ? "s" : ""} listed
+              </p>
+            )}
+            {isOwnProfile && pagination && pagination.totalPages > 1 && (
+              <p className="text-xs text-gray-400 mt-1">Showing {listings.length} of {pagination.totalCount} — page 1 · <Link to="/my-listings" className="text-primary-600">view all in My Listings</Link></p>
+            )}
+          </div>
 
-      {listings.length > 0 ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={{ ...listing, seller }} />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <FiInbox className="w-6 h-6 text-gray-400" />
-          </div><p className="text-gray-500">No listings posted yet.</p>
-        </div>
+          {listings.length > 0 ? (
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {listings.map((listing) => (
+                <ListingCard key={listing.id} listing={{ ...listing, seller }} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <FiInbox className="w-6 h-6 text-gray-400" />
+              </div><p className="text-gray-500">No listings posted yet.</p>
+            </div>
+          )}
+        </>
       )}
 
       <BuyTokens isOpen={buyTokensOpen} onClose={() => setBuyTokensOpen(false)} />
