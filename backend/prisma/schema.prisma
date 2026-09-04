@@ -212,7 +212,7 @@ model SearchLog {
 
 model AiFreeUsage {
   id         Int      @id @default(autoincrement())
-  identifier String   // userId or ip
+  identifier String   // userId or ip — each gets own 10/20 per day, not shared
   date       String   // YYYY-MM-DD
   count      Int      @default(1)
   createdAt  DateTime @default(now())
@@ -220,6 +220,16 @@ model AiFreeUsage {
 
   @@unique([identifier, date])
   @@map("ai_free_usages")
+}
+
+model GeminiLog {
+  id        Int      @id @default(autoincrement())
+  date      String   @unique // YYYY-MM-DD
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gemini_logs")
 }
 
 enum Role {

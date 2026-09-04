@@ -164,16 +164,20 @@ router.get("/ai", async (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
     const FREE_LIMIT_GUEST = 10;
     const FREE_LIMIT_USER = 20;
-    const [freeTodayAgg, totalFreeAgg, totalPaidSessions, tokensSpentAgg, recentFree] = await Promise.all([
+    const GEMINI_DAILY_LIMIT = 1500;
+    const [freeTodayAgg, totalFreeAgg, totalPaidSessions, tokensSpentAgg, recentFree, geminiToday] = await Promise.all([
       prisma.aiFreeUsage.aggregate({ where: { date: today }, _sum: { count: true } }),
       prisma.aiFreeUsage.aggregate({ _sum: { count: true } }),
       prisma.frederickSession.count(),
       prisma.frederickSession.aggregate({ _sum: { cost: true } }),
       prisma.aiFreeUsage.findMany({ orderBy: { updatedAt: "desc" }, take: 20 }),
+      prisma.geminiLog.findUnique({ where: { date: today } }),
     ]);
     const freeToday = freeTodayAgg._sum.count || 0;
     const totalFree = totalFreeAgg._sum.count || 0;
     const tokensSpent = tokensSpentAgg._sum.cost || 0;
+    const geminiTodayCount = geminiToday?.count || 0;
+    const geminiRemaining = Math.max(0, GEMINI_DAILY_LIMIT - geminiTodayCount);
     const geminiKeySet = !!process.env.GEMINI_API_KEY;
     return res.json({
       today,
@@ -183,6 +187,7 @@ router.get("/ai", async (req, res) => {
         usedToday: freeToday,
         totalFree,
         recentFree,
+        note: "Each user/IP gets own free limit — one user's use does not affect another.",
       },
       paid: {
         sessions: totalPaidSessions,
@@ -190,8 +195,11 @@ router.get("/ai", async (req, res) => {
       },
       gemini: {
         keySet: geminiKeySet,
-        // Gemini free quota is per Google Cloud, not queryable via API — we show our own usage
-        note: "Gemini free tier: 60 req/min, 1500/day. Track via Google Cloud Console → APIs → Generative AI.",
+        dailyLimit: GEMINI_DAILY_LIMIT,
+        usedToday: geminiTodayCount,
+        remaining: geminiRemaining,
+        percentUsed: Number(((geminiTodayCount / GEMINI_DAILY_LIMIT) * 100).toFixed(1)),
+        note: "Gemini free tier: 60 req/min, 1500/day, 1M tokens/day. Resets midnight Pacific. Track via Google Cloud Console → APIs → Generative AI.",
       },
     });
   } catch (err) {

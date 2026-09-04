@@ -43,6 +43,15 @@ const incrementFreeUsage = async (identifier) => {
   });
 };
 
+const incrementGeminiLog = async () => {
+  const today = new Date().toISOString().slice(0, 10);
+  await prisma.geminiLog.upsert({
+    where: { date: today },
+    create: { date: today, count: 1 },
+    update: { count: { increment: 1 } },
+  });
+};
+
 const HELP_SYSTEM_PROMPT = (shopperName, message) => `
 You are Jegede, TrendTribe's help assistant for the Trend Tribe campus marketplace (students buy/sell fashion, gadgets, beauty, etc. at trendtribe.app).
 
@@ -150,11 +159,13 @@ const chat = async (req, res) => {
         const prompt = HELP_SYSTEM_PROMPT(shopperName, message) + `\n\nIf they asked for product shopping, add at end: "For product search and image search, please log in — then I can shop the catalog for you (1 token per session)."`;
         const reply = await askGemini(prompt);
         await incrementFreeUsage(identifier);
+        incrementGeminiLog().catch(() => {});
         return res.status(200).json({ reply: reply.trim(), products: [], remaining: check.remaining - 1, limit });
       }
       const prompt = HELP_SYSTEM_PROMPT(shopperName, message);
       const reply = await askGemini(prompt);
       await incrementFreeUsage(identifier);
+      incrementGeminiLog().catch(() => {});
       return res.status(200).json({ reply: reply.trim(), products: [], remaining: check.remaining - 1, limit });
     }
 
@@ -173,6 +184,7 @@ const chat = async (req, res) => {
       const prompt = HELP_SYSTEM_PROMPT(shopperName, message);
       const reply = await askGemini(prompt);
       await incrementFreeUsage(identifier);
+      incrementGeminiLog().catch(() => {});
       return res.status(200).json({ reply: reply.trim(), products: [], remaining: check.remaining - 1, limit });
     }
 
@@ -257,6 +269,7 @@ const chat = async (req, res) => {
     const rawText = hasImage
       ? await askGeminiVision(prompt, req.file.buffer.toString("base64"), req.file.mimetype)
       : await askGemini(prompt);
+    incrementGeminiLog().catch(() => {});
 
     let parsed;
     try {

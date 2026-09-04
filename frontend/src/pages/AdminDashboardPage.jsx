@@ -323,24 +323,28 @@ const AdminDashboardPage = () => {
           {/* Gemini AI Free Credits — Admin Only */}
           <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Gemini AI — Jegede</p>
-              <span className={`text-xs font-bold px-2 py-1 rounded-full ${aiUsage && aiUsage.free.usedToday >= 15 ? "bg-red-50 text-red-600" : aiUsage && aiUsage.free.usedToday >= 8 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
-                {aiUsage ? `${aiUsage.free.usedToday} used today` : aiError ? "Error" : "Loading..."}
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Gemini AI — free tier (per API key)</p>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${aiUsage && aiUsage.gemini.remaining <= 150 ? "bg-red-50 text-red-600" : aiUsage && aiUsage.gemini.remaining <= 400 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
+                {aiUsage ? `${aiUsage.gemini.remaining} left today` : aiError ? "Error" : "Loading..."}
               </span>
             </div>
             {aiUsage ? (
               <>
                 <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
-                  <div className={`h-full transition-all ${aiUsage.free.usedToday >= 15 ? "bg-red-500" : aiUsage.free.usedToday >= 8 ? "bg-amber-400" : "bg-primary-600"}`} style={{ width: `${Math.min(100, (aiUsage.free.usedToday / aiUsage.free.limitUser) * 100)}%` }} />
+                  <div className={`h-full transition-all ${aiUsage.gemini.percentUsed > 90 ? "bg-red-500" : aiUsage.gemini.percentUsed > 70 ? "bg-amber-400" : "bg-primary-600"}`} style={{ width: `${Math.min(100, aiUsage.gemini.percentUsed)}%` }} />
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                  <div><p className="text-xs text-gray-400">Free today</p><p className="font-semibold text-navy-900">{aiUsage.free.usedToday} / {aiUsage.free.limitUser} (user) · {aiUsage.free.limitGuest}/guest</p></div>
-                  <div><p className="text-xs text-gray-400">Total free</p><p className="font-semibold text-navy-900">{aiUsage.free.totalFree}</p></div>
-                  <div><p className="text-xs text-gray-400">Paid sessions</p><p className="font-semibold text-navy-900">{aiUsage.paid.sessions} · {aiUsage.paid.tokensSpent} tokens</p></div>
-                  <div><p className="text-xs text-gray-400">Gemini key</p><p className={`font-semibold ${aiUsage.gemini.keySet ? "text-green-600" : "text-red-600"}`}>{aiUsage.gemini.keySet ? "Set ✅" : "Missing ❌"}</p></div>
+                  <div><p className="text-xs text-gray-400">Gemini today</p><p className="font-semibold text-navy-900">{aiUsage.gemini.usedToday} / {aiUsage.gemini.dailyLimit}</p></div>
+                  <div><p className="text-xs text-gray-400">Left today</p><p className="font-semibold text-navy-900">{aiUsage.gemini.remaining}</p></div>
+                  <div><p className="text-xs text-gray-400">Free help (total)</p><p className="font-semibold text-navy-900">{aiUsage.free.usedToday} today · {aiUsage.free.totalFree} total</p></div>
+                  <div><p className="text-xs text-gray-400">Paid shopping</p><p className="font-semibold text-navy-900">{aiUsage.paid.sessions} sessions</p></div>
                 </div>
-                <p className="text-xs text-gray-500 mt-3">{aiUsage.gemini.note}</p>
-                {aiUsage.free.usedToday >= 15 && <p className="text-xs text-red-600 mt-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ High free usage today — limits 20/user, 10/guest will block extra help.</p>}
+                <div className="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-3">
+                  <div>Per-user free: <span className="font-semibold text-navy-900">{aiUsage.free.limitUser}/day</span> · Guest: <span className="font-semibold text-navy-900">{aiUsage.free.limitGuest}/day</span> — each user has own limit, not shared.</div>
+                  <div>Gemini key: <span className={`font-semibold ${aiUsage.gemini.keySet ? "text-green-600" : "text-red-600"}`}>{aiUsage.gemini.keySet ? "Set ✅" : "Missing ❌"}</span></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">{aiUsage.gemini.note}</p>
+                {aiUsage.gemini.remaining <= 150 && <p className="text-xs text-red-600 mt-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ Low Gemini free quota — after 1500/day, calls will fail until midnight Pacific.</p>}
               </>
             ) : aiError ? (
               <p className="text-sm text-red-500">{aiError} — check API or try again.</p>

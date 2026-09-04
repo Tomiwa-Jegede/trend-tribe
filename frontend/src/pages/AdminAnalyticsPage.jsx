@@ -133,18 +133,22 @@ const AdminAnalyticsPage = () => {
       {tab === "ai" && ai && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card title="Free used today" value={ai.free.usedToday} sub={`${ai.free.limitGuest} guest / ${ai.free.limitUser} user`} />
-            <Card title="Total free" value={ai.free.totalFree} sub="All time" />
-            <Card title="Paid sessions" value={ai.paid.sessions} sub={`${ai.paid.tokensSpent} tokens spent`} />
-            <Card title="Gemini key" value={ai.gemini.keySet ? "Set ✅" : "Missing ❌"} sub={ai.gemini.keySet ? "Ready" : "Add GEMINI_API_KEY"} />
+            <Card title="Gemini today" value={`${ai.gemini.usedToday} / ${ai.gemini.dailyLimit}`} sub={`${ai.gemini.remaining} left · ${ai.gemini.percentUsed}% used`} />
+            <Card title="Free help today" value={ai.free.usedToday} sub={`${ai.free.limitGuest} guest / ${ai.free.limitUser} user`} />
+            <Card title="Paid shopping" value={ai.paid.sessions} sub={`${ai.paid.tokensSpent} tokens spent`} />
+            <Card title="Gemini key" value={ai.gemini.keySet ? "Set ✅" : "Missing ❌"} sub={ai.free.note} />
           </div>
           <div className="bg-white border border-sage-100 rounded-xl p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Free help limits</p>
-            <p className="text-sm text-gray-600">Guest: <span className="font-bold">{ai.free.limitGuest}/day</span> per IP · User: <span className="font-bold">{ai.free.limitUser}/day</span> per user. Shopping uses <span className="font-bold">1 token/session</span>.</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Gemini free tier</p>
+            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+              <div className={`h-full ${ai.gemini.percentUsed > 90 ? "bg-red-500" : ai.gemini.percentUsed > 70 ? "bg-amber-400" : "bg-primary-600"}`} style={{ width: `${Math.min(100, ai.gemini.percentUsed)}%` }} />
+            </div>
+            <p className="text-sm text-gray-600">Gemini 2.0 Flash free: <span className="font-bold">1500/day, 60/min, 1M tokens/day</span> — resets midnight Pacific. Used <span className="font-bold">{ai.gemini.usedToday}</span> today, <span className="font-bold">{ai.gemini.remaining}</span> left.</p>
             <p className="text-xs text-gray-500 mt-2">{ai.gemini.note}</p>
+            <p className="text-xs text-gray-500 mt-1">Each user/IP has own free limit (10 guest / 20 user per day) — one user's use does not affect another. Shopping always 1 token/session.</p>
           </div>
           <div className="bg-white border border-sage-100 rounded-xl p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Recent free uses</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Recent free uses (per user/IP)</p>
             {ai.free.recentFree?.length ? ai.free.recentFree.map((r) => (
               <div key={r.id} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span className="truncate pr-4">{r.identifier}</span><span className="font-bold">{r.count} on {r.date}</span></div>
             )) : <p className="text-sm text-gray-400">No free uses yet</p>}
