@@ -14,6 +14,14 @@ export const getWeeklyEmailStatus = async () => {
   const { data } = await api.get("/admin/weekly-email-status");
   return data; // { status: "idle"|"running"|"done"|"error", result?, error?, startedAt?, finishedAt? }
 };
+export const triggerDailyEmail = async ({ subject, message }) => {
+  const { data } = await api.post("/admin/trigger-daily-email", { subject, message });
+  return data;
+};
+export const getDailyEmailStatus = async () => {
+  const { data } = await api.get("/admin/daily-email-status");
+  return data;
+};
 
 export const getAdminListings = async (params = {}) => {
   const { data } = await api.get("/admin/listings", { params });

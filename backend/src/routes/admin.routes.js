@@ -658,6 +658,29 @@ router.post("/trigger-weekly-email", protect, requireAdmin, (req, res) => {
       console.error("[MANUAL WEEKLY EMAIL ERROR]", err);
     });
 });
+
+// ─── Daily email with custom message (design card) ──────────
+let lastDailyEmailRun = null;
+router.post("/trigger-daily-email", protect, requireAdmin, (req, res) => {
+  const { subject, message } = req.body;
+  if (!message?.trim()) return res.status(400).json({ error: "Message is required" });
+  if (message.length > 2000) return res.status(400).json({ error: "Message too long (max 2000)" });
+  res.status(202).json({ message: "Daily email send started in background." });
+  lastDailyEmailRun = { status: "running", startedAt: new Date().toISOString(), subject, message };
+  sendWeeklyEmail({ customMessage: message.trim(), customSubject: subject?.trim() || null })
+    .then((result) => {
+      lastDailyEmailRun = { status: "done", result, startedAt: lastDailyEmailRun.startedAt, finishedAt: new Date().toISOString() };
+      console.log("[MANUAL DAILY EMAIL] Complete:", result);
+    })
+    .catch((err) => {
+      lastDailyEmailRun = { status: "error", error: err.message, startedAt: lastDailyEmailRun.startedAt, finishedAt: new Date().toISOString() };
+      console.error("[MANUAL DAILY EMAIL ERROR]", err);
+    });
+});
+router.get("/daily-email-status", protect, requireAdmin, (req, res) => {
+  if (!lastDailyEmailRun) return res.status(200).json({ status: "idle" });
+  return res.status(200).json(lastDailyEmailRun);
+});
 // ─────────────────────────────────────────────────────────────
 // GET /api/admin/weekly-email-status ← PROTECTED + ADMIN ONLY
 // Poll this after triggering a send to see live status/result.

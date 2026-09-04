@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
-import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, getCloudinaryUsage, getDbUsage, getBrevoUsage } from "../services/adminService";
+import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, triggerDailyEmail, getDailyEmailStatus, getCloudinaryUsage, getDbUsage, getBrevoUsage } from "../services/adminService";
 import { broadcastMessage } from "../services/messageService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
@@ -33,6 +33,11 @@ const AdminDashboardPage = () => {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailRun, setEmailRun] = useState(null);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const [dailySubject, setDailySubject] = useState("");
+  const [dailyMessage, setDailyMessage] = useState("");
+  const [dailySending, setDailySending] = useState(false);
+  const [dailyRun, setDailyRun] = useState(null);
+  const [showDailyConfirm, setShowDailyConfirm] = useState(false);
   const [cloudinaryUsage, setCloudinaryUsage] = useState(null);
   const [cloudinaryError, setCloudinaryError] = useState("");
   const [dbUsage, setDbUsage] = useState(null);
@@ -81,6 +86,33 @@ const AdminDashboardPage = () => {
     } finally {
       setSendingEmail(false);
     }
+  };
+
+  const pollDailyEmailStatus = () => {
+    const interval = setInterval(async () => {
+      try {
+        const data = await getDailyEmailStatus();
+        setDailyRun(data);
+        if (data.status === "done" || data.status === "error") {
+          clearInterval(interval);
+          if (data.status === "done") toast.success(`Daily email done: ${data.result.sent} sent, ${data.result.failed} failed.`);
+          else toast.error("Daily email run failed.");
+        }
+      } catch { clearInterval(interval); }
+    }, 3000);
+  };
+  const handleSendDailyEmail = async () => {
+    if (!dailyMessage.trim()) { toast.error("Message is required"); return; }
+    setShowDailyConfirm(false);
+    setDailySending(true);
+    try {
+      await triggerDailyEmail({ subject: dailySubject, message: dailyMessage });
+      toast.success("Daily email send started in background.");
+      setDailyRun({ status: "running" });
+      pollDailyEmailStatus();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to start daily email.");
+    } finally { setDailySending(false); }
   };
 
   const handleBroadcast = async () => {
@@ -389,71 +421,129 @@ const AdminDashboardPage = () => {
       )}
 
       {activeTab === "emails" && (
-        <div className="mt-2 bg-white border border-sage-100 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-navy-900 mb-1">Weekly Email</h2>
-        <p className="text-sm text-gray-500 mb-3">
-          Manually send the weekly marketing email to all opted-in, verified users.
-        </p>
-        <button
-          type="button"
-          onClick={() => setShowSendConfirm(true)}
-          disabled={sendingEmail || emailRun?.status === "running"}
-          className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {sendingEmail || emailRun?.status === "running" ? "Sending..." : "Send Weekly Email Now"}
-        </button>
+        <div className="space-y-6">
+          <div className="bg-white border border-sage-100 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-navy-900 mb-1">Daily Email — Design Card</h2>
+            <p className="text-sm text-gray-500 mb-3">Write a custom message. It will be sent as a branded card (not plain text) to all verified, opted-in users.</p>
+            <input
+              type="text"
+              placeholder="Subject (optional) — e.g. Your daily TrendTribe update"
+              value={dailySubject}
+              onChange={(e) => setDailySubject(e.target.value)}
+              className="w-full border border-sage-100 rounded-lg px-3 py-2 text-sm mb-3"
+            />
+            <textarea
+              placeholder="Write your custom daily message here..."
+              value={dailyMessage}
+              onChange={(e) => setDailyMessage(e.target.value)}
+              rows={5}
+              className="w-full border border-sage-100 rounded-lg px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-gray-400 mt-1">{dailyMessage.length}/2000</p>
 
-        <ConfirmDialog
-          isOpen={showSendConfirm}
-          warning
-          title="Send Weekly Email?"
-          message="This will send the weekly marketing email to all opted-in, verified users right now."
-          confirmLabel="Send Now"
-          cancelLabel="Cancel"
-          onConfirm={handleSendWeeklyEmail}
-          onCancel={() => setShowSendConfirm(false)}
-        />
-
-        {emailRun?.status === "running" && (
-          <div className="flex items-center gap-2 text-sm text-gray-500 mt-4">
-            <MiniSpinner size={16} />
-            Sending in progress — this can take a few minutes...
-          </div>
-        )}
-
-        {emailRun?.status === "done" && (
-          <div className="mt-4 bg-white border border-sage-100 rounded-xl p-4">
-            <p className="text-sm text-navy-900 mb-3">
-              <span className="font-semibold text-green-600">{emailRun.result.sent} sent</span>
-              {" · "}
-              <span className="font-semibold text-red-500">{emailRun.result.failed} failed</span>
-              {" · "}
-              {emailRun.result.total} total
-            </p>
-            {emailRun.result.failures.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-                  Failed Recipients
-                </p>
-                <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-                  {emailRun.result.failures.map((f, i) => (
-                    <div key={i} className="text-sm border-b border-sage-50 pb-2 last:border-0">
-                      <p className="font-medium text-navy-900">{f.fullName} · {f.email}</p>
-                      <p className="text-xs text-red-500">{f.error}</p>
+            {dailyMessage.trim() && (
+              <div className="mt-4 border border-sage-100 rounded-xl overflow-hidden">
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 p-3 pb-0">Preview — card design</p>
+                <div style={{ background: "#EEF4FF", padding: "16px" }}>
+                  <div style={{ maxWidth: 520, margin: "0 auto", background: "#ffffff", borderRadius: 16, overflow: "hidden", border: "1px solid #E5E7EB" }}>
+                    <div style={{ background: "linear-gradient(135deg, #0F1F3D 0%, #1340B8 100%)", padding: "16px 20px", textAlign: "center" }}>
+                      <span style={{ color: "#fff", fontWeight: 800, fontSize: 18 }}>Trend<span style={{ color: "#F5C518" }}>Tribe</span></span>
                     </div>
-                  ))}
+                    <div style={{ padding: 20 }}>
+                      <p style={{ margin: 0, fontSize: 14, color: "#111827" }}>Good morning, Full Name! 👋🏽</p>
+                      <div style={{ marginTop: 12, background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 12, padding: 12, fontSize: 14, color: "#374151", whiteSpace: "pre-wrap" }}>
+                        {dailyMessage || "Your message will appear here..."}
+                      </div>
+                      <div style={{ textAlign: "center", marginTop: 16 }}>
+                        <span style={{ display: "inline-block", background: "#1340B8", color: "#fff", padding: "10px 20px", borderRadius: 10, fontWeight: 700, fontSize: 13 }}>Browse Marketplace →</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        )}
 
-        {emailRun?.status === "error" && (
-          <p className="text-sm text-red-500 mt-4">
-            The send run failed to complete: {emailRun.error}
-          </p>
-        )}
-      </div>
+            <button
+              type="button"
+              onClick={() => setShowDailyConfirm(true)}
+              disabled={dailySending || dailyRun?.status === "running" || !dailyMessage.trim()}
+              className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed mt-4"
+            >
+              {dailySending || dailyRun?.status === "running" ? "Sending..." : "Send Daily Email Now"}
+            </button>
+
+            <ConfirmDialog
+              isOpen={showDailyConfirm}
+              warning
+              title="Send Daily Email?"
+              message={`This will send "${dailySubject || "Your daily TrendTribe update"}" as a design card to all opted-in, verified users now.`}
+              confirmLabel="Send Now"
+              cancelLabel="Cancel"
+              onConfirm={handleSendDailyEmail}
+              onCancel={() => setShowDailyConfirm(false)}
+            />
+
+            {dailyRun?.status === "running" && (
+              <div className="flex items-center gap-2 text-sm text-gray-500 mt-4">
+                <MiniSpinner size={16} />
+                Sending in progress — this can take a few minutes...
+              </div>
+            )}
+            {dailyRun?.status === "done" && (
+              <div className="mt-4 bg-white border border-sage-100 rounded-xl p-4">
+                <p className="text-sm text-navy-900 mb-3">
+                  <span className="font-semibold text-green-600">{dailyRun.result.sent} sent</span>
+                  {" · "}
+                  <span className="font-semibold text-red-500">{dailyRun.result.failed} failed</span>
+                  {" · "}
+                  {dailyRun.result.total} total
+                </p>
+                {dailyRun.result.failures?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Failed Recipients</p>
+                    <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                      {dailyRun.result.failures.map((f, i) => (
+                        <div key={i} className="text-sm border-b border-sage-50 pb-2 last:border-0">
+                          <p className="font-medium text-navy-900">{f.fullName} · {f.email}</p>
+                          <p className="text-xs text-red-500">{f.error}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {dailyRun?.status === "error" && (
+              <p className="text-sm text-red-500 mt-4">The send run failed: {dailyRun.error}</p>
+            )}
+          </div>
+
+          <div className="bg-white border border-sage-100 rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-navy-900 mb-1">Weekly (generic) — fallback</h3>
+            <p className="text-xs text-gray-500 mb-3">Old generic weekly without custom message — kept for cron.</p>
+            <button
+              type="button"
+              onClick={() => setShowSendConfirm(true)}
+              disabled={sendingEmail || emailRun?.status === "running"}
+              className="btn-secondary text-sm disabled:opacity-60"
+            >
+              {sendingEmail || emailRun?.status === "running" ? "Sending..." : "Send Generic Weekly"}
+            </button>
+            <ConfirmDialog
+              isOpen={showSendConfirm}
+              warning
+              title="Send Weekly Email?"
+              message="This will send the generic weekly email to all opted-in, verified users."
+              confirmLabel="Send Now"
+              cancelLabel="Cancel"
+              onConfirm={handleSendWeeklyEmail}
+              onCancel={() => setShowSendConfirm(false)}
+            />
+            {emailRun?.status === "running" && <div className="flex items-center gap-2 text-sm text-gray-500 mt-3"><MiniSpinner size={16} /> Sending...</div>}
+            {emailRun?.status === "done" && <p className="text-sm text-green-600 mt-3">{emailRun.result.sent} sent · {emailRun.result.failed} failed</p>}
+            {emailRun?.status === "error" && <p className="text-sm text-red-500 mt-3">{emailRun.error}</p>}
+          </div>
+        </div>
       )}
     </AdminLayout>
   );

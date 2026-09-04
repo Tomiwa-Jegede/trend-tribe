@@ -10,19 +10,19 @@ const DELAY_MS = 2000; // 2 seconds between sends
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const sendWeeklyEmail = async () => {
+const sendWeeklyEmail = async ({ customMessage = null, customSubject = null } = {}) => {
   const recipients = await prisma.user.findMany({
     where: { isVerified: true, marketingOptIn: true },
     select: { id: true, email: true, fullName: true, unsubscribeToken: true },
   });
 
-  console.log(`[WEEKLY EMAIL] Found ${recipients.length} recipients.`);
+  console.log(`[WEEKLY EMAIL] Found ${recipients.length} recipients. Custom: ${!!customMessage}`);
   let sent = 0;
   let failed = 0;
   const failures = [];
   for (const user of recipients) {
     try {
-      await sendMarketingEmail(user.email, user.fullName, user.unsubscribeToken);
+      await sendMarketingEmail(user.email, user.fullName, user.unsubscribeToken, customMessage, customSubject);
       sent += 1;
       console.log(`[WEEKLY EMAIL] ✅ Sent to ${user.email} (id ${user.id})`);
     } catch (err) {

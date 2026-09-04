@@ -90,18 +90,28 @@ const sendPasswordResetEmail = async (toEmail, fullName, resetUrl) => {
   });
 };
 
-// ─── Plain wrapper for marketing emails (deliberately unbranded — ──
-// avoids the boxed/logo look that trips Gmail's Promotions filter) ──
-const wrapMarketingEmail = (innerHtml) => `
-  <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 16px 8px; color: #1f2937;">
-    ${innerHtml}
-    <p style="margin-top: 24px; font-size: 12px; color: #9CA3AF;">
-      TrendTribe
-    </p>
+// ─── Design card wrapper for daily emails (branded) ──────
+const wrapDailyCard = (innerHtml) => `
+  <div style="font-family: -apple-system, Arial, sans-serif; background: #EEF4FF; padding: 24px 12px;">
+    <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(15,31,61,0.08); border: 1px solid #E5E7EB;">
+      <div style="background: linear-gradient(135deg, #0F1F3D 0%, #1340B8 100%); padding: 20px 24px; text-align: center;">
+        <span style="font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Trend<span style="color: #F5C518;">Tribe</span></span>
+        <p style="margin: 4px 0 0; color: rgba(255,255,255,0.7); font-size: 12px; letter-spacing: 1px; text-transform: uppercase;">Student Marketplace</p>
+      </div>
+      <div style="padding: 24px;">
+        ${innerHtml}
+      </div>
+      <div style="background: #F9FAFB; padding: 16px 24px; text-align: center; border-top: 1px solid #E5E7EB;">
+        <p style="margin: 0; font-size: 12px; color: #9CA3AF;">Trend Tribe • trendtribe.app • Made for students</p>
+      </div>
+    </div>
   </div>
 `;
 
-// ─── Rotating body message variants for daily marketing email ──
+// Backwards compat plain wrapper
+const wrapMarketingEmail = (innerHtml) => wrapDailyCard(innerHtml);
+
+// ─── Rotating body message variants for daily marketing email (fallback if no custom) ──
 const MARKETING_MESSAGE_VARIANTS = [
   "Just a quick reminder not to forget to check TrendTribe today. 🛍️👀 New listings are waiting, and you might just find something you need! Have a fantastic day ahead!",
   "Someone on campus might be selling exactly what you've been looking for. 🔍 Take a minute to browse today's listings on TrendTribe! Have a great day!",
@@ -115,27 +125,31 @@ const MARKETING_MESSAGE_VARIANTS = [
   "Heads up! 📢 TrendTribe's been buzzing with new listings today — take a look when you get a sec. Have an awesome day!",
 ];
 
-const sendMarketingEmail = async (toEmail, fullName, unsubscribeToken) => {
-  const bodyMessage = MARKETING_MESSAGE_VARIANTS[Math.floor(Math.random() * MARKETING_MESSAGE_VARIANTS.length)];
-const html = wrapMarketingEmail(`
-    <p style="font-size: 14px; line-height: 1.6;">
-      Good morning, ${fullName}! 👋🏽 How's your day going so far?
+const sendMarketingEmail = async (toEmail, fullName, unsubscribeToken, customMessage = null, customSubject = null) => {
+  const bodyMessage = customMessage?.trim() || MARKETING_MESSAGE_VARIANTS[Math.floor(Math.random() * MARKETING_MESSAGE_VARIANTS.length)];
+  const subject = customSubject?.trim() || "Your daily TrendTribe update";
+  const unsubUrl = unsubscribeToken ? `https://trendtribe.app/api/auth/unsubscribe/${unsubscribeToken}` : `https://trendtribe.app`;
+const html = wrapDailyCard(`
+    <p style="font-size: 15px; line-height: 1.6; color: #111827; margin: 0 0 12px;">
+      Good morning, ${fullName}! 👋🏽
     </p>
-    <p style="font-size: 14px; line-height: 1.6;">
-      ${bodyMessage}
-    </p>
-    <div style="margin: 20px 0;">
-          <a href="https://trendtribee.netlify.app"
-         style="display: inline-block; padding: 10px 20px; border: 1px solid #1340B8;
-                border-radius: 6px; color: #1340B8; text-decoration: none; font-size: 14px; font-weight: 600;">
-        What's New →
+    <div style="font-size: 14px; line-height: 1.7; color: #374151; white-space: pre-wrap; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; margin: 12px 0;">
+      ${bodyMessage.replace(/</g, "&lt;").replace(/\n/g, "<br/>")}
+    </div>
+    <div style="text-align: center; margin: 20px 0 8px;">
+      <a href="https://trendtribe.app/marketplace"
+         style="display: inline-block; background: #1340B8; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 14px;">
+        Browse Marketplace →
       </a>
     </div>
+    <p style="text-align: center; margin-top: 16px; font-size: 12px; color: #9CA3AF;">
+      <a href="${unsubUrl}" style="color: #9CA3AF; text-decoration: underline;">Unsubscribe</a> • trendtribe.app
+    </p>
   `);
 
   return sendViaBrevo({
     to: toEmail,
-    subject: "Your daily TrendTribe update",
+    subject,
     html,
   });
 };
