@@ -360,7 +360,7 @@ const ProfilePage = () => {
         </div>
 
       {/* ── Listings — sellers only (buyers have no listings) ── */}
-      {seller.role !== "BUYER" && (
+      {(seller.role === "SELLER" || seller.role === "ADMIN") && (
         <>
           <div className="mb-4 sm:mb-6">
             <h3 className="text-lg sm:text-2xl font-semibold text-gray-900 flex flex-wrap items-center gap-2 break-words">

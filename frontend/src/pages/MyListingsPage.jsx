@@ -147,20 +147,28 @@ const MyListingsPage = () => {
         </Link>
       </div>
 
-      {err && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">{err}</div>}
-
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : listings.length === 0 ? (
+      {(user?.role === "BUYER" || user?.role === "USER") ? (
         <div className="text-center py-16 card">
-          <p className="text-gray-500 mb-4">You have no listings yet.</p>
-          <Link to="/create-listing" className="text-primary-600 font-semibold">Create your first listing →</Link>
+          <p className="text-gray-600 mb-2">Buyers don't have listings.</p>
+          <p className="text-sm text-gray-500 mb-4">Upgrade to seller to create and manage listings.</p>
+          <Link to={`/profile/${user.slug || user.id}`} className="btn-primary inline-flex">Become a Seller →</Link>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {err && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">{err}</div>}
+
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : listings.length === 0 ? (
+            <div className="text-center py-16 card">
+              <p className="text-gray-500 mb-4">You have no listings yet.</p>
+              <Link to="/create-listing" className="text-primary-600 font-semibold">Create your first listing →</Link>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {listings.map((l) => {
               const ghost = isGhost(l);
               const left = daysLeft(l);
@@ -224,6 +232,8 @@ const MyListingsPage = () => {
               Page {pagination.currentPage} of {pagination.totalPages} — {pagination.totalCount} total
             </p>
           )}
+        </>
+      )}
         </>
       )}
     </div>
