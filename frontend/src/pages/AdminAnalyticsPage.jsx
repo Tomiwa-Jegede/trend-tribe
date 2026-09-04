@@ -3,20 +3,15 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
-import { getMoneyAnalytics, getFunnelAnalytics, getSupplyAnalytics, getGrowthAnalytics, getSearchAnalytics, getTrustAnalytics } from "../services/analyticsService";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import { getMoneyAnalytics, getFunnelAnalytics, getSearchAnalytics } from "../services/analyticsService";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "money", label: "Money" },
   { id: "funnel", label: "Funnel" },
-  { id: "supply", label: "Supply" },
-  { id: "growth", label: "Growth" },
   { id: "search", label: "Search" },
-  { id: "trust", label: "Trust" },
 ];
-
-const COLORS = ["#1340B8", "#F5C518", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
 
 const Card = ({ title, value, sub }) => (
   <div className="bg-white border border-sage-100 rounded-xl p-4">
@@ -30,25 +25,19 @@ const AdminAnalyticsPage = () => {
   const [tab, setTab] = useState("overview");
   const [money, setMoney] = useState(null);
   const [funnel, setFunnel] = useState(null);
-  const [supply, setSupply] = useState(null);
-  const [growth, setGrowth] = useState(null);
   const [search, setSearch] = useState(null);
-  const [trust, setTrust] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [m, f, s, g, se, t] = await Promise.all([
+        const [m, f, se] = await Promise.all([
           getMoneyAnalytics(30).catch(() => null),
           getFunnelAnalytics().catch(() => null),
-          getSupplyAnalytics().catch(() => null),
-          getGrowthAnalytics().catch(() => null),
           getSearchAnalytics().catch(() => null),
-          getTrustAnalytics().catch(() => null),
         ]);
-        setMoney(m); setFunnel(f); setSupply(s); setGrowth(g); setSearch(se); setTrust(t);
+        setMoney(m); setFunnel(f); setSearch(se);
       } finally { setLoading(false); }
     };
     load();
@@ -71,11 +60,11 @@ const AdminAnalyticsPage = () => {
       {tab === "overview" && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card title="Revenue (30d)" value={`₦${Number(money?.revenueNaira || 0).toLocaleString()}`} sub={`${money?.tokensSold || 0} tokens sold`} />
-          <Card title="Active Listings" value={supply ? supply.ghost + (supply.byCategory?.reduce((a,c)=>a+c._count,0) - supply.ghost) : "—"} sub={`${supply?.ghost || 0} ghost (0 fav)`} />
-          <Card title="DAU" value={growth?.dau ?? 0} sub={`WAU ${growth?.wau ?? 0} · MAU ${growth?.mau ?? 0}`} />
           <Card title="Favorites" value={funnel?.funnel?.[1]?.count ?? 0} sub="Hearts total" />
           <Card title="Contact Views" value={funnel?.funnel?.[2]?.count ?? 0} sub="WhatsApp taps" />
           <Card title="Zero-result searches" value={search?.zeroResults?.length ?? 0} sub="What users can't find" />
+          <Card title="Messages" value={funnel?.funnel?.[3]?.count ?? 0} sub="Inbox messages" />
+          <Card title="Listings" value={funnel?.funnel?.[0]?.count ?? 0} sub="Active listings" />
         </div>
       )}
 
@@ -121,73 +110,6 @@ const AdminAnalyticsPage = () => {
         </div>
       )}
 
-      {tab === "supply" && supply && (
-        <div className="space-y-6">
-          <div className="bg-white border border-sage-100 rounded-xl p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Listings by category</p>
-            <div style={{ height: 200 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={supply.byCategory?.map((c) => ({ name: c.category, count: c._count })) || []}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-15} dy={10} height={50} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#F5C518" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-white border border-sage-100 rounded-xl p-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">By condition</p>
-              <div style={{ height: 180 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={supply.byCondition?.map((c) => ({ name: c.condition, value: c._count })) || []} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}>
-                      {(supply.byCondition || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="bg-white border border-sage-100 rounded-xl p-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Price buckets</p>
-              {supply.priceBuckets?.map((b) => (
-                <div key={b.bucket} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span>{b.bucket}</span><span className="font-bold">{b.count}</span></div>
-              ))}
-              <p className="text-xs text-gray-500 mt-3">Ghost: {supply.ghost} (0 fav, active) · Boosted: {supply.boosted}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === "growth" && growth && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-4">
-            <Card title="DAU" value={growth.dau} sub="Contact viewers today" />
-            <Card title="WAU" value={growth.wau} sub="Last 7 days" />
-            <Card title="MAU" value={growth.mau} sub="Last 30 days" />
-          </div>
-          <div className="bg-white border border-sage-100 rounded-xl p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Signups last 14 days</p>
-            <div style={{ height: 180 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={growth.signups || []}>
-                  <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="count" stroke="#1340B8" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div className="bg-white border border-sage-100 rounded-xl p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Top schools</p>
-            {growth.bySchool?.map((s) => <div key={s.school} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span className="truncate pr-4">{s.school || "—"}</span><span className="font-bold">{s._count}</span></div>)}
-          </div>
-        </div>
-      )}
-
       {tab === "search" && search && (
         <div className="space-y-6">
           <div className="bg-white border border-sage-100 rounded-xl p-4">
@@ -201,20 +123,6 @@ const AdminAnalyticsPage = () => {
             {search.zeroResults?.length ? search.zeroResults.map((r) => (
               <div key={r.id} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span className="truncate pr-4">{r.query} {r.category ? `· ${r.category}` : ""}</span><span className="text-gray-400 text-xs">{new Date(r.createdAt).toLocaleDateString()}</span></div>
             )) : <p className="text-sm text-gray-400">No zero-result searches</p>}
-          </div>
-        </div>
-      )}
-
-      {tab === "trust" && trust && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-4">
-            <Card title="Pending reports" value={trust.pending} />
-            <Card title="Ignored" value={trust.ignored} />
-            <Card title="Total" value={trust.pending + trust.ignored} />
-          </div>
-          <div className="bg-white border border-sage-100 rounded-xl p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Reports by reason</p>
-            {trust.byReason?.map((r) => <div key={r.reason} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span>{r.reason}</span><span className="font-bold">{r._count}</span></div>)}
           </div>
         </div>
       )}
