@@ -20,6 +20,7 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 import NotificationBell from "../notifications/NotificationBell";
+import TokenIcon from "../ui/TokenIcon";
 import api from "../../api/axios";
 
 // ── Reduced-motion helper ──────────────────────────────────────
@@ -340,7 +341,7 @@ const Navbar = () => {
 
                     {user?.role !== "ADMIN" && typeof user?.tokenBalance === "number" && (
                       <span className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-full px-2.5 py-1">
-                        🪙 {user.tokenBalance}
+                        <TokenIcon size={14} /> {user.tokenBalance}
                       </span>
                     )}
 
@@ -490,7 +491,7 @@ const Navbar = () => {
                 )}
               {isAuthenticated && user?.role !== "ADMIN" && typeof user?.tokenBalance === "number" && (
                 <div className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-full px-2.5 py-1 w-fit">
-                  🪙 {user.tokenBalance} tokens
+                  <TokenIcon size={14} /> {user.tokenBalance} tokens
                 </div>
               )}
               {user?.role === "ADMIN" && (

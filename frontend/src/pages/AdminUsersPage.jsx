@@ -6,6 +6,7 @@ import AdminLayout from "../components/admin/AdminLayout";
 import { useAuth } from "../context/AuthContext";
 import { getAdminUsers, deleteAdminUser } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
+import TokenIcon from "../components/ui/TokenIcon";
 
 const AdminUsersPage = () => {
   const { user: currentAdmin } = useAuth();
@@ -134,7 +135,7 @@ const AdminUsersPage = () => {
                   <td className="px-4 py-3 text-gray-600">{u.fullName}</td>
                   <td className="px-4 py-3 text-gray-600">{u.email}</td>
                   <td className="px-4 py-3 text-gray-600">{u.school}</td>
-                  <td className="px-4 py-3 text-center font-bold text-navy-900">🪙 {u.tokenBalance ?? 0}</td>
+                  <td className="px-4 py-3 text-center font-bold text-navy-900"><span className="inline-flex items-center justify-center gap-1"><TokenIcon size={12} /> {u.tokenBalance ?? 0}</span></td>
                   {roleFilter !== "BUYER" ? (
                     <>
                       <td className="px-4 py-3 text-center font-bold text-navy-900">{u._count?.listings ?? 0}</td>
@@ -207,7 +208,7 @@ const AdminUsersPage = () => {
                 {u.school} {u.matricNumber ? `· ${u.matricNumber}` : ""}
               </p>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1">🪙 {u.tokenBalance ?? 0} tokens</span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1"><TokenIcon size={12} /> {u.tokenBalance ?? 0} tokens</span>
                 {roleFilter !== "BUYER" ? (
                   <>
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 bg-sage-50 border border-sage-100 rounded-full px-2.5 py-1">📦 {u._count?.listings ?? 0} listings</span>

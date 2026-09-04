@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 import { FiEye, FiUsers, FiHeart, FiZap, FiLink } from "react-icons/fi";
+import TokenIcon from "../components/ui/TokenIcon";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 32 },
@@ -92,7 +93,7 @@ const TICKER_ITEMS = [
   { icon: "📍", text: "Meet on campus, no shipping" },
   { icon: "💛", text: "Community over competition" },
   { icon: "⚡", text: "List your product in 60 seconds" },
-  { icon: "🪙", text: "3 listings free, 1 token for more" },
+  { icon: <TokenIcon size={16} />, text: "3 listings free, 1 token for more" },
   { icon: "🔥", text: "Where student entrepreneurs shine" },
   { icon: "🏫", text: "Exclusively for students" },
   { icon: "🤝", text: "Meet, check, pay on campus" },

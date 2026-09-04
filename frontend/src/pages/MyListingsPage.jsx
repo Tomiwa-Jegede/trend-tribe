@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import TokenIcon from "../components/ui/TokenIcon";
 
 const GHOST_DAYS = 30;
 
@@ -211,7 +212,7 @@ const MyListingsPage = () => {
                           className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500"
                           title="Boost to Featured on top of Marketplace for 24h"
                         >
-                          Boost 24h · 1🪙
+                          <span className="inline-flex items-center gap-1">Boost 24h · 1 <TokenIcon size={12} /></span>
                         </button>
                       )}
                       {boosted && <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">★ Featured {bLeft}h</span>}
