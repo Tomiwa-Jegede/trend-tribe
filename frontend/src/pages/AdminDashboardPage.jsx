@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, triggerDailyEmail, getDailyEmailStatus, getCloudinaryUsage, getDbUsage, getBrevoUsage } from "../services/adminService";
+import { getAiAnalytics } from "../services/analyticsService";
 import { broadcastMessage } from "../services/messageService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
@@ -44,6 +45,8 @@ const AdminDashboardPage = () => {
   const [dbError, setDbError] = useState("");
   const [brevoUsage, setBrevoUsage] = useState(null);
   const [brevoError, setBrevoError] = useState("");
+  const [aiUsage, setAiUsage] = useState(null);
+  const [aiError, setAiError] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [broadcastSubject, setBroadcastSubject] = useState("");
   const [broadcastBody, setBroadcastBody] = useState("");
@@ -193,6 +196,11 @@ const AdminDashboardPage = () => {
       .then((d) => setBrevoUsage(d))
       .catch((e) => setBrevoError(e.response?.data?.error || "Could not load Brevo usage"));
   }, []);
+  useEffect(() => {
+    getAiAnalytics()
+      .then((d) => setAiUsage(d))
+      .catch((e) => setAiError(e.response?.data?.error || "Could not load AI usage"));
+  }, []);
 
   const TABS = [
     { id: "overview", label: "Overview" },
@@ -309,6 +317,35 @@ const AdminDashboardPage = () => {
               <p className="text-sm text-red-500">{brevoError} — check Brevo API key or try again.</p>
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading Brevo usage…</div>
+            )}
+          </div>
+
+          {/* Gemini AI Free Credits — Admin Only */}
+          <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Gemini AI — Jegede</p>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${aiUsage && aiUsage.free.usedToday >= 15 ? "bg-red-50 text-red-600" : aiUsage && aiUsage.free.usedToday >= 8 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
+                {aiUsage ? `${aiUsage.free.usedToday} used today` : aiError ? "Error" : "Loading..."}
+              </span>
+            </div>
+            {aiUsage ? (
+              <>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+                  <div className={`h-full transition-all ${aiUsage.free.usedToday >= 15 ? "bg-red-500" : aiUsage.free.usedToday >= 8 ? "bg-amber-400" : "bg-primary-600"}`} style={{ width: `${Math.min(100, (aiUsage.free.usedToday / aiUsage.free.limitUser) * 100)}%` }} />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div><p className="text-xs text-gray-400">Free today</p><p className="font-semibold text-navy-900">{aiUsage.free.usedToday} / {aiUsage.free.limitUser} (user) · {aiUsage.free.limitGuest}/guest</p></div>
+                  <div><p className="text-xs text-gray-400">Total free</p><p className="font-semibold text-navy-900">{aiUsage.free.totalFree}</p></div>
+                  <div><p className="text-xs text-gray-400">Paid sessions</p><p className="font-semibold text-navy-900">{aiUsage.paid.sessions} · {aiUsage.paid.tokensSpent} tokens</p></div>
+                  <div><p className="text-xs text-gray-400">Gemini key</p><p className={`font-semibold ${aiUsage.gemini.keySet ? "text-green-600" : "text-red-600"}`}>{aiUsage.gemini.keySet ? "Set ✅" : "Missing ❌"}</p></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">{aiUsage.gemini.note}</p>
+                {aiUsage.free.usedToday >= 15 && <p className="text-xs text-red-600 mt-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ High free usage today — limits 20/user, 10/guest will block extra help.</p>}
+              </>
+            ) : aiError ? (
+              <p className="text-sm text-red-500">{aiError} — check API or try again.</p>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading AI usage…</div>
             )}
           </div>
 
