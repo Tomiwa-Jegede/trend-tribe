@@ -59,6 +59,9 @@ const AdminDashboardPage = () => {
   const [notifying, setNotifying] = useState(false);
   const [pwaStats, setPwaStats] = useState(null);
   const [pwaError, setPwaError] = useState("");
+  const [heroStats, setHeroStats] = useState(null);
+  const [whatsappInput, setWhatsappInput] = useState("");
+  const [whatsappSaving, setWhatsappSaving] = useState(false);
   const { toast } = useToast();
 
   const pollWeeklyEmailStatus = () => {
@@ -210,6 +213,9 @@ const AdminDashboardPage = () => {
       .then((r) => setPwaStats(r.data))
       .catch((e) => setPwaError(e.response?.data?.error || "Could not load PWA stats"));
   }, []);
+  useEffect(() => {
+    api.get("/stats").then((r) => { setHeroStats(r.data); setWhatsappInput(String(r.data.whatsappMembers)); }).catch(() => {});
+  }, []);
   // Real-time: admin dashboard refreshes instantly (only admin)
   const refreshStats = useCallback(async () => {
     try { const d = await getAdminStats(); setStats(d); } catch {}
@@ -276,6 +282,17 @@ const AdminDashboardPage = () => {
               );
             })}
           </div>
+          {/* Hero WhatsApp manual — active/manual as chosen */}
+          <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Hero — WhatsApp Community</p>
+            <p className="text-sm text-gray-500 mb-3">Manual count shown in hero as <span className="font-semibold">{heroStats ? `${heroStats.whatsappMembers} WhatsApp` : "—"}</span> · Active {heroStats?.activeListings ?? "—"} · {heroStats?.totalUsers ?? "—"} students. Updates live via socket.</p>
+            <div className="flex gap-2 items-center">
+              <input type="number" min="0" max="100000" value={whatsappInput} onChange={(e)=>setWhatsappInput(e.target.value)} className="w-28 border border-sage-100 rounded-lg px-3 py-2 text-sm" placeholder="63" />
+              <button disabled={whatsappSaving} onClick={async()=>{ const n=parseInt(whatsappInput,10); if(!Number.isFinite(n)||n<0) return toast.error("Enter a number"); setWhatsappSaving(true); try{ const {data}=await api.put("/stats/whatsapp",{count:n}); setHeroStats((p)=>p?{...p,whatsappMembers:data.whatsappMembers}:p); toast.success(`WhatsApp updated to ${data.whatsappMembers}`);}catch(e){toast.error(e.response?.data?.error||"Failed")} finally{setWhatsappSaving(false);}}} className="btn-primary text-sm disabled:opacity-60">{whatsappSaving?"Saving...":"Save"}</button>
+              <span className="text-xs text-gray-400">Hero pills update instantly</span>
+            </div>
+          </div>
+
           {stats.topFavorited?.length > 0 && (
             <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Favorited (click to view)</p>
