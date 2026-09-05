@@ -23,6 +23,7 @@ import NotificationBell from "../notifications/NotificationBell";
 import PWAInstallButton from "../pwa/PWAInstallButton";
 import TokenIcon from "../ui/TokenIcon";
 import api from "../../api/axios";
+import useRealtime from "../../hooks/useRealtime";
 
 // ── Reduced-motion helper ──────────────────────────────────────
 const useReducedMotion = () => {
@@ -82,6 +83,9 @@ const Navbar = () => {
     if (!isAuthenticated || !token) { setInboxUnread(0); return; }
     try { const { data } = await api.get("/messages/unread-count"); setInboxUnread(data.unreadCount); } catch (err) { if (import.meta.env.DEV) console.warn("[Navbar inbox unread]", err?.response?.data || err.message); }
   }, [isAuthenticated, token]);
+
+  useRealtime("message", fetchInbox, { enabled: isAuthenticated && !!token });
+  useRealtime("message:unread", fetchInbox, { enabled: isAuthenticated && !!token });
 
   useEffect(() => {
     if (!isAuthenticated || !token || !user?.id) {

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye } from "react-icons/fi";
 import { getMyMessages, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
+import useRealtime from "../hooks/useRealtime";
 import { useAuth } from "../context/AuthContext";
 
 const InboxPage = () => {
@@ -46,6 +47,8 @@ const InboxPage = () => {
   }, [isAuthenticated, token, user?.id, fetchMessages]);
 
   const pollInbox = useCallback(() => fetchMessages(false), [fetchMessages]);
+  useRealtime("message", pollInbox, { enabled: isAuthenticated && !!token });
+  useRealtime("message:unread", pollInbox, { enabled: isAuthenticated && !!token });
 
   const toggleSelect = (id) => {
     setSelected((prev) => {

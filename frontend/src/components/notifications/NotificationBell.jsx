@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { FiBell, FiTrash2, FiCheckSquare, FiSquare } from "react-icons/fi";
 import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
+import useRealtime from "../../hooks/useRealtime";
 
 const NotificationBell = () => {
   const { isAuthenticated, user, token } = useAuth();
@@ -57,7 +58,10 @@ const NotificationBell = () => {
     fetchUnread();
   }, [isAuthenticated, token, user?.id, fetchUnread]);
 
-  // Natural update: fetch on open/focus (bell real-time only for admin, user waits)
+  // Whole-site real-time: bell refreshes only when notification actually lands
+  useRealtime("notification", fetchUnread, { enabled: isAuthenticated && !!token });
+  useRealtime("notification:unread", fetchUnread, { enabled: isAuthenticated && !!token });
+  useRealtime("notification", fetchList, { enabled: isAuthenticated && !!token && open });
 
   useEffect(() => {
     const h = (e) => {

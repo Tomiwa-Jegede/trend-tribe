@@ -10,6 +10,7 @@ import Alert from "../components/ui/Alert";
 import { getMyFavorites } from "../services/listingService";
 import { useFavorites } from "../context/FavoritesContext";
 import { FiHeart } from "react-icons/fi";
+import useRealtime from "../hooks/useRealtime";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -50,10 +51,8 @@ const FavoritesPage = () => {
 
   useEffect(() => {
     fetchFavorites();
-    // Re-fetch whenever the favorited-ids set changes size (e.g. user
-    // unfavorites a listing from this very page and the list should shrink)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchFavorites, favoriteIds.size]);
+  useRealtime("favorite", () => { getMyFavorites({ page: currentPage, limit: 12 }).then(d=>{ setListings(d.listings); setPagination(d.pagination); }).catch(()=>{}); }, { enabled: true });
 
 
 

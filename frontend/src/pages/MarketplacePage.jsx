@@ -11,6 +11,7 @@ import Alert from "../components/ui/Alert";
 import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
+import useRealtime from "../hooks/useRealtime";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
@@ -88,7 +89,9 @@ const MarketplacePage = () => {
     fetchListings();
   }, [fetchListings]);
 
-  // Natural update: fetch on mount + focus (no socket spam for public)
+  // Whole-site real-time: only refresh when listing/favorite actually changes (via Pusher/Socket)
+  useRealtime("listing", () => fetchListings(false), { enabled: true });
+  useRealtime("favorite", () => fetchListings(false), { enabled: true });
   useEffect(() => {
     const onFocus = () => fetchListings(false);
     window.addEventListener("focus", onFocus);

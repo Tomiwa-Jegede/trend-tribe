@@ -1,24 +1,20 @@
-// src/context/SocketContext.jsx — admin-only realtime (no wss spam for normal users)
+// src/context/SocketContext.jsx — whole-site realtime (only when change, no random polling)
 import { useEffect } from "react";
-import { connectSocket, disconnectSocket, refreshSocketAuth } from "../services/socket";
+import { connectSocket, refreshSocketAuth } from "../services/socket";
 import { useAuth } from "./AuthContext";
 
 export default function SocketProvider({ children }) {
-  const { isAuthenticated, user, token } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const { isAuthenticated, token, user } = useAuth();
 
   useEffect(() => {
-    if (!isAdmin) { disconnectSocket(); return; }
     connectSocket();
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
-    if (!isAdmin) return;
     refreshSocketAuth();
-  }, [isAdmin, isAuthenticated, token]);
+  }, [isAuthenticated, token, user?.id]);
 
   useEffect(() => {
-    if (!isAdmin) return;
     const onVis = () => { if (document.visibilityState === "visible") connectSocket(); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
@@ -33,7 +29,7 @@ export default function SocketProvider({ children }) {
       window.removeEventListener("focus", onVis);
       clearInterval(health);
     };
-  }, [isAdmin]);
+  }, []);
 
   return children;
 }
