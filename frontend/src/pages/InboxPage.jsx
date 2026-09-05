@@ -138,7 +138,7 @@ const InboxPage = () => {
                           {isExpanded ? m.body : `${m.body.slice(0, 80)}${m.body.length > 80 ? "…" : ""}`}
                         </p>
                         {!isExpanded && m.body.length > 80 && <span className="text-xs text-primary-600">View →</span>}
-                        <p className="text-xs text-gray-400 mt-1">{new Date(m.createdAt).toLocaleString()} · from {m.sender?.username || "Admin"}</p>
+                        <p className="text-xs text-gray-400 mt-1">{new Date(m.createdAt).toLocaleString()} · from {m.sender?.role === "ADMIN" ? "Trend Tribe" : m.sender?.username || "Trend Tribe"}</p>
                       </div>
                       <span className="flex-shrink-0 mt-1">
                         {!m.read && <span className="w-2 h-2 bg-primary-600 rounded-full inline-block" />}

@@ -14,7 +14,7 @@ const getMyMessages = async (req, res) => {
         skip,
         take: limitNum,
         include: {
-          sender: { select: { id: true, username: true, fullName: true } },
+          sender: { select: { id: true, username: true, fullName: true, role: true } },
           listing: { select: { id: true, title: true, images: true, price: true } },
         },
       }),
@@ -32,7 +32,7 @@ const getMessageById = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
-    const msg = await prisma.message.findUnique({ where: { id }, include: { sender: { select: { id: true, username: true } }, listing: { select: { id: true, title: true, images: true, price: true } } } });
+    const msg = await prisma.message.findUnique({ where: { id }, include: { sender: { select: { id: true, username: true, role: true } }, listing: { select: { id: true, title: true, images: true, price: true } } } });
     if (!msg || msg.recipientId !== req.user.id) return res.status(404).json({ error: "Not found" });
     // auto-mark read when opened
     if (!msg.read) await prisma.message.update({ where: { id }, data: { read: true } }).catch(() => {});
