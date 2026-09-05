@@ -42,10 +42,10 @@ Closes `product-management/value-map.md` V2 (seller can manage) and V3 (buyer se
 
 ## Status
 
-Scoped — Wayfinder Map #1 closed, hand-off ready
+Delivered — verified 2026-09-04 (`GET /api/health` 200 `database: Connected`, ghost prune query runs on boot at `backend/src/index.js:128`, `GET /api/listings/me` behind `protect`, `/my-listings` ProtectedRoute live)
 
-- Current status summary: 7 decisions closed — buyer trust first, free WA + ghost prune, keep token 3-free-then-1, My Listings prototype ship-as-is (62.5% zero-fav, 5% repeat, 0 GADGETS rows at 2026-09-01), 30d auto-hide + nudge with bool+soldAt, park RESERVED
-- Remaining work: migrate `soldAt`/`archivedAt`, implement `GET /me` + job + `MyListingsPage.jsx`, re-audit `value-map.md` V2/V3 to DELIVERED after 14d tap-rate lift
+- Current status summary: 7 decisions closed — buyer trust first, free WA + ghost prune, keep token 3-free-then-1, My Listings prototype shipped as `MyListingsPage.jsx` (GHOST badge `fav=0 && age>30d`, `isAvailable` toggle via `PUT /api/listings/:id`, boost 24h), `Listing.soldAt/archivedAt` migrated `20260902_add_sold_archived_at`, 30d auto-hide `isAvailable=false` + `archivedAt`
+- Remaining work: re-audit `value-map.md` V2/V3 to DELIVERED after 14d WhatsApp tap-rate lift on live listings; `/notifications` still parked
 
 ## Verification / Definition of Done
 

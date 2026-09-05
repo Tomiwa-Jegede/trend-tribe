@@ -42,6 +42,12 @@ const config = {
   apiUrl: process.env.API_URL,
   cronSecret: process.env.CRON_SECRET,
 
+  vapid: {
+    publicKey: process.env.VAPID_PUBLIC_KEY,
+    privateKey: process.env.VAPID_PRIVATE_KEY,
+    subject: process.env.VAPID_SUBJECT || "mailto:hello@trendtribe.ng",
+  },
+
   email: {
     brevoApiKey: process.env.BREVO_API_KEY,
     from: process.env.EMAIL_FROM,

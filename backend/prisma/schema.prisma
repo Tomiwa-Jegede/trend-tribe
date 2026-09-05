@@ -42,6 +42,7 @@ model User {
   contactViews         ContactView[]
   sentMessages         Message[] @relation("SentMessages")
   receivedMessages     Message[] @relation("ReceivedMessages")
+  pushSubscriptions    PushSubscription[]
 
   @@map("users")
 }
@@ -230,6 +231,22 @@ model GeminiLog {
   updatedAt DateTime @updatedAt
 
   @@map("gemini_logs")
+}
+
+model PushSubscription {
+  id             Int      @id @default(autoincrement())
+  userId         Int?
+  endpoint       String   @unique
+  p256dh         String
+  auth           String
+  expirationTime DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 enum Role {

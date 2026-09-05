@@ -1,5 +1,5 @@
 {
-  "name": "TrendTribe",
+  "name": "Trend Tribe",
   "short_name": "TrendTribe",
   "description": "The student-only marketplace to buy, sell, and trade within your campus community.",
   "start_url": "/",
@@ -8,14 +8,33 @@
   "theme_color": "#1340B8",
   "icons": [
     {
-      "src": "/trendtribe_logo.png",
-      "sizes": "192x192",
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
       "type": "image/png"
     },
     {
-      "src": "/trendtribe_logo.png",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

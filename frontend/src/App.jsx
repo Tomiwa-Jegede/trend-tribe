@@ -10,6 +10,8 @@ import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import FrederickWidget from "./components/frederick/FrederickWidget";
 import PageTransition from "./components/layout/PageTransition";
+import PWARegister from "./components/pwa/PWARegister";
+import InstallPrompt from "./components/pwa/InstallPrompt";
 import HomePage from "./pages/HomePage";
 import MarketplacePage from "./pages/MarketplacePage";
 import ListingDetailPage from "./pages/ListingDetailPage";
@@ -246,6 +248,8 @@ const App = () => {
 
       <Footer />
       <FrederickWidget />
+      <PWARegister />
+      <InstallPrompt />
     </div>
   );
 };

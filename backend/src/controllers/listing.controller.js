@@ -938,12 +938,26 @@ const toggleFavorite = async (req, res) => {
     await prisma.favorite.create({
       data: { listingId, userId: req.user.id },
     });
-    // Bell-only notification for seller (in-app pull, no email/WA)
+     // Bell-only notification for seller (in-app pull + push when app closed)
     if (listing.sellerId !== req.user.id) {
       try {
         await prisma.notification.create({
           data: { userId: listing.sellerId, actorId: req.user.id, listingId, type: "FAVORITE" },
         });
+        // Push even when PWA not open
+        const { sendPushToUser } = require("../utils/push");
+        const unread = await prisma.notification.count({ where: { userId: listing.sellerId, read: false } }).catch(() => 1);
+        sendPushToUser(prisma, listing.sellerId, {
+          title: "Trend Tribe — New favorite ♥",
+          body: "Someone saved your listing",
+          url: "/notifications",
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          badgeCount: unread,
+          tag: `fav-${listingId}`,
+        }).catch(() => {});
+        // badge update via push
+        if ("setAppBadge" in globalThis) {}
       } catch (e) {
         console.error("[NOTIFICATION CREATE ERROR]", e.message);
       }

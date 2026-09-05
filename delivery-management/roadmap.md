@@ -65,7 +65,7 @@ Each subsection maps 1:1 to a numbered tracker file (`milestone-N.md`). The trac
 
 - Goal: A buyer who taps Contact Seller reaches a live seller because the marketplace stays fresh and a returning seller can prune their own ghosts in one place — without building chat.
 - Includes: `GET /api/listings/me` + `MyListingsPage.jsx` from `MyListingsPage.prototype.jsx` (GHOST badge, `isAvailable` toggle), `Listing.soldAt`/`archivedAt` + 30d auto-hide job, free WhatsApp handoff stays, token keeps 3 free then 1 token (Frederick 1-2 units, single ledger)
-- Status summary: Scoped — 7 Wayfinder decisions closed (buyer trust first, free WA + ghost prune, keep token, prototype ship-as-is, 16 rows 62.5% cold 5% repeat, 0 GADGETS, bool+soldAt 30d); `/my-listings` still `ComingSoonPage` until slice ships, `/messages`/`/notifications` parked
+- Status summary: Delivered — `GET /api/listings/me` + `PATCH /:id` `isAvailable/soldAt` + 30d job (`backend/src/index.js:128`) + `MyListingsPage.jsx` GHOST badge/toggle/boost live at `/my-listings` (ProtectedRoute); `/messages`→`/inbox` shipped, `/notifications` still `ComingSoonPage`
 - Tracker: see [`milestone-5.md`](./milestone-5.md)
 
 ## Sequencing Rules
