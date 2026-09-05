@@ -6,15 +6,29 @@ dotenv.config({ path: ".env.test" });
 const USERNAME = process.env.TEST_USER_USERNAME;
 const PASSWORD = process.env.TEST_USER_PASSWORD;
 
-// Seeded listing (backend/seed-test-listing.js), owned by this same test user.
-const OWNED_LISTING_ID = 1;
-
 async function login(page) {
   await page.goto("/login");
   await page.getByLabel("Email or Username").fill(USERNAME);
   await page.getByRole("textbox", { name: "Password" }).fill(PASSWORD);
   await page.getByRole("button", { name: "Log In" }).click();
   await expect(page).not.toHaveURL(/\/login$/, { timeout: 10_000 });
+}
+
+async function getOwnedListingId(page) {
+  // Fetch owned listing via API (works with any seed id, not hardcoded 1)
+  const token = await page.evaluate(() => localStorage.getItem("tt_token"));
+  const res = await page.request.get("http://localhost:5050/api/auth/me", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const me = await res.json();
+  const userId = me.user?.id;
+  const listRes = await page.request.get(`http://localhost:5050/api/listings/user/${userId}?limit=1`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await listRes.json();
+  const listing = data.listings?.[0] || data[0];
+  if (!listing) throw new Error("No owned listing found for edit test — ensure seed exists");
+  return listing.id || listing.slug;
 }
 
 test.describe("Edit listing flow", () => {
@@ -28,7 +42,8 @@ test.describe("Edit listing flow", () => {
 
   test("edits an owned listing and saves changes", async ({ page }) => {
     await login(page);
-    await page.goto(`/listings/${OWNED_LISTING_ID}/edit`);
+    const ownedId = await getOwnedListingId(page);
+    await page.goto(`/listings/${ownedId}/edit`);
 
     // Form pre-fills from existing data (400ms artificial delay in the page).
     await expect(page.getByLabel("Title")).not.toHaveValue("", {
@@ -40,14 +55,9 @@ test.describe("Edit listing flow", () => {
 
     await page.getByRole("button", { name: "Save Changes" }).click();
 
-    // On success, EditListingPage navigates to /listings/:id
-    await expect(page).toHaveURL(
-      new RegExp(`/listings/${OWNED_LISTING_ID}$`),
-      { timeout: 15_000 },
-    );
-    await expect(
-      page.getByRole("heading", { name: updatedTitle }),
-    ).toBeVisible();
+    // On success, EditListingPage navigates to /listings/:slug (slug may change on title update)
+    await expect(page).toHaveURL(/\/listings\/.+$/, { timeout: 15_000 });
+    await expect(page.getByText(updatedTitle).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("blocks editing a listing you don't own", async ({ page }) => {

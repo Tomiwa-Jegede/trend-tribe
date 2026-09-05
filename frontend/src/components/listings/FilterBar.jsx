@@ -27,13 +27,17 @@ const FilterBar = ({
           <FiSearch
             className="absolute left-3 top-1/2 -translate-y-1/2
                                text-gray-400 w-4 h-4"
+            aria-hidden="true"
           />
+          <label htmlFor="filter-search" className="sr-only">Search listings</label>
           <input
+            id="filter-search"
             type="text"
             placeholder={searchPlaceholder}
             value={filters.search}
             onChange={(e) => onFilterChange({ search: e.target.value })}
             className="input-field pl-10"
+            aria-label="Search listings"
           />
         </div>
 
@@ -62,8 +66,9 @@ const FilterBar = ({
                      {/* Category */}
             {!hideCategoryFilter && (
               <div>
-                <label className="input-label">Category</label>
+                <label htmlFor="filter-category" className="input-label">Category</label>
                 <select
+                  id="filter-category"
                   value={filters.category}
                   onChange={(e) =>
                     onFilterChange({ category: e.target.value, subcategory: "" })
@@ -83,8 +88,9 @@ const FilterBar = ({
             {/* Subcategory (only for categories that have one) */}
             {!hideCategoryFilter && SUBCATEGORIES_BY_CATEGORY[filters.category] && (
               <div>
-                <label className="input-label">Subcategory</label>
+                <label htmlFor="filter-subcategory" className="input-label">Subcategory</label>
                 <select
+                  id="filter-subcategory"
                   value={filters.subcategory}
                   onChange={(e) => onFilterChange({ subcategory: e.target.value })}
                   className="input-field"
@@ -101,8 +107,9 @@ const FilterBar = ({
 
           {/* Condition */}
           <div>
-            <label className="input-label">Condition</label>
+            <label htmlFor="filter-condition" className="input-label">Condition</label>
             <select
+              id="filter-condition"
               value={filters.condition}
               onChange={(e) => onFilterChange({ condition: e.target.value })}
               className="input-field"
@@ -118,8 +125,9 @@ const FilterBar = ({
 
           {/* Min Price */}
           <div>
-            <label className="input-label">Min Price (₦)</label>
+            <label htmlFor="filter-min-price" className="input-label">Min Price (₦)</label>
             <input
+              id="filter-min-price"
               type="number"
               min="0"
               placeholder="0"
@@ -131,8 +139,9 @@ const FilterBar = ({
 
           {/* Max Price */}
           <div>
-            <label className="input-label">Max Price (₦)</label>
+            <label htmlFor="filter-max-price" className="input-label">Max Price (₦)</label>
             <input
+              id="filter-max-price"
               type="number"
               min="0"
               placeholder="Any"
@@ -195,9 +204,10 @@ const Chip = ({ label, onRemove }) => (
     {label}
     <button
       onClick={onRemove}
+      aria-label={`Remove filter ${label}`}
       className="hover:bg-primary-200 rounded-full p-0.5 transition-colors"
     >
-      <FiX className="w-3 h-3" />
+      <FiX className="w-3 h-3" aria-hidden="true" />
     </button>
   </span>
 );

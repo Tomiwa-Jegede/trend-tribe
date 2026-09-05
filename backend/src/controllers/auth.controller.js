@@ -153,9 +153,15 @@ const register = async (req, res) => {
 const resendRegistrationOtp = async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
     const pending = await prisma.pendingRegistration.findUnique({ where: { email } });
     if (!pending) {
       return res.status(404).json({ error: "No pending registration found. Please register again." });
+    }
+    // 60s cooldown — derive last send time from otpExpiresAt (10m window)
+    const lastSentAt = new Date(pending.otpExpiresAt).getTime() - 10 * 60 * 1000;
+    if (Date.now() - lastSentAt < 60 * 1000) {
+      return res.status(429).json({ error: "Please wait 60s before requesting another code" });
     }
     const otpCode = generateOTP();
     const otpExpiresAt = getOTPExpiry();
@@ -402,6 +408,13 @@ const resendOtp = async (req, res) => {
       return res.status(400).json({ error: "Email is already verified" });
     }
 
+    if (user.otpExpiresAt) {
+      const lastSentAt = new Date(user.otpExpiresAt).getTime() - 10 * 60 * 1000;
+      if (Date.now() - lastSentAt < 60 * 1000) {
+        return res.status(429).json({ error: "Please wait 60s before requesting another code" });
+      }
+    }
+
     const otpCode = generateOTP();
     const otpExpiresAt = getOTPExpiry();
 
@@ -449,31 +462,9 @@ const forgotPassword = async (req, res) => {
 
     const resetUrl = `${config.clientUrl}/reset-password?token=${resetToken}`;
     try {
-      console.log("[DEBUG] Attempting to send reset email to:", user.email);
-      console.log("[DEBUG] Using EMAIL_FROM:", config.email.from);
-      const result = await sendPasswordResetEmail(
-        user.email,
-        user.fullName,
-        resetUrl,
-      );
-      console.log(
-        "[DEBUG] Brevo send result:",
-        JSON.stringify(result, null, 2),
-      );
+      await sendPasswordResetEmail(user.email, user.fullName, resetUrl);
     } catch (emailErr) {
-      console.error(
-        "[FORGOT PASSWORD → SEND EMAIL ERROR] message:",
-        emailErr.message,
-      );
-      console.error(
-        "[FORGOT PASSWORD → SEND EMAIL ERROR] statusCode:",
-        emailErr.statusCode,
-      );
-      console.error(
-        "[FORGOT PASSWORD → SEND EMAIL ERROR] body:",
-        JSON.stringify(emailErr.body, null, 2),
-      );
-      console.error("[FORGOT PASSWORD → SEND EMAIL ERROR] full:", emailErr);
+      console.error("[FORGOT PASSWORD → SEND EMAIL ERROR]", emailErr.message);
     }
 
     return res.status(200).json(genericResponse);

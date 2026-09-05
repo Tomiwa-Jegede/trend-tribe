@@ -128,7 +128,14 @@ const App = () => {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/verify-registration" element={<VerifyOtpPage />} />
             <Route path="/profile/:slug" element={<ProfilePage />} />
-            <Route path="/profile/:slug/edit" element={<EditProfilePage />} />
+            <Route
+              path="/profile/:slug/edit"
+              element={
+                <ProtectedRoute>
+                  <EditProfilePage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Protected */}
             <Route
@@ -213,34 +220,34 @@ const App = () => {
                 </AdminRoute>
               }
             />
-            {/* 404 */}
-            <Route path="*" element={<NotFoundPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/features" element={<FeaturesPage />} />
             <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/coming-soon" element={<ComingSoonPage />} />
-              <Route path="/messages" element={<Navigate to="/inbox" replace />} />
-              <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
-              <Route
-                path="/saved"
-                element={
-                  <ProtectedRoute>
-                    <FavoritesPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/notifications" element={<ComingSoonPage />} />
-              <Route
-                path="/my-listings"
-                element={
-                  <ProtectedRoute>
-                    <MyListingsPage />
-                  </ProtectedRoute>
-                }
-              />
+            <Route path="/coming-soon" element={<ComingSoonPage />} />
+            <Route path="/messages" element={<Navigate to="/inbox" replace />} />
+            <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
+            <Route
+              path="/saved"
+              element={
+                <ProtectedRoute>
+                  <FavoritesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/notifications" element={<ComingSoonPage />} />
+            <Route
+              path="/my-listings"
+              element={
+                <ProtectedRoute>
+                  <MyListingsPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* 404 — must be last */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </Suspense>
         </PageTransition>

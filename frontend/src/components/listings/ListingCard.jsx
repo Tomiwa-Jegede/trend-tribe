@@ -129,9 +129,30 @@ const ListingCard = ({ listing }) => {
   return (
     <motion.div
       {...safeCard}
-      className="rounded-2xl overflow-hidden bg-white cursor-pointer"
+      className="rounded-2xl overflow-hidden bg-white relative"
       style={{ willChange: "transform" }}
     >
+      {/* Favorite heart — outside Link to avoid nested interactive */}
+      <motion.button
+        type="button"
+        onClick={handleFavoriteClick}
+        aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+        initial={reduced ? {} : { opacity: 0, scale: 0.8 }}
+        animate={reduced ? {} : { opacity: 1, scale: 1 }}
+        whileTap={reduced ? {} : { scale: 0.85 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90
+                   backdrop-blur-sm flex items-center justify-center
+                   shadow-sm hover:bg-white transition-colors"
+      >
+        <FiHeart
+          className={`w-4 h-4 transition-colors ${
+            favorited ? "fill-red-500 text-red-500" : "text-gray-400"
+          }`}
+          aria-hidden="true"
+        />
+      </motion.button>
+
       <Link
         to={`/listings/${listingSlug}`}
         className="flex flex-col h-full focus:outline-none 
@@ -145,6 +166,11 @@ const ListingCard = ({ listing }) => {
             <motion.img
               src={thumbnail}
               alt={title}
+              loading="lazy"
+              decoding="async"
+              width="400"
+              height="300"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="w-full h-full object-cover"
               style={{
                 objectPosition: `${listing.coverPosition?.x ?? 50}% ${listing.coverPosition?.y ?? 50}%`,
@@ -162,41 +188,19 @@ const ListingCard = ({ listing }) => {
               className="w-full h-full flex items-center justify-center
                          bg-gradient-to-br from-sage-50 to-sage-100"
             >
-              <span className="text-4xl opacity-40">🛍️</span>
+              <span className="text-4xl opacity-40" aria-hidden="true">🛍️</span>
             </div>
           )}
 
-                    {/* Condition badge */}
-            <motion.span
-              className={`badge absolute top-3 left-3 ${CONDITION_STYLES[condition]}`}
-              initial={reduced ? {} : { opacity: 0, x: -8 }}
-              animate={reduced ? {} : { opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
-              {CONDITION_LABELS[condition]}
-            </motion.span>
-
-            {/* Favorite heart */}
-            <motion.button
-              type="button"
-              onClick={handleFavoriteClick}
-              aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
-              initial={reduced ? {} : { opacity: 0, scale: 0.8 }}
-              animate={reduced ? {} : { opacity: 1, scale: 1 }}
-              whileTap={reduced ? {} : { scale: 0.85 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90
-                         backdrop-blur-sm flex items-center justify-center
-                         shadow-sm hover:bg-white transition-colors"
-            >
-              <FiHeart
-                className={`w-4 h-4 transition-colors ${
-                  favorited
-                    ? "fill-red-500 text-red-500"
-                    : "text-gray-400"
-                }`}
-              />
-            </motion.button>
+          {/* Condition badge */}
+          <motion.span
+            className={`badge absolute top-3 left-3 ${CONDITION_STYLES[condition]}`}
+            initial={reduced ? {} : { opacity: 0, x: -8 }}
+            animate={reduced ? {} : { opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            {CONDITION_LABELS[condition]}
+          </motion.span>
 
           {/* Hover overlay */}
           {!reduced && (

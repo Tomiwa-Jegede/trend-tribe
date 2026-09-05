@@ -57,7 +57,8 @@ const createListingRules = [
     .withMessage(`Category must be one of: ${VALID_CATEGORIES.join(", ")}`),
 
   body("subcategory")
-    .optional({ nullable: true })
+    .optional({ values: "falsy", nullable: true })
+    .customSanitizer((v) => (v === "" ? null : v))
     .isIn(VALID_SUBCATEGORIES)
     .withMessage(`Subcategory must be one of: ${VALID_SUBCATEGORIES.join(", ")}`)
     .bail()
@@ -117,7 +118,8 @@ const updateListingRules = [
     .withMessage(`Category must be one of: ${VALID_CATEGORIES.join(", ")}`),
 
   body("subcategory")
-    .optional({ nullable: true })
+    .optional({ values: "falsy", nullable: true })
+    .customSanitizer((v) => (v === "" ? null : v))
     .isIn(VALID_SUBCATEGORIES)
     .withMessage(`Subcategory must be one of: ${VALID_SUBCATEGORIES.join(", ")}`)
     .bail()

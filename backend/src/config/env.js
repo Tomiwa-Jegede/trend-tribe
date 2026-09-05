@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const REQUIRED_VARS = [
   "DATABASE_URL",
+  "DIRECT_URL",
   "JWT_SECRET",
   "JWT_EXPIRES_IN",
   "CLIENT_URL",
@@ -11,10 +12,10 @@ const REQUIRED_VARS = [
   "BREVO_API_KEY",
   "EMAIL_FROM",
   "EMAIL_FROM_NAME",
-  "CLOUDINARY_CLOUD_NAME", // ← new
-  "CLOUDINARY_API_KEY", // ← new
-  "CLOUDINARY_API_SECRET", // ← new
-  "CRON_SECRET", // ← new
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
+  "CRON_SECRET",
 ];
 
 const missing = REQUIRED_VARS.filter((key) => !process.env[key]);

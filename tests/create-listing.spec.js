@@ -36,13 +36,13 @@ test.describe("Create listing flow", () => {
       .getByLabel("Description")
       .fill("Created by an automated Playwright test. Safe to delete.");
     await page.getByLabel("Price (₦)").fill("2500");
-    await page.locator("#category").selectOption("OTHER");
+    await page.locator("#category").selectOption("OTHERS");
     await page.locator("#condition").selectOption("GOOD");
 
     await page.getByRole("button", { name: "Post Listing" }).click();
 
-    // On success, CreateListingPage navigates to /listings/:id
-    await expect(page).toHaveURL(/\/listings\/\d+$/, { timeout: 15_000 });
+    // On success, CreateListingPage navigates to /listings/:slug (or id)
+    await expect(page).toHaveURL(/\/listings\/.+$/, { timeout: 15_000 });
     await expect(
       page.getByRole("heading", { name: uniqueTitle }),
     ).toBeVisible();

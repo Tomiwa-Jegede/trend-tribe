@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install root deps
+        run: npm ci --legacy-peer-deps
+      - name: Install backend deps
+        run: npm ci --legacy-peer-deps
+        working-directory: backend
+      - name: Install frontend deps
+        run: npm ci --legacy-peer-deps
+        working-directory: frontend
+      - name: Lint frontend
+        run: npm run lint
+        working-directory: frontend
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+      - name: Check backend boot
+        run: node -e "require('./src/config/env'); console.log('env ok')"
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DIRECT_URL: postgresql://test:test@localhost:5432/test
+          JWT_SECRET: ci_test_secret_1234567890
+          JWT_EXPIRES_IN: 7d
+          CLIENT_URL: http://localhost:5173
+          API_URL: http://localhost:5050/api
+          BREVO_API_KEY: ci_test_key
+          EMAIL_FROM: test@test.com
+          EMAIL_FROM_NAME: Test
+          CLOUDINARY_CLOUD_NAME: test
+          CLOUDINARY_API_KEY: test
+          CLOUDINARY_API_SECRET: test
+          CRON_SECRET: ci_cron_secret
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: lint-and-build
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npx playwright install --with-deps chromium
+      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
+        working-directory: backend
+      - run: npm ci --legacy-peer-deps
+        working-directory: frontend
+      - name: Seed DB (if DATABASE_URL provided)
+        run: npx prisma migrate deploy || true; npm run seed || true
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          TEST_USER_USERNAME: Jegede01
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        continue-on-error: true
+      - run: npm test
+        env:
+          CI: true

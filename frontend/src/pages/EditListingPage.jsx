@@ -28,8 +28,11 @@ const EditListingPage = () => {
         const found = await getListingById(id);
         if (!found) {
           setNotFound(true);
-        } else if (found.seller.id !== user?.id) {
+        } else if (user && found.seller.id !== user.id) {
           setNotOwner(true);
+        } else if (!user) {
+          // auth still loading — retry once auth resolves rather than marking notOwner
+          setListing(found);
         } else {
           setListing(found);
         }

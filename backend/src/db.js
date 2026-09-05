@@ -2,8 +2,9 @@
 
 const { PrismaClient } = require("@prisma/client");
 
+const config = require("./config/env");
 const prisma = new PrismaClient({
-  log: ["query", "info", "warn", "error"], // logs all DB activity in dev
+  log: config.isDev ? ["query", "info", "warn", "error"] : ["error"],
 });
 
 module.exports = prisma;

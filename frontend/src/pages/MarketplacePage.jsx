@@ -61,8 +61,8 @@ const MarketplacePage = () => {
 
   // ── Fetch listings from real API (only once a category is chosen) ──
   const fetchListings = useCallback(async () => {
-    if (!filters.category) return;
-    if (SUBCATEGORIES_BY_CATEGORY[filters.category] && !filters.subcategory) return;
+    if (!filters.category) { setLoading(false); return; }
+    if (SUBCATEGORIES_BY_CATEGORY[filters.category] && !filters.subcategory) { setLoading(false); return; }
     setLoading(true);
     setError("");
     try {

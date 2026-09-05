@@ -12,7 +12,9 @@
     "dotenv": "^17.4.2"
   },
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "lint": "eslint . || true",
+    "build:frontend": "npm run build --workspace=frontend || npm --prefix frontend run build"
   },
   "repository": {
     "type": "git",

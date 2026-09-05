@@ -24,12 +24,18 @@ api.interceptors.request.use(
 );
 
 // ─── Response Interceptor ─────────────────────────────────────
-// No auto-logout: session persists until user explicitly logs out.
-// 401s are just rejected so callers can handle them (e.g. show login prompt)
-// without wiping localStorage or hard-redirecting.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error?.response?.status === 401) {
+      const hasToken = localStorage.getItem("tt_token");
+      // Only auto-clear for /auth/me — other 401s (e.g. login failure) should not wipe session
+      const isMeRequest = error?.config?.url?.includes("/auth/me");
+      if (hasToken && isMeRequest) {
+        localStorage.removeItem("tt_token");
+        localStorage.removeItem("tt_user");
+      }
+    }
     return Promise.reject(error);
   },
 );

@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
 
+# Disallow auth/admin internals from indexing
+Disallow: /admin
+Disallow: /create-listing
+Disallow: /inbox
+Disallow: /saved
+
 Sitemap: https://trendtribe.app/sitemap.xml

@@ -321,6 +321,9 @@ const ListingDetailPage = () => {
                     <img
                       src={img}
                       alt={`${listing.title} ${i + 1}`}
+                      loading={i === 0 ? "eager" : "lazy"}
+                      decoding="async"
+                      sizes="(max-width: 1024px) 100vw, 50vw"
                       className="w-full h-full object-cover pointer-events-none"
                       style={{
                         objectPosition: i === 0 ? `${listing.coverPosition?.x ?? 50}% ${listing.coverPosition?.y ?? 50}%` : "center",
@@ -361,7 +364,7 @@ const ListingDetailPage = () => {
                     activeImage === i ? "border-primary-600" : "border-transparent"
                   }`}
                 >
-                  {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-100" />}
+                  {img ? <img src={img} alt={`Thumbnail ${i + 1}`} loading="lazy" decoding="async" width="64" height="64" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-100" />}
                 </button>
               ))}
             </div>

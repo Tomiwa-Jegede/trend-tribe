@@ -64,6 +64,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,webp}"],
         importScripts: ["/push-handler.js"],
+        cleanupOutdatedCaches: true,
         // Offline fallback: SPA shell
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
@@ -74,15 +75,21 @@ export default defineConfig({
             options: { cacheName: "cloudinary-images", expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 }, cacheableResponse: { statuses: [0, 200] } },
           },
           {
-            urlPattern: /^https:\/\/trendtribe\.app\/api\/.*/i,
-            handler: "NetworkFirst",
-            options: { cacheName: "api-cache", networkTimeoutSeconds: 4, expiration: { maxEntries: 50, maxAgeSeconds: 5 * 60 } },
+            // Realtime-critical: never serve stale — must be NetworkOnly so socket refetch is instant in PWA
+            urlPattern: /\/api\/(listings|auth\/me|notifications|messages)(\/.*)?(\?.*)?$/i,
+            handler: "NetworkOnly",
+            options: { cacheName: "api-realtime" },
           },
           {
-            // local dev/api proxy fallback
+            urlPattern: /^https:\/\/trendtribe\.app\/api\/.*/i,
+            handler: "NetworkFirst",
+            options: { cacheName: "api-cache", networkTimeoutSeconds: 2, expiration: { maxEntries: 50, maxAgeSeconds: 30 } },
+          },
+          {
+            // local dev/api proxy fallback — short TTL so PWA doesn't hide ghost-prune
             urlPattern: /\/api\/.*/i,
             handler: "NetworkFirst",
-            options: { cacheName: "api-cache-local", networkTimeoutSeconds: 4, expiration: { maxEntries: 50, maxAgeSeconds: 5 * 60 } },
+            options: { cacheName: "api-cache-local", networkTimeoutSeconds: 2, expiration: { maxEntries: 50, maxAgeSeconds: 30 } },
           },
         ],
       },
@@ -96,6 +103,22 @@ export default defineConfig({
     __PRIVACY_LAST_UPDATED__: JSON.stringify(
       getLastCommitDate("src/pages/PrivacyPage.jsx"),
     ),
+  },
+
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react-router") || id.includes("node_modules/react-dom") || (id.includes("node_modules/react/") || id.includes("node_modules/react "))) return "vendor";
+          if (id.includes("node_modules/react")) return "vendor";
+          if (id.includes("node_modules/framer-motion")) return "motion";
+          if (id.includes("node_modules/recharts")) return "charts";
+          if (id.includes("node_modules/socket.io-client") || id.includes("node_modules/pusher-js")) return "realtime";
+          if (id.includes("node_modules/react-icons")) return "icons";
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
   },
 
   server: {

@@ -31,9 +31,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // ── Refresh user data from server ────────────────────────────
-  // Never auto-logout: if /auth/me fails (network, 401, expired token)
-  // we keep the cached session and just skip the refresh. Only explicit
-  // logout() clears storage.
   const refreshUser = useCallback(async () => {
     if (!localStorage.getItem("tt_token")) return;
     try {
@@ -41,8 +38,15 @@ export const AuthProvider = ({ children }) => {
       setUser(data.user);
       localStorage.setItem("tt_user", JSON.stringify(data.user));
     } catch (err) {
+      if (err?.response?.status === 401) {
+        // Token expired/invalid — clear session
+        localStorage.removeItem("tt_token");
+        localStorage.removeItem("tt_user");
+        setToken(null);
+        setUser(null);
+        return;
+      }
       if (import.meta.env.DEV) console.warn("[AuthContext refreshUser]", err?.response?.data || err.message);
-      // keep existing cached user/token — do not logout
     }
   }, []);
 

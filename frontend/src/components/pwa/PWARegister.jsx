@@ -10,10 +10,28 @@ export default function PWARegister() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
+    onRegisteredSW(swUrl, r) {
+      // periodic check every hour + on visibility/focus so PWA picks up deploy on next open
+      if (r) {
+        const doUpdate = () => r.update().catch(() => {});
+        const id = setInterval(doUpdate, 60 * 60 * 1000);
+        const onVis = () => { if (document.visibilityState === "visible") doUpdate(); };
+        const onFocus = () => doUpdate();
+        document.addEventListener("visibilitychange", onVis);
+        window.addEventListener("focus", onFocus);
+        // cleanup if component unmounts (though it's root)
+        // store for HMR
+        if (import.meta.hot) import.meta.hot.dispose(() => {
+          clearInterval(id);
+          document.removeEventListener("visibilitychange", onVis);
+          window.removeEventListener("focus", onFocus);
+        });
+      }
+      console.log("[PWA] SW registered", swUrl);
+    },
     onRegistered(r) {
-      // periodic check every hour
-      if (r) setInterval(() => r.update().catch(() => {}), 60 * 60 * 1000);
-      console.log("[PWA] SW registered");
+      // handled in onRegisteredSW above
+      if (r) console.log("[PWA] SW registered (fallback)");
     },
     onRegisterError(e) {
       console.warn("[PWA] SW error", e);
