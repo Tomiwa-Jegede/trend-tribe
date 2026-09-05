@@ -390,8 +390,26 @@ const createListing = async (req, res) => {
         await prisma.notification.createMany({
           data: admins.map((a) => ({ userId: a.id, actorId: req.user.id, listingId: listing.id, type: "NEW_LISTING" })),
         });
-        // realtime admin bell
-        try { const { emitNotification } = require("../realtime"); admins.forEach((a) => emitNotification(a.id, { type: "NEW_LISTING", listingId: listing.id, actorId: req.user.id })); } catch {}
+        // realtime admin bell + phone push
+        try {
+          const { emitNotification } = require("../realtime");
+          const { sendPushToUser } = require("../utils/push");
+          for (const a of admins) {
+            emitNotification(a.id, { type: "NEW_LISTING", listingId: listing.id, actorId: req.user.id });
+            // phone push for admin
+            prisma.notification.count({ where: { userId: a.id, read: false } }).then((unread) => {
+              sendPushToUser(prisma, a.id, {
+                title: "Trend Tribe — New listing",
+                body: listing.title.slice(0, 120),
+                url: `/listings/${listing.slug || listing.id}`,
+                icon: "/icon-192.png",
+                badge: "/icon-192.png",
+                badgeCount: unread,
+                tag: `new-listing-${listing.id}`,
+              }).catch(() => {});
+            }).catch(() => {});
+          }
+        } catch {}
       }
     } catch (e) {
       console.error("[ADMIN NOTIF NEW_LISTING ERROR]", e.message);

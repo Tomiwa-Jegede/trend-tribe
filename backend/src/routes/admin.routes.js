@@ -489,14 +489,26 @@ router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
     const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: null }));
     // store preview in notification via raw? For MVP, notifications will show generic text, inbox has full body
     await prisma.notification.createMany({ data: notifs });
-    // realtime: push to inbox + bell instantly
+    // realtime: push to inbox + bell instantly + phone push (even when app closed)
     try {
       const { emitMessage, emitNotification } = require("../realtime");
-      // fetch created messages for payload (last N)
+      const { sendPushToUser } = require("../utils/push");
       const created = await prisma.message.findMany({ where: { senderId: req.user.id }, orderBy: { createdAt: "desc" }, take: recipientIds.length, select: { id: true, subject: true, body: true, senderId: true, recipientId: true, createdAt: true } });
       for (const m of created) {
         emitMessage(m.recipientId, m);
         emitNotification(m.recipientId, { type: "MESSAGE", actorId: req.user.id });
+        // phone push (service worker) — badge count included
+        prisma.notification.count({ where: { userId: m.recipientId, read: false } }).then((unread) => {
+          sendPushToUser(prisma, m.recipientId, {
+            title: m.subject || "Trend Tribe — New message",
+            body: text.slice(0, 120),
+            url: "/inbox",
+            icon: "/icon-192.png",
+            badge: "/icon-192.png",
+            badgeCount: unread,
+            tag: `msg-${m.id}`,
+          }).catch(() => {});
+        }).catch(() => {});
       }
     } catch {}
     return res.status(200).json({ sent: recipientIds.length, preview });
