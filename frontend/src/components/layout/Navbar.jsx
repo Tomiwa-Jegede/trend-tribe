@@ -20,6 +20,7 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 import NotificationBell from "../notifications/NotificationBell";
+import PWAInstallButton from "../pwa/PWAInstallButton";
 import TokenIcon from "../ui/TokenIcon";
 import api from "../../api/axios";
 
@@ -267,7 +268,7 @@ const Navbar = () => {
 
             {/* ── Desktop Auth Buttons ──────────────────────── */}
             <div className="hidden md:flex items-center gap-3">
-              
+              <PWAInstallButton variant="outline" size="small" />
               {isAuthenticated ? (
                 <>
                   {user?.role !== "BUYER" && (
@@ -499,7 +500,8 @@ const Navbar = () => {
               )}
 
               <div className="border-t border-sage-100 pt-4 flex flex-col gap-3">
-               {isAuthenticated ? (
+                <PWAInstallButton variant="accent" className="w-full justify-center" />
+                {isAuthenticated ? (
                   <>
                     {user?.role !== "BUYER" && (
                       <motion.div

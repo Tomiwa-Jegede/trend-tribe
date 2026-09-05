@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 
 import HomeTicker from "../components/home/HomeTicker";
+import PWAInstallButton from "../components/pwa/PWAInstallButton";
 import { Helmet } from "react-helmet-async";
 
 // ── Static data ────────────────────────────────────────────────
@@ -278,6 +279,11 @@ const HomePage = () => {
               >
                 Buy and sell fashion, beauty, gadgets and more with students on your campus. 3 listings free. Extra listings, Featured boost and more days cost 1 token. No shipping — meet on campus.
               </motion.p>
+
+              {/* PWA Install — visible on Android/desktop when installable, iOS shows instructions */}
+              <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-4">
+                <PWAInstallButton variant="accent" size="large" />
+              </motion.div>
 
               {/* CTAs */}
               <motion.div
