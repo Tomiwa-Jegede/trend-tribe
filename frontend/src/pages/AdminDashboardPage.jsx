@@ -6,6 +6,7 @@ import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, triggerDailyEmail, getDailyEmailStatus, getCloudinaryUsage, getDbUsage, getBrevoUsage } from "../services/adminService";
 import { getAiAnalytics } from "../services/analyticsService";
 import { broadcastMessage } from "../services/messageService";
+import api from "../api/axios";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -55,6 +56,8 @@ const AdminDashboardPage = () => {
   const [showNotifyPopup, setShowNotifyPopup] = useState(false);
   const [lastBroadcast, setLastBroadcast] = useState(null);
   const [notifying, setNotifying] = useState(false);
+  const [pwaStats, setPwaStats] = useState(null);
+  const [pwaError, setPwaError] = useState("");
   const { toast } = useToast();
 
   const pollWeeklyEmailStatus = () => {
@@ -200,6 +203,11 @@ const AdminDashboardPage = () => {
     getAiAnalytics()
       .then((d) => setAiUsage(d))
       .catch((e) => setAiError(e.response?.data?.error || "Could not load AI usage"));
+  }, []);
+  useEffect(() => {
+    api.get("/pwa/stats")
+      .then((r) => setPwaStats(r.data))
+      .catch((e) => setPwaError(e.response?.data?.error || "Could not load PWA stats"));
   }, []);
 
   const TABS = [
@@ -350,6 +358,45 @@ const AdminDashboardPage = () => {
               <p className="text-sm text-red-500">{aiError} — check API or try again.</p>
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading AI usage…</div>
+            )}
+          </div>
+
+          {/* PWA Installs — TT Marketplace */}
+          <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">PWA Installs — TT Marketplace</p>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${pwaStats?.total > 0 ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500"}`}>
+                {pwaStats ? `${pwaStats.total} total` : pwaError ? "Error" : "Loading..."}
+              </span>
+            </div>
+            {pwaStats ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div><p className="text-xs text-gray-400">Total installs</p><p className="font-semibold text-navy-900">{pwaStats.total}</p></div>
+                  <div><p className="text-xs text-gray-400">Last 7 days</p><p className="font-semibold text-navy-900">{pwaStats.last7Days}</p></div>
+                  <div><p className="text-xs text-gray-400">Unique users</p><p className="font-semibold text-navy-900">{pwaStats.uniqueLoggedInUsers}</p></div>
+                  <div><p className="text-xs text-gray-400">Android / iOS</p><p className="font-semibold text-navy-900">{pwaStats.byPlatform?.android || 0} / {pwaStats.byPlatform?.ios || 0}</p></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-3">
+                  <div>By source: {Object.entries(pwaStats.bySource || {}).map(([k, v]) => `${k} ${v}`).join(" · ") || "—"}</div>
+                  <div>By platform: {Object.entries(pwaStats.byPlatform || {}).map(([k, v]) => `${k} ${v}`).join(" · ") || "—"}</div>
+                </div>
+                {pwaStats.byDay?.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Last 14 days</p>
+                    <div className="flex flex-wrap gap-2">
+                      {pwaStats.byDay.map((d) => (
+                        <span key={d.day} className="text-xs bg-gray-50 border border-gray-100 rounded-full px-2 py-1">{d.day}: <b>{d.count}</b></span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400 mt-3">Fires on <b>appinstalled</b> (Android/desktop) + <b>standalone launch</b> (iOS) — once/day per device. Also tracked in GA4 as <code>pwa_installed</code> / <code>pwa_launch</code>.</p>
+              </>
+            ) : pwaError ? (
+              <p className="text-sm text-red-500">{pwaError} — check <code>GET /api/pwa/stats</code> with admin JWT.</p>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14} /> Loading PWA stats…</div>
             )}
           </div>
 
