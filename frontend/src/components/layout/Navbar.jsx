@@ -93,10 +93,10 @@ const Navbar = () => {
     fetchInbox();
   }, [isAuthenticated, token, user?.id, fetchInbox, location.pathname]);
 
-  // Real-time: socket when new inbox message lands + polling fallback
+  // Real-time: socket instant + 15s polling fallback
   useRealtime("message", fetchInbox, { enabled: isAuthenticated && !!token });
   useRealtime("message:unread", fetchInbox, { enabled: isAuthenticated && !!token });
-  useRealtimePolling(fetchInbox, 30000, isAuthenticated && !!token);
+  useRealtimePolling(fetchInbox, 15000, isAuthenticated && !!token);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);

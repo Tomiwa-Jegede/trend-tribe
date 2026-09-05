@@ -28,20 +28,29 @@ export const connectSocket = () => {
     transports: ["polling", "websocket"],
     withCredentials: true,
     reconnection: true,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 2000,
+    reconnectionDelayMax: 10000,
     timeout: 8000,
   });
 
+  let lastConnectLog = 0;
   socket.on("connect", () => {
     if (import.meta.env.DEV) console.log("[SOCKET] connected", socket.id);
+    // ensure marketplace room joined (server auto-joins but re-join after reconnect)
+    socket.emit("join:marketplace");
   });
-  socket.on("disconnect", () => {
-    if (import.meta.env.DEV) console.log("[SOCKET] disconnected");
+  socket.on("disconnect", (reason) => {
+    if (import.meta.env.DEV) console.log("[SOCKET] disconnected", reason);
+    // Render cold start: socket will auto-reconnect via reconnection, but also retry on next focus via SocketContext
   });
   socket.on("connect_error", (err) => {
-    // suppress spam — server may be on old build or Render cold start, fallback to polling
-    if (import.meta.env.DEV) console.warn("[SOCKET] connect_error", err.message);
+    // throttle logs to once per 10s to avoid spam, fallback polling keeps UI fresh
+    const now = Date.now();
+    if (now - lastConnectLog > 10000 && import.meta.env.DEV) {
+      console.warn("[SOCKET] connect_error (fallback polling active)", err.message);
+      lastConnectLog = now;
+    }
   });
 
   // re-attach stored listeners

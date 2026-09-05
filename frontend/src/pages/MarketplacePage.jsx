@@ -90,9 +90,9 @@ const MarketplacePage = () => {
     fetchListings();
   }, [fetchListings]);
 
-  // Real-time: socket push when any listing created/updated/deleted/boosted + polling fallback if socket down
+  // Real-time: socket instant + 15s polling fallback (Render cold start)
   useRealtime("listing", () => fetchListings(), { enabled: true });
-  useRealtimePolling(() => fetchListings(false), 30000, true);
+  useRealtimePolling(() => fetchListings(false), 15000, true);
   useEffect(() => {
     const onFocus = () => fetchListings();
     window.addEventListener("focus", onFocus);

@@ -59,11 +59,11 @@ const NotificationBell = () => {
     fetchUnread();
   }, [isAuthenticated, token, user?.id, fetchUnread]);
 
-  // Real-time: socket push when any notification lands + polling fallback
+  // Real-time: socket instant + 15s polling fallback
   useRealtime("notification", fetchUnread, { enabled: isAuthenticated && !!token });
   useRealtime("notification:unread", fetchUnread, { enabled: isAuthenticated && !!token });
   useRealtime("notification", fetchList, { enabled: isAuthenticated && !!token && open });
-  useRealtimePolling(fetchUnread, 30000, isAuthenticated && !!token);
+  useRealtimePolling(fetchUnread, 15000, isAuthenticated && !!token);
 
   useEffect(() => {
     const h = (e) => {

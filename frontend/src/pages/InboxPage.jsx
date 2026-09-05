@@ -47,11 +47,11 @@ const InboxPage = () => {
     fetchMessages(true);
   }, [isAuthenticated, token, user?.id, fetchMessages]);
 
-  // Real-time: socket pushes message instantly + polling fallback if socket down (Render cold start)
+  // Real-time: socket instant + 15s polling fallback
   const pollInbox = useCallback(() => fetchMessages(false), [fetchMessages]);
   useRealtime("message", pollInbox, { enabled: isAuthenticated && !!token });
   useRealtime("message:unread", pollInbox, { enabled: isAuthenticated && !!token });
-  useRealtimePolling(pollInbox, 30000, isAuthenticated && !!token);
+  useRealtimePolling(pollInbox, 15000, isAuthenticated && !!token);
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
