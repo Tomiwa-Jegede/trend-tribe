@@ -59,7 +59,26 @@ export default function PWAInstallButton({ variant = "primary", className = "", 
     );
   }
 
-  // Fallback: browser doesn't support install (or already eligible but prompt not yet fired)
-  // Show nothing to avoid clutter — InstallPrompt banner will handle generic push opt-in
-  return null;
+  // Fallback: not iOS and prompt not yet available — show helper that explains manual install
+  // This ensures iPhone always sees a button even if UA detection weird, and Android sees help pre-prompt
+  return (
+    <>
+      <button onClick={() => setShowIOS(true)} className={cls} aria-label="Install Trend Tribe app">
+        <FiDownload className="w-4 h-4" /> Install app
+      </button>
+      {showIOS && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowIOS(false)}>
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900">Install Trend Tribe</h3>
+            <div className="text-sm text-gray-600 mt-3 space-y-3">
+              <p><b>iPhone (Safari):</b> Tap <FiShare2 className="inline w-4 h-4" /> Share (bottom) → <b>Add to Home Screen</b> → Add</p>
+              <p><b>Android (Chrome):</b> Tap <b>⋮</b> top-right → <b>Install app</b> / <b>Add to Home Screen</b></p>
+              <p><b>Desktop:</b> Address bar → Install icon ⊕</p>
+            </div>
+            <button onClick={() => setShowIOS(false)} className="mt-4 w-full btn-primary text-sm">Got it</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

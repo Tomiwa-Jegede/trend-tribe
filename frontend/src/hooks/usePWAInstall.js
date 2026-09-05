@@ -29,7 +29,14 @@ export default function usePWAInstall() {
     };
   }, []);
 
-  const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent || "");
+  // iOS detection that also catches iPadOS 13+ (MacIntel + touch) and Chrome on iOS (CriOS)
+  const isIOS = (() => {
+    if (typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    const platform = navigator.platform || "";
+    const maxTouch = navigator.maxTouchPoints || 0;
+    return /iPad|iPhone|iPod/.test(ua) || (platform === "MacIntel" && maxTouch > 1) || /CriOS|FxiOS/.test(ua);
+  })();
   const isStandalone = installed;
 
   const canInstall = !!deferred && !installed;
