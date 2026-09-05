@@ -8,6 +8,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { FavoritesProvider } from "./context/FavoritesContext";
 import { ToastProvider } from "./context/ToastContext";
 import ToastOverlay from "./components/ui/Toast";
+import SocketProvider from "./context/SocketContext";
 import App from "./App";
 import "./index.css";
 
@@ -16,14 +17,16 @@ createRoot(document.getElementById("root")).render(
     <HelmetProvider>
       <BrowserRouter>
         <AuthProvider>
-          <FavoritesProvider>
-            <ToastProvider>
-              <App />
-              {/* Toast overlay lives outside App so it's never clipped by
-                  any overflow-hidden parent (Navbar, modals, etc.)         */}
-              <ToastOverlay />
-            </ToastProvider>
-          </FavoritesProvider>
+          <SocketProvider>
+            <FavoritesProvider>
+              <ToastProvider>
+                <App />
+                {/* Toast overlay lives outside App so it's never clipped by
+                    any overflow-hidden parent (Navbar, modals, etc.)         */}
+                <ToastOverlay />
+              </ToastProvider>
+            </FavoritesProvider>
+          </SocketProvider>
         </AuthProvider>
       </BrowserRouter>
     </HelmetProvider>

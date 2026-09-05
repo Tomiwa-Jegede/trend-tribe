@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { FiBell, FiTrash2, FiCheckSquare, FiSquare } from "react-icons/fi";
 import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
-import useRealtimePolling from "../../hooks/useRealtimePolling";
+import useRealtime from "../../hooks/useRealtime";
 
 const NotificationBell = () => {
   const { isAuthenticated, user, token } = useAuth();
@@ -58,8 +58,11 @@ const NotificationBell = () => {
     fetchUnread();
   }, [isAuthenticated, token, user?.id, fetchUnread]);
 
-  // Real-time: poll every 10s + refetch on focus / tab visible
-  useRealtimePolling(fetchUnread, 10000, isAuthenticated && !!token);
+  // Real-time: socket push when any notification lands (no manual refresh)
+  useRealtime("notification", fetchUnread, { enabled: isAuthenticated && !!token });
+  useRealtime("notification:unread", fetchUnread, { enabled: isAuthenticated && !!token });
+  // also refetch list when dropdown open and notification arrives
+  useRealtime("notification", fetchList, { enabled: isAuthenticated && !!token && open });
 
   useEffect(() => {
     const h = (e) => {

@@ -489,6 +489,16 @@ router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
     const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: null }));
     // store preview in notification via raw? For MVP, notifications will show generic text, inbox has full body
     await prisma.notification.createMany({ data: notifs });
+    // realtime: push to inbox + bell instantly
+    try {
+      const { emitMessage, emitNotification } = require("../realtime");
+      // fetch created messages for payload (last N)
+      const created = await prisma.message.findMany({ where: { senderId: req.user.id }, orderBy: { createdAt: "desc" }, take: recipientIds.length, select: { id: true, subject: true, body: true, senderId: true, recipientId: true, createdAt: true } });
+      for (const m of created) {
+        emitMessage(m.recipientId, m);
+        emitNotification(m.recipientId, { type: "MESSAGE", actorId: req.user.id });
+      }
+    } catch {}
     return res.status(200).json({ sent: recipientIds.length, preview });
   } catch (err) {
     console.error("[ADMIN BROADCAST ERROR]", err);

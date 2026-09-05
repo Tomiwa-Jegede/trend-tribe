@@ -390,10 +390,15 @@ const createListing = async (req, res) => {
         await prisma.notification.createMany({
           data: admins.map((a) => ({ userId: a.id, actorId: req.user.id, listingId: listing.id, type: "NEW_LISTING" })),
         });
+        // realtime admin bell
+        try { const { emitNotification } = require("../realtime"); admins.forEach((a) => emitNotification(a.id, { type: "NEW_LISTING", listingId: listing.id, actorId: req.user.id })); } catch {}
       }
     } catch (e) {
       console.error("[ADMIN NOTIF NEW_LISTING ERROR]", e.message);
     }
+
+    // realtime: new listing to marketplace
+    try { const { emitListing } = require("../realtime"); emitListing("created", listing); } catch {}
 
     return res.status(201).json({
       message: "Listing created successfully ✅",
@@ -583,6 +588,7 @@ const {
       });
     }
 
+    try { const { emitListing } = require("../realtime"); emitListing("updated", updated); } catch {}
     return res.status(200).json({
       message: "Listing updated successfully ✅",
       listing: formatListing(stripAdminFields(updated)),
@@ -608,6 +614,7 @@ const deleteListing = async (req, res) => {
     await deleteFromCloudinary(listing.imagePublicIds);
 
     await prisma.listing.delete({ where: { id: listing.id } });
+    try { const { emitListing } = require("../realtime"); emitListing("deleted", { id: listing.id, sellerId: listing.sellerId }); } catch {}
 
     return res.status(200).json({ message: "Listing deleted successfully ✅" });
   } catch (err) {
@@ -723,6 +730,7 @@ const boostListing = async (req, res) => {
       if (ok.count === 0) throw new Error("TOKEN_BALANCE_RACE");
       return tx.listing.update({ where: { id: listing.id }, data: { boostedAt: now, boostedUntil: until } });
     });
+    try { const { emitListing } = require("../realtime"); emitListing("boosted", updated); } catch {}
     return res.status(200).json({ message: "Listing boosted for 24h ✅", listing: formatListing(updated) });
   } catch (err) {
     if (err.message === "TOKEN_BALANCE_RACE") return res.status(403).json({ error: "Token balance changed, try again." });
@@ -932,6 +940,7 @@ const toggleFavorite = async (req, res) => {
 
     if (existing) {
       await prisma.favorite.delete({ where: { id: existing.id } });
+      try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, false); } catch {}
       return res.status(200).json({ favorited: false });
     }
 
@@ -958,9 +967,19 @@ const toggleFavorite = async (req, res) => {
         }).catch(() => {});
         // badge update via push
         if ("setAppBadge" in globalThis) {}
+        // realtime: notify seller instantly + favorite toggle
+        try {
+          const { emitFavorite, emitNotification } = require("../realtime");
+          emitFavorite(listingId, req.user.id, true);
+          // fetch created notification for payload
+          const n = await prisma.notification.findFirst({ where: { userId: listing.sellerId, actorId: req.user.id, listingId, type: "FAVORITE" }, orderBy: { createdAt: "desc" } });
+          if (n) emitNotification(listing.sellerId, n);
+        } catch {}
       } catch (e) {
         console.error("[NOTIFICATION CREATE ERROR]", e.message);
       }
+    } else {
+      try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, true); } catch {}
     }
     return res.status(201).json({ favorited: true });
   } catch (err) {

@@ -28,6 +28,9 @@ const pushRoutes = require("./routes/push.routes");
 const pwaRoutes = require("./routes/pwa.routes");
 const { handleWebhook } = require("./controllers/payment.controller");
 
+const http = require("http");
+const { initRealtime } = require("./realtime");
+
 const app = express();
 
 // ─── Middleware ────────────────────────────────────────────────
@@ -105,7 +108,9 @@ async function startServer() {
   try {
     await prisma.$connect();
     console.log("🗄️  Database connected successfully");
-    app.listen(config.port, () => {
+    const server = http.createServer(app);
+    initRealtime(server, allowedOrigins);
+    server.listen(config.port, () => {
       console.log(`✅ Server running on http://localhost:${config.port}`);
       console.log(`🌍 Environment : ${config.nodeEnv}`);
       console.log(`🔗 Client URL  : ${config.clientUrl}`);
@@ -113,6 +118,7 @@ async function startServer() {
       console.log(`   → /api/health`);
       console.log(`   → /api/auth`);
       console.log(`   → /api/listings`);
+      console.log(`   → /socket.io/* (realtime)`);
     });
 
     // ─── Cleanup: delete expired pending registrations every 10 min ──

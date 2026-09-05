@@ -11,7 +11,7 @@ import Alert from "../components/ui/Alert";
 import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
-import useRealtimePolling from "../hooks/useRealtimePolling";
+import useRealtime from "../hooks/useRealtime";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
@@ -89,8 +89,15 @@ const MarketplacePage = () => {
     fetchListings();
   }, [fetchListings]);
 
-  // Real-time: auto-refresh listings every 15s + on focus / tab visible
-  useRealtimePolling(fetchListings, 15000, Boolean(filters.category && (SUBCATEGORIES_BY_CATEGORY[filters.category] ? filters.subcategory : true)));
+  // Real-time: socket push when any listing created/updated/deleted/boosted (no manual refresh, polling fallback disabled)
+  useRealtime("listing", () => fetchListings(), { enabled: true });
+  // keep focus refresh as fallback when socket transiently disconnected
+  useEffect(() => {
+    const onFocus = () => fetchListings();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fetchListings(); });
+    return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onFocus); };
+  }, [fetchListings]);
 
   // ── Sync filters + page to URL ───────────────────────────
   useEffect(() => {

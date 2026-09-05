@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
-import useRealtimePolling from "../../hooks/useRealtimePolling";
+import useRealtime from "../../hooks/useRealtime";
 
 import {
   FiShoppingBag,
@@ -92,8 +92,9 @@ const Navbar = () => {
     fetchInbox();
   }, [isAuthenticated, token, user?.id, fetchInbox, location.pathname]);
 
-  // Real-time: poll every 10s + refetch on focus / tab visible / route change
-  useRealtimePolling(fetchInbox, 10000, isAuthenticated && !!token);
+  // Real-time: socket when new inbox message lands (no manual refresh)
+  useRealtime("message", fetchInbox, { enabled: isAuthenticated && !!token });
+  useRealtime("message:unread", fetchInbox, { enabled: isAuthenticated && !!token });
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
