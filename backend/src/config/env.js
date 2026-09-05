@@ -48,6 +48,13 @@ const config = {
     subject: process.env.VAPID_SUBJECT || "mailto:hello@trendtribe.ng",
   },
 
+  pusher: {
+    appId: process.env.PUSHER_APP_ID,
+    key: process.env.PUSHER_KEY,
+    secret: process.env.PUSHER_SECRET,
+    cluster: process.env.PUSHER_CLUSTER || "eu",
+  },
+
   email: {
     brevoApiKey: process.env.BREVO_API_KEY,
     from: process.env.EMAIL_FROM,

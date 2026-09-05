@@ -67,13 +67,11 @@ function initRealtime(httpServer, allowedOrigins) {
 const emitListing = (action, listing) => {
   try {
     const io = getIO();
-    // public feed
     io.to("marketplace").emit("listing", { action, listing });
-    // seller private
     if (listing?.sellerId) io.to(`user:${listing.sellerId}`).emit("listing:self", { action, listing });
-    // admin feed
     io.to("admin").emit("admin:listing", { action, listing });
   } catch {}
+  try { const { emitListing: p } = require("./pusher"); p(action, listing); } catch {}
 };
 
 const emitFavorite = (listingId, userId, favorited) => {
@@ -82,14 +80,15 @@ const emitFavorite = (listingId, userId, favorited) => {
     io.to("marketplace").emit("favorite", { listingId, userId, favorited });
     io.to("admin").emit("admin:favorite", { listingId, userId, favorited });
   } catch {}
+  try { const { emitFavorite: p } = require("./pusher"); p(listingId, userId, favorited); } catch {}
 };
 
 const emitNotification = (userId, notification) => {
   try {
     getIO().to(`user:${userId}`).emit("notification", notification);
-    // also update badge count
     getIO().to(`user:${userId}`).emit("notification:unread", { userId });
   } catch {}
+  try { const { emitNotification: p } = require("./pusher"); p(userId, notification); } catch {}
 };
 
 const emitMessage = (recipientId, message) => {
@@ -97,6 +96,7 @@ const emitMessage = (recipientId, message) => {
     getIO().to(`user:${recipientId}`).emit("message", message);
     getIO().to(`user:${recipientId}`).emit("message:unread", { recipientId });
   } catch {}
+  try { const { emitMessage: p } = require("./pusher"); p(recipientId, message); } catch {}
 };
 
 const emitInboxBroadcast = (message) => {

@@ -26,6 +26,8 @@ if (missing.length > 0) {
 // ─── Exported config object ────────────────────────────────────
 const config = {
   apiUrl: import.meta.env.VITE_API_URL || "/api", // safe fallback for dev
+  pusherKey: import.meta.env.VITE_PUSHER_KEY || "",
+  pusherCluster: import.meta.env.VITE_PUSHER_CLUSTER || "eu",
   isDev: import.meta.env.DEV,
   isProd: import.meta.env.PROD,
 };
