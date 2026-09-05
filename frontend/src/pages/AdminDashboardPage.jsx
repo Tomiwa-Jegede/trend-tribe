@@ -1,12 +1,13 @@
 // src/pages/AdminDashboardPage.jsx — Marketplace health snapshot (no charts, per scope)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminStats, triggerWeeklyEmail, getWeeklyEmailStatus, triggerDailyEmail, getDailyEmailStatus, getCloudinaryUsage, getDbUsage, getBrevoUsage } from "../services/adminService";
 import { getAiAnalytics } from "../services/analyticsService";
 import { broadcastMessage } from "../services/messageService";
 import api from "../api/axios";
+import useRealtime from "../hooks/useRealtime";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -209,6 +210,14 @@ const AdminDashboardPage = () => {
       .then((r) => setPwaStats(r.data))
       .catch((e) => setPwaError(e.response?.data?.error || "Could not load PWA stats"));
   }, []);
+  // Real-time: admin dashboard refreshes instantly (only admin)
+  const refreshStats = useCallback(async () => {
+    try { const d = await getAdminStats(); setStats(d); } catch {}
+    try { const r = await api.get("/pwa/stats"); setPwaStats(r.data); } catch {}
+  }, []);
+  useRealtime("admin:listing", refreshStats, { enabled: true });
+  useRealtime("admin:favorite", refreshStats, { enabled: true });
+  useRealtime("listing", refreshStats, { enabled: true });
 
   const TABS = [
     { id: "overview", label: "Overview" },

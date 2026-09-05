@@ -5,7 +5,6 @@ import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import TokenIcon from "../components/ui/TokenIcon";
-import useRealtime from "../hooks/useRealtime";
 
 const GHOST_DAYS = 30;
 
@@ -52,9 +51,6 @@ const MyListingsPage = () => {
   useEffect(() => {
     fetchMyListings();
   }, []);
-  // Real-time: seller's own listings update instantly (edit, delete, ghost prune, boost)
-  useRealtime("listing:self", () => fetchMyListings(), { enabled: true });
-  useRealtime("listing", () => fetchMyListings(), { enabled: true });
 
   const handleToggle = async (listing) => {
     setToggling(listing.id);

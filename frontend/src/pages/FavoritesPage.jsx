@@ -10,7 +10,6 @@ import Alert from "../components/ui/Alert";
 import { getMyFavorites } from "../services/listingService";
 import { useFavorites } from "../context/FavoritesContext";
 import { FiHeart } from "react-icons/fi";
-import useRealtime from "../hooks/useRealtime";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -56,18 +55,7 @@ const FavoritesPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchFavorites, favoriteIds.size]);
 
-  // Real-time: socket when favorite toggled elsewhere (no manual refresh)
-  const pollFavorites = useCallback(() => {
-    const silent = async () => {
-      try {
-        const data = await getMyFavorites({ page: currentPage, limit: ITEMS_PER_PAGE });
-        setListings(data.listings);
-        setPagination(data.pagination);
-      } catch {}
-    };
-    silent();
-  }, [currentPage]);
-  useRealtime("favorite", pollFavorites, { enabled: true });
+
 
   const handlePageChange = (page) => {
     setCurrentPage(page);

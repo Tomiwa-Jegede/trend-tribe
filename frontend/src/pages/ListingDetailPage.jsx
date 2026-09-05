@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { revealContact } from "../services/contactService";
-import useRealtime from "../hooks/useRealtime";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -105,8 +104,7 @@ const ListingDetailPage = () => {
   }, [fetchListing]);
 
   // Real-time: refresh listing every 15s + on focus / tab visible (silent)
-  const pollListing = useCallback(() => fetchListing(false), [fetchListing]);
-  useRealtime("listing", pollListing, { enabled: true });
+
 
   const onGalleryStart = (clientX) => {
     startXRef.current = clientX;

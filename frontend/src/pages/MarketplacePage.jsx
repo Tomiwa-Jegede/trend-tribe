@@ -11,8 +11,6 @@ import Alert from "../components/ui/Alert";
 import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
-import useRealtime from "../hooks/useRealtime";
-import useRealtimePolling from "../hooks/useRealtimePolling";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
@@ -90,14 +88,11 @@ const MarketplacePage = () => {
     fetchListings();
   }, [fetchListings]);
 
-  // Real-time: socket instant + 15s polling fallback (Render cold start)
-  useRealtime("listing", () => fetchListings(), { enabled: true });
-  useRealtime("favorite", () => fetchListings(), { enabled: true });
-  useRealtimePolling(() => fetchListings(false), 15000, true);
+  // Natural update: fetch on mount + focus (no socket spam for public)
   useEffect(() => {
-    const onFocus = () => fetchListings();
+    const onFocus = () => fetchListings(false);
     window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fetchListings(); });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fetchListings(false); });
     return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onFocus); };
   }, [fetchListings]);
 

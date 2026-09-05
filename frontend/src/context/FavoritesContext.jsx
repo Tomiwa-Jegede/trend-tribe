@@ -2,7 +2,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { toggleFavorite as apiToggleFavorite, getFavoriteIds } from "../services/listingService";
-import { onRealtime } from "../services/socket";
 
 const FavoritesContext = createContext(null);
 
@@ -36,20 +35,6 @@ export const FavoritesProvider = ({ children }) => {
     setFavoriteIds(new Set());
     refreshFavoriteIds();
   }, [isAuthenticated, token, user?.id, refreshFavoriteIds]);
-
-  // Real-time: keep hearts in sync across tabs/devices (no manual restart)
-  useEffect(() => {
-    if (!isAuthenticated || !token) return;
-    const off = onRealtime("favorite", ({ listingId, userId: uId, favorited }) => {
-      if (uId !== user?.id) return; // only own favorites
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        favorited ? next.add(listingId) : next.delete(listingId);
-        return next;
-      });
-    });
-    return off;
-  }, [isAuthenticated, token, user?.id]);
 
   const isFavorited = (listingId) => favoriteIds.has(listingId);
 
