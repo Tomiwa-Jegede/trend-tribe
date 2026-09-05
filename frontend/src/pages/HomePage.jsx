@@ -313,10 +313,10 @@ const HomePage = () => {
                 </span>
                 <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm font-semibold text-white">
                   <span className="relative flex h-2 w-2 flex-shrink-0" aria-hidden="true">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                   </span>
-                  <FiUsers className="w-4 h-4 text-white/70" aria-hidden="true" />
+                  <FiUsers className="w-4 h-4 text-emerald-400" aria-hidden="true" />
                   {stats ? `${stats.totalUsers} students` : "— students"}
                 </span>
                 <a
