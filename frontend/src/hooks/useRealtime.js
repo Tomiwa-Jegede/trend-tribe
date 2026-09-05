@@ -5,13 +5,9 @@ import { subscribePusher } from "../services/pusherClient";
 import { useAuth } from "../context/AuthContext";
 
 const channelForEvent = (event) => {
-  // map events to Pusher channels (public for now, private per-user also via user-* public for demo)
   if (event.startsWith("admin:")) return "admin";
-  if (event.startsWith("notification") || event.startsWith("message") || event === "listing:self") {
-    // user-specific — we subscribe to marketplace + all user-* is not scalable, so frontend subscribes to both
-    // For now use marketplace + admin + user-* where userId known
-    return null; // handled via user channel below
-  }
+  if (event === "listing:self") return null;
+  if (event.startsWith("notification") || event.startsWith("message")) return null;
   return "marketplace";
 };
 
@@ -28,6 +24,9 @@ export default function useRealtime(event, callback, opts = {}) {
     // user-specific channels
     if (user?.id && (event.startsWith("notification") || event.startsWith("message") || event === "listing:self")) {
       pusherOffs.push(subscribePusher(`user-${user.id}`, event, callback));
+      // also public fallback channel (like admin) for easier debugging
+      pusherOffs.push(subscribePusher("messages", event, callback));
+      pusherOffs.push(subscribePusher("notifications", event, callback));
     }
     // also listen on admin channel if admin
     if (user?.role === "ADMIN" && event.startsWith("admin:")) {

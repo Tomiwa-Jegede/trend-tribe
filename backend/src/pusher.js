@@ -53,6 +53,8 @@ const emitNotification = (userId, notification) => {
 const emitMessage = (recipientId, message) => {
   trigger(`user-${recipientId}`, "message", message);
   trigger(`user-${recipientId}`, "message:unread", { recipientId });
+  // also public fallback for debugging (admin pattern)
+  trigger("messages", "message", { ...message, recipientId });
 };
 
 module.exports = { getPusher, trigger, emitListing, emitFavorite, emitNotification, emitMessage };
