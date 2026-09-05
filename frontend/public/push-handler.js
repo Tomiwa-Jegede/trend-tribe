@@ -26,11 +26,17 @@ self.addEventListener("push", (event) => {
     // Workaround: use self.registration; actual badge set via client message; simple fallback below
   }
   event.waitUntil(
-    self.registration.showNotification(title, options).then(() => {
-      if (data.badgeCount != null && self.navigator && "setAppBadge" in self.navigator) {
-        return self.navigator.setAppBadge(data.badgeCount).catch(() => {});
-      }
-    })
+    Promise.all([
+      self.registration.showNotification(title, options).then(() => {
+        if (data.badgeCount != null && self.navigator && "setAppBadge" in self.navigator) {
+          return self.navigator.setAppBadge(data.badgeCount).catch(() => {});
+        }
+      }),
+      // also tell any open (even background) clients to refresh inbox/bell instantly
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        for (const c of clients) c.postMessage({ type: "TRENDTRIBE_PUSH", data });
+      }),
+    ])
   );
 });
 

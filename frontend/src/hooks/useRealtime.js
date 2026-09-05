@@ -21,25 +21,37 @@ export default function useRealtime(event, callback, opts = {}) {
     const pusherOffs = [];
     const mainChannel = channelForEvent(event);
     if (mainChannel) pusherOffs.push(subscribePusher(mainChannel, event, callback));
-    // user-specific channels
     if (user?.id && (event.startsWith("notification") || event.startsWith("message") || event === "listing:self")) {
       pusherOffs.push(subscribePusher(`user-${user.id}`, event, callback));
-      // also public fallback channel (like admin) for easier debugging
       pusherOffs.push(subscribePusher("messages", event, callback));
       pusherOffs.push(subscribePusher("notifications", event, callback));
     }
-    // also listen on admin channel if admin
     if (user?.role === "ADMIN" && event.startsWith("admin:")) {
       pusherOffs.push(subscribePusher("admin", event, callback));
     }
 
-    // Socket fallback (self-hosted, may cold start) — also subscribe so either triggers
+    // Socket fallback
     connectSocket();
     const offSocket = onRealtime(event, callback);
+
+    // Service Worker push (when app is background/closed, SW shows notification and postMessages to clients)
+    // This makes inbox/bell update even before you tap bell/inbox — no manual refresh
+    const onSWMessage = (e) => {
+      if (e.data?.type === "TRENDTRIBE_PUSH") {
+        // any push means new message/notification → refresh
+        if (event === "message" || event === "notification" || event === "notification:unread" || event === "message:unread") {
+          callback(e.data.data);
+        }
+      }
+    };
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onSWMessage);
+    }
 
     return () => {
       pusherOffs.forEach((off) => off && off());
       offSocket && offSocket();
+      if ("serviceWorker" in navigator) navigator.serviceWorker.removeEventListener("message", onSWMessage);
     };
   }, [event, callback, enabled, isAuthenticated, token, user?.id, user?.role]);
 }
