@@ -229,13 +229,32 @@ const verifyRegistration = async (req, res) => {
       },
     });
 
-    // Admin bell: new user signed up (Wayfinder admin signal)
+    // Admin bell: new user signed up (Wayfinder admin signal) + push
     try {
       const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
       if (admins.length) {
         await prisma.notification.createMany({
           data: admins.map((a) => ({ userId: a.id, actorId: newUser.id, type: "NEW_USER" })),
         });
+        // push to admins (even when PWA closed) — keep FAVORITE/NEW_LISTING/MESSAGE as is
+        try {
+          const { emitNotification } = require("../realtime");
+          const { sendPushToUser } = require("../utils/push");
+          for (const a of admins) {
+            emitNotification(a.id, { type: "NEW_USER", actorId: newUser.id });
+            prisma.notification.count({ where: { userId: a.id, read: false } }).then((unread) => {
+              sendPushToUser(prisma, a.id, {
+                title: "Trend Tribe — New user",
+                body: `${newUser.username} just joined (${newUser.school || "campus"})`,
+                url: "/admin/users",
+                icon: "/icon-192.png",
+                badge: "/icon-192.png",
+                badgeCount: unread,
+                tag: `new-user-${newUser.id}`,
+              }).catch(() => {});
+            }).catch(() => {});
+          }
+        } catch {}
       }
     } catch (e) {
       console.error("[ADMIN NOTIF NEW_USER ERROR]", e.message);
