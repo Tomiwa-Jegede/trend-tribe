@@ -25,6 +25,8 @@ const FrederickWidget = () => {
       products: [],
     },
   ];
+  const [idle, setIdle] = useState(false);
+  useEffect(() => { if (open) { setIdle(false); return; } const t = setTimeout(() => setIdle(true), 4000); return () => clearTimeout(t); }, [open]);
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const scrollRef = useRef(null);
   useEffect(() => {
@@ -162,9 +164,12 @@ const FrederickWidget = () => {
 
   return (
     <>
-      <div className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""}`}>
+      <div
+        onMouseEnter={() => setIdle(false)}
+        className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 transition-opacity duration-300 ${open ? "hidden sm:flex opacity-100" : idle ? "opacity-60 hover:opacity-100" : "opacity-100"}`}
+      >
         <AnimatePresence>
-          {!open && (
+          {!open && !idle && (
             <motion.span
               initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
