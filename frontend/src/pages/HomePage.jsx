@@ -162,7 +162,7 @@ const HomePage = () => {
       </Helmet>
       {/* ══ HERO ══════════════════════════════════════════════ */}
       <section
-        className="relative text-white overflow-hidden min-h-[88vh] flex items-center"
+        className="relative text-white overflow-hidden min-h-[100dvh] flex items-center"
         style={{ background: "#0F1F3D" }}
       >
         {/* ── Grid texture ── */}
@@ -240,21 +240,21 @@ const HomePage = () => {
         />
 
         {/* ── Foreground content ── */}
-        <div className="container-app relative z-10 w-full py-24 lg:py-32">
-          <div className="flex justify-start">
+        <div className="container-app relative z-10 w-full py-10 lg:py-14 flex flex-col justify-center min-h-[100dvh]">
+          <div className="flex justify-start w-full">
             {/* ── Left: Hero text ── */}
             <motion.div
-              className="max-w-xl"
+              className="max-w-xl w-full"
               variants={reduced ? {} : heroContainer}
               initial={reduced ? false : "hidden"}
               animate="visible"
             >
-              {/* Launch badge */}
+              {/* Launch badge — Now open (reference animation) */}
               <motion.div
                 variants={reduced ? {} : fadeIn}
                 className="inline-flex items-center gap-2 bg-white/10
              backdrop-blur-sm border border-white/20 rounded-full
-             px-4 py-2 mb-8"
+             px-4 py-2 mb-5"
               >
                 <span className="relative flex h-2 w-2 flex-shrink-0">
                   <span
@@ -271,14 +271,14 @@ const HomePage = () => {
                 </span>
               </motion.div>
 
-              {/* Headline */}
+              {/* Headline — same fadeIn as Now open badge */}
               <motion.h1
-                variants={reduced ? {} : fadeSlideUp}
-                className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6"
+                variants={reduced ? {} : fadeIn}
+                className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4"
               >
                 Buy & Sell Within
                 <motion.span
-                  variants={reduced ? {} : fadeSlideUp}
+                  variants={reduced ? {} : fadeIn}
                   className="block relative"
                   style={{ color: "#F5C518" }}
                 >
@@ -290,18 +290,18 @@ const HomePage = () => {
                 </motion.span>
               </motion.h1>
 
-              {/* Subheading */}
+              {/* Subheading — same fadeIn, tighter to fit vh */}
               <motion.p
-                variants={reduced ? {} : fadeSlideUp}
-                className="text-lg text-white/75 leading-relaxed mb-8"
+                variants={reduced ? {} : fadeIn}
+                className="text-base lg:text-lg text-white/75 leading-relaxed mb-5"
               >
                 Buy and sell fashion, beauty, gadgets and more with students on your campus. 3 listings free. Extra listings, Featured boost and more days cost 1 token. No shipping — meet on campus.
               </motion.p>
 
-              {/* Live stats — active (real-time) + manual WhatsApp */}
+              {/* Live stats — same fadeIn + ping like Now open */}
               <motion.div
-                variants={reduced ? {} : fadeSlideUp}
-                className="flex flex-wrap gap-3 mb-8"
+                variants={reduced ? {} : fadeIn}
+                className="flex flex-wrap gap-3 mb-5"
                 aria-live="polite"
               >
                 <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm font-semibold text-white">
@@ -329,15 +329,15 @@ const HomePage = () => {
                 </a>
               </motion.div>
 
-              {/* PWA Install — visible on Android/desktop when installable, iOS shows instructions */}
-              <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-4">
+              {/* PWA Install — same fadeIn */}
+              <motion.div variants={reduced ? {} : fadeIn} className="mb-4">
                 <PWAInstallButton variant="accent" size="large" />
               </motion.div>
 
-              {/* CTAs */}
+              {/* CTAs — same fadeIn, no extra bottom margin so hero fits vh */}
               <motion.div
-                variants={reduced ? {} : fadeSlideUp}
-                className="flex flex-col sm:flex-row gap-4 mb-12"
+                variants={reduced ? {} : fadeIn}
+                className="flex flex-col sm:flex-row gap-4 mb-0"
               >
                 <motion.div
                   whileHover={reduced ? {} : { scale: 1.04, y: -2 }}
