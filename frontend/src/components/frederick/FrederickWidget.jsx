@@ -164,16 +164,20 @@ const FrederickWidget = () => {
 
   return (
     <>
-      <div
+      <motion.div
         onMouseEnter={() => setIdle(false)}
-        className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 transition-opacity duration-300 ${open ? "hidden sm:flex opacity-100" : idle ? "opacity-60 hover:opacity-100" : "opacity-100"}`}
+        animate={{ opacity: idle && !open ? 0.62 : 1 }}
+        transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100`}
+        style={{ willChange: "opacity" }}
       >
         <AnimatePresence>
           {!open && !idle && (
             <motion.span
-              initial={{ opacity: 0, x: 8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 8 }}
+              initial={{ opacity: 0, x: 12, scale: 0.96 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 12, scale: 0.96 }}
+              transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
               className="bg-white text-gray-700 text-xs font-medium px-3 py-1.5 rounded-full
                          shadow-md border border-sage-100"
             >
@@ -219,7 +223,7 @@ const FrederickWidget = () => {
             }}
           />
         </motion.button>
-      </div>
+      </motion.div>
 
       <AnimatePresence>
         {open && (
