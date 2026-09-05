@@ -279,11 +279,11 @@ const AdminDashboardPage = () => {
           {stats.topFavorited?.length > 0 && (
             <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Favorited (click to view)</p>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 {stats.topFavorited.map((l) => (
-                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between gap-2 min-w-0">
-                    <span className="truncate pr-2 min-w-0 flex-1">{l.title}</span>
-                    <span className="font-bold whitespace-nowrap flex-shrink-0">♥ {l.favoriteCount}</span>
+                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 grid grid-cols-[1fr_auto] gap-2 items-center min-w-0 overflow-hidden">
+                    <span className="truncate min-w-0 block">{l.title}</span>
+                    <span className="font-bold whitespace-nowrap flex-shrink-0 text-right">♥ {l.favoriteCount}</span>
                   </a>
                 ))}
               </div>
@@ -292,11 +292,11 @@ const AdminDashboardPage = () => {
           {stats.topContacted?.length > 0 && (
             <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Contact Clicks (admin only)</p>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 {stats.topContacted.map((l) => (
-                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 flex justify-between gap-2 min-w-0">
-                    <span className="truncate pr-2 min-w-0 flex-1">{l.title}</span>
-                    <span className="font-bold whitespace-nowrap flex-shrink-0">👁 {l.contactViews}</span>
+                  <a key={l.id} href={`/listings/${l.slug || l.id}`} className="text-sm text-navy-900 hover:text-primary-600 grid grid-cols-[1fr_auto] gap-2 items-center min-w-0 overflow-hidden">
+                    <span className="truncate min-w-0 block">{l.title}</span>
+                    <span className="font-bold whitespace-nowrap flex-shrink-0 text-right">👁 {l.contactViews}</span>
                   </a>
                 ))}
               </div>

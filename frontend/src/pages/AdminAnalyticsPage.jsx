@@ -104,8 +104,8 @@ const AdminAnalyticsPage = () => {
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Top by contact views (what buyers actually tap)</p>
             <div className="flex flex-col gap-2">
               {funnel.topByFunnel?.map((l) => (
-                <a key={l.id} href={`/listings/${l.slug || l.id}`} className="flex justify-between gap-2 min-w-0 text-sm border-b border-sage-50 py-2 hover:text-primary-600">
-                  <span className="truncate pr-2 min-w-0 flex-1">{l.title}</span><span className="font-bold whitespace-nowrap flex-shrink-0">👁 {l.contactViews} · ♥ {l._count.favorites}</span>
+                <a key={l.id} href={`/listings/${l.slug || l.id}`} className="grid grid-cols-[1fr_auto] gap-2 items-center min-w-0 overflow-hidden text-sm border-b border-sage-50 py-2 hover:text-primary-600">
+                  <span className="truncate min-w-0 block">{l.title}</span><span className="font-bold whitespace-nowrap flex-shrink-0 text-right">👁 {l.contactViews} · ♥ {l._count.favorites}</span>
                 </a>
               ))}
             </div>
