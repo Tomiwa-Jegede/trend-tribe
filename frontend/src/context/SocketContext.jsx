@@ -1,26 +1,24 @@
-// src/context/SocketContext.jsx — keeps socket alive and refreshes on auth change
+// src/context/SocketContext.jsx — admin-only realtime (no wss spam for normal users)
 import { useEffect } from "react";
 import { connectSocket, disconnectSocket, refreshSocketAuth } from "../services/socket";
 import { useAuth } from "./AuthContext";
 
 export default function SocketProvider({ children }) {
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, user, token } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   useEffect(() => {
+    if (!isAdmin) { disconnectSocket(); return; }
     connectSocket();
-    return () => {};
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
+    if (!isAdmin) return;
     refreshSocketAuth();
-    if (!isAuthenticated) {
-      // keep socket for public feed (marketplace) even when logged out
-      // don't disconnect, just refresh auth
-    }
-  }, [isAuthenticated, token]);
+  }, [isAdmin, isAuthenticated, token]);
 
   useEffect(() => {
-    // reconnect on visibility change (PWA resume) + periodic health check for Render cold start
+    if (!isAdmin) return;
     const onVis = () => { if (document.visibilityState === "visible") connectSocket(); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
@@ -35,7 +33,7 @@ export default function SocketProvider({ children }) {
       window.removeEventListener("focus", onVis);
       clearInterval(health);
     };
-  }, []);
+  }, [isAdmin]);
 
   return children;
 }
