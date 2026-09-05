@@ -43,6 +43,7 @@ model User {
   sentMessages         Message[] @relation("SentMessages")
   receivedMessages     Message[] @relation("ReceivedMessages")
   pushSubscriptions    PushSubscription[]
+  pwaInstalls          PWAInstall[]
 
   @@map("users")
 }
@@ -247,6 +248,22 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+model PWAInstall {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  platform    String? // android | ios | windows | mac | unknown
+  displayMode String? // standalone | browser | minimal-ui
+  userAgent   String?
+  source      String? // appinstalled | standalone_launch | manual
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([platform])
+  @@map("pwa_installs")
 }
 
 enum Role {

@@ -25,6 +25,7 @@ const paymentRoutes = require("./routes/payment.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const messageRoutes = require("./routes/message.routes");
 const pushRoutes = require("./routes/push.routes");
+const pwaRoutes = require("./routes/pwa.routes");
 const { handleWebhook } = require("./controllers/payment.controller");
 
 const app = express();
@@ -83,6 +84,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/push", pushRoutes);
+app.use("/api/pwa", pwaRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {

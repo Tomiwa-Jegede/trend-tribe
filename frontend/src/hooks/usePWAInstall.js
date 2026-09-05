@@ -1,5 +1,6 @@
 // src/hooks/usePWAInstall.js
 import { useEffect, useState, useCallback } from "react";
+import { logPWAInstalled, logPWALaunch } from "../services/pwaAnalytics";
 
 export default function usePWAInstall() {
   const [deferred, setDeferred] = useState(null);
@@ -9,6 +10,9 @@ export default function usePWAInstall() {
   });
 
   useEffect(() => {
+    // log standalone launches (installed PWA opened) — once per day
+    logPWALaunch();
+
     const onBefore = (e) => {
       e.preventDefault();
       setDeferred(e);
@@ -16,11 +20,17 @@ export default function usePWAInstall() {
     const onInstalled = () => {
       setInstalled(true);
       setDeferred(null);
+      // monitor install count
+      const ua = navigator.userAgent || "";
+      let platform = "unknown";
+      if (/android/i.test(ua)) platform = "android";
+      else if (/iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) platform = "ios";
+      logPWAInstalled(platform, "appinstalled");
     };
     window.addEventListener("beforeinstallprompt", onBefore);
     window.addEventListener("appinstalled", onInstalled);
     const mq = window.matchMedia("(display-mode: standalone)");
-    const onChange = (e) => { if (e.matches) setInstalled(true); };
+    const onChange = (e) => { if (e.matches) { setInstalled(true); logPWALaunch(); } };
     mq.addEventListener?.("change", onChange);
     return () => {
       window.removeEventListener("beforeinstallprompt", onBefore);

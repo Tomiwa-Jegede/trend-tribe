@@ -1,6 +1,6 @@
 {
-  "name": "Trend Tribe",
-  "short_name": "TrendTribe",
+  "name": "TT Marketplace",
+  "short_name": "TT Marketplace",
   "description": "The student-only marketplace to buy, sell, and trade within your campus community.",
   "start_url": "/",
   "display": "standalone",

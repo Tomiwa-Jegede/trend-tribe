@@ -35,8 +35,8 @@ export default defineConfig({
       manifestFilename: "manifest.json",
       includeAssets: ["favicon.ico", "favicon-32.png", "favicon-16.png", "apple-touch-icon.png", "trendtribe_logo.svg"],
       manifest: {
-        name: "Trend Tribe",
-        short_name: "TrendTribe",
+        name: "TT Marketplace",
+        short_name: "TT Marketplace",
         description: "The student-only marketplace to buy, sell, and trade within your campus community.",
         start_url: "/",
         scope: "/",
