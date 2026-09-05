@@ -190,7 +190,7 @@ const MarketplacePage = () => {
           name="description"
           content="Browse books, electronics, clothing, and more for sale by students on your campus."
         />
-        <link rel="canonical" href="https://trendtribee.netlify.app/marketplace" />
+        <link rel="canonical" href="https://trendtribe.app/marketplace" />
       </Helmet>
       <HomeTicker variant="info" />
       <div className="container-app py-10">

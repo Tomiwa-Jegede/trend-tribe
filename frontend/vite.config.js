@@ -74,7 +74,7 @@ export default defineConfig({
             options: { cacheName: "cloudinary-images", expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 }, cacheableResponse: { statuses: [0, 200] } },
           },
           {
-            urlPattern: /^https:\/\/trendtribee\.netlify\.app\/api\/.*/i,
+            urlPattern: /^https:\/\/trendtribe\.app\/api\/.*/i,
             handler: "NetworkFirst",
             options: { cacheName: "api-cache", networkTimeoutSeconds: 4, expiration: { maxEntries: 50, maxAgeSeconds: 5 * 60 } },
           },

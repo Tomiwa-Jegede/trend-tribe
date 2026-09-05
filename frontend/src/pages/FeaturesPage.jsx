@@ -140,7 +140,7 @@ const FeaturesPage = () => {
           name="description"
           content="Explore Trend Tribe's features for buying, selling, and trading within your campus community."
         />
-        <link rel="canonical" href="https://trendtribee.netlify.app/features" />
+        <link rel="canonical" href="https://trendtribe.app/features" />
       </Helmet>
       {/* ══ HERO ══════════════════════════════════════════════ */}
       <section

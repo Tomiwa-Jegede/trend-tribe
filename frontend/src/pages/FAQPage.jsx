@@ -176,7 +176,7 @@ const FAQPage = () => {
           name="description"
           content="Frequently asked questions about buying, selling, and using Trend Tribe on your campus."
         />
-        <link rel="canonical" href="https://trendtribee.netlify.app/faq" />
+        <link rel="canonical" href="https://trendtribe.app/faq" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

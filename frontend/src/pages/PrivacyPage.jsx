@@ -77,7 +77,7 @@ const PrivacyPage = () => {
           name="description"
           content="Read Trend Tribe's privacy policy to learn how we handle your data."
         />
-        <link rel="canonical" href="https://trendtribee.netlify.app/privacy" />
+        <link rel="canonical" href="https://trendtribe.app/privacy" />
       </Helmet>
       {/* ── Hero ───────────────────────────────────────────── */}
       <div

@@ -133,13 +133,13 @@ const HomePage = () => {
           name="description"
           content="Buy and sell fashion, beauty, gadgets and more with students on your campus. 3 free listings, 1 token for more. Safe meetups, no shipping."
         />
-        <link rel="canonical" href="https://trendtribee.netlify.app/" />
+        <link rel="canonical" href="https://trendtribe.app/" />
         <meta property="og:title" content="Trend Tribe — Campus Marketplace for Students" />
         <meta
           property="og:description"
           content="Student marketplace to buy and sell fashion, beauty and gadgets. 3 listings free, 1 token for more. Meet on campus."
         />
-        <meta property="og:url" content="https://trendtribee.netlify.app/" />
+        <meta property="og:url" content="https://trendtribe.app/" />
       </Helmet>
       {/* ══ HERO ══════════════════════════════════════════════ */}
       <section

@@ -93,7 +93,7 @@ const TermsPage = () => {
           name="description"
           content="Read the terms of service for using Trend Tribe, the student marketplace."
         />
-        <link rel="canonical" href="https://trendtribee.netlify.app/terms" />
+        <link rel="canonical" href="https://trendtribe.app/terms" />
       </Helmet>
       {/* ── Hero ───────────────────────────────────────────── */}
       <div

@@ -109,7 +109,7 @@ const AboutPage = () => {
           name="description"
           content="Learn about Trend Tribe, the student-only marketplace built for campus communities."
         />
-        <link rel="canonical" href="https://trendtribee.netlify.app/about" />
+        <link rel="canonical" href="https://trendtribe.app/about" />
       </Helmet>
       {/* ── Hero ───────────────────────────────────────────── */}
       <div
