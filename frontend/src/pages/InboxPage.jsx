@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async";
 import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye } from "react-icons/fi";
 import { getMyMessages, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
 import useRealtime from "../hooks/useRealtime";
+import useRealtimePolling from "../hooks/useRealtimePolling";
 import { useAuth } from "../context/AuthContext";
 
 const InboxPage = () => {
@@ -46,10 +47,11 @@ const InboxPage = () => {
     fetchMessages(true);
   }, [isAuthenticated, token, user?.id, fetchMessages]);
 
-  // Real-time: socket pushes message instantly (no manual refresh)
+  // Real-time: socket pushes message instantly + polling fallback if socket down (Render cold start)
   const pollInbox = useCallback(() => fetchMessages(false), [fetchMessages]);
   useRealtime("message", pollInbox, { enabled: isAuthenticated && !!token });
   useRealtime("message:unread", pollInbox, { enabled: isAuthenticated && !!token });
+  useRealtimePolling(pollInbox, 30000, isAuthenticated && !!token);
 
   const toggleSelect = (id) => {
     setSelected((prev) => {

@@ -12,6 +12,7 @@ import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingServi
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
 import useRealtime from "../hooks/useRealtime";
+import useRealtimePolling from "../hooks/useRealtimePolling";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
@@ -89,9 +90,9 @@ const MarketplacePage = () => {
     fetchListings();
   }, [fetchListings]);
 
-  // Real-time: socket push when any listing created/updated/deleted/boosted (no manual refresh, polling fallback disabled)
+  // Real-time: socket push when any listing created/updated/deleted/boosted + polling fallback if socket down
   useRealtime("listing", () => fetchListings(), { enabled: true });
-  // keep focus refresh as fallback when socket transiently disconnected
+  useRealtimePolling(() => fetchListings(false), 30000, true);
   useEffect(() => {
     const onFocus = () => fetchListings();
     window.addEventListener("focus", onFocus);

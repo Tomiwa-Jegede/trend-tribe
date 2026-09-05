@@ -25,18 +25,24 @@ export const connectSocket = () => {
   const url = getSocketUrl();
   socket = io(url, {
     auth: { token: getToken() },
-    transports: ["websocket", "polling"],
+    transports: ["polling", "websocket"],
     withCredentials: true,
     reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+    timeout: 8000,
   });
 
   socket.on("connect", () => {
-    // re-join marketplace automatically server does
+    if (import.meta.env.DEV) console.log("[SOCKET] connected", socket.id);
   });
-  socket.on("disconnect", () => {});
-  socket.on("connect_error", () => {});
+  socket.on("disconnect", () => {
+    if (import.meta.env.DEV) console.log("[SOCKET] disconnected");
+  });
+  socket.on("connect_error", (err) => {
+    // suppress spam — server may be on old build or Render cold start, fallback to polling
+    if (import.meta.env.DEV) console.warn("[SOCKET] connect_error", err.message);
+  });
 
   // re-attach stored listeners
   for (const [evt, cbs] of listeners.entries()) {

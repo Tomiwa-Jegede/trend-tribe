@@ -6,6 +6,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import useRealtime from "../../hooks/useRealtime";
+import useRealtimePolling from "../../hooks/useRealtimePolling";
 
 import {
   FiShoppingBag,
@@ -92,9 +93,10 @@ const Navbar = () => {
     fetchInbox();
   }, [isAuthenticated, token, user?.id, fetchInbox, location.pathname]);
 
-  // Real-time: socket when new inbox message lands (no manual refresh)
+  // Real-time: socket when new inbox message lands + polling fallback
   useRealtime("message", fetchInbox, { enabled: isAuthenticated && !!token });
   useRealtime("message:unread", fetchInbox, { enabled: isAuthenticated && !!token });
+  useRealtimePolling(fetchInbox, 30000, isAuthenticated && !!token);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);

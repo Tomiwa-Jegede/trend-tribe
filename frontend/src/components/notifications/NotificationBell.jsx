@@ -5,6 +5,7 @@ import { FiBell, FiTrash2, FiCheckSquare, FiSquare } from "react-icons/fi";
 import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 import useRealtime from "../../hooks/useRealtime";
+import useRealtimePolling from "../../hooks/useRealtimePolling";
 
 const NotificationBell = () => {
   const { isAuthenticated, user, token } = useAuth();
@@ -58,11 +59,11 @@ const NotificationBell = () => {
     fetchUnread();
   }, [isAuthenticated, token, user?.id, fetchUnread]);
 
-  // Real-time: socket push when any notification lands (no manual refresh)
+  // Real-time: socket push when any notification lands + polling fallback
   useRealtime("notification", fetchUnread, { enabled: isAuthenticated && !!token });
   useRealtime("notification:unread", fetchUnread, { enabled: isAuthenticated && !!token });
-  // also refetch list when dropdown open and notification arrives
   useRealtime("notification", fetchList, { enabled: isAuthenticated && !!token && open });
+  useRealtimePolling(fetchUnread, 30000, isAuthenticated && !!token);
 
   useEffect(() => {
     const h = (e) => {
