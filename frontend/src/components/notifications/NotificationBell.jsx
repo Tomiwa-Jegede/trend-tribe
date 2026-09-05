@@ -58,10 +58,17 @@ const NotificationBell = () => {
     fetchUnread();
   }, [isAuthenticated, token, user?.id, fetchUnread]);
 
-  // Whole-site real-time: bell refreshes only when notification actually lands
+  // Whole-site real-time: bell refreshes only when notification actually lands + on wake
   useRealtime("notification", fetchUnread, { enabled: isAuthenticated && !!token });
   useRealtime("notification:unread", fetchUnread, { enabled: isAuthenticated && !!token });
   useRealtime("notification", fetchList, { enabled: isAuthenticated && !!token && open });
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    const onVis = () => { if (document.visibilityState === "visible") fetchUnread(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", onVis); };
+  }, [isAuthenticated, token, fetchUnread]);
 
   useEffect(() => {
     const h = (e) => {

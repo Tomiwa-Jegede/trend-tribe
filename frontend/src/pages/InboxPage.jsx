@@ -49,6 +49,21 @@ const InboxPage = () => {
   const pollInbox = useCallback(() => fetchMessages(false), [fetchMessages]);
   useRealtime("message", pollInbox, { enabled: isAuthenticated && !!token });
   useRealtime("message:unread", pollInbox, { enabled: isAuthenticated && !!token });
+  // also refresh when app comes back from background (Pusher paused while hidden)
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    const onVis = () => { if (document.visibilityState === "visible") fetchMessages(false); };
+    const onFocus = () => fetchMessages(false);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", onFocus); };
+  }, [isAuthenticated, token, fetchMessages]);
+  // stay fresh while inbox is open and message lands (no need to re-enter)
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    const id = setInterval(() => { if (document.visibilityState === "visible") fetchMessages(false); }, 10000);
+    return () => clearInterval(id);
+  }, [isAuthenticated, token, fetchMessages]);
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
