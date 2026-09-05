@@ -1,13 +1,27 @@
 // src/components/pwa/PWAInstallButton.jsx — one-tap install button for website
 import { useState } from "react";
-import { FiDownload, FiSmartphone, FiShare2, FiPlus } from "react-icons/fi";
+import { FiDownload, FiSmartphone, FiShare2, FiPlus, FiBell } from "react-icons/fi";
 import usePWAInstall from "../../hooks/usePWAInstall";
+import { isPushSupported, getPermission, subscribePush } from "../../services/push";
 
 export default function PWAInstallButton({ variant = "primary", className = "", size = "default" }) {
   const { canInstall, isIOSInstallable, installed, promptInstall } = usePWAInstall();
   const [showIOS, setShowIOS] = useState(false);
+  const [pushState, setPushState] = useState(() => getPermission());
 
-  if (installed) return null;
+  // When already installed, show Enable notifications instead of hiding (so pop-up is reachable)
+  if (installed) {
+    if (!isPushSupported() || pushState === "granted" || pushState === "unsupported") return null;
+    const base = "inline-flex items-center gap-2 font-bold rounded-full transition-colors";
+    const sizes = { default: "text-sm px-4 py-2", small: "text-xs px-3 py-1.5", large: "text-base px-6 py-3" };
+    const variants = { primary: "bg-[#0F1F3D] text-white hover:bg-[#1a2d5a] border border-transparent", accent: "bg-[#F5C518] text-[#0F1F3D] hover:brightness-95", outline: "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50", ghost: "bg-transparent text-primary-600 hover:bg-primary-50" };
+    const cls = `${base} ${sizes[size] || sizes.default} ${variants[variant] || variants.primary} ${className}`;
+    const onEnable = async () => {
+      try { await subscribePush(); setPushState("granted"); alert("Notifications enabled — you'll get updates even when the app is closed."); }
+      catch (e) { alert(e.message || "Could not enable"); setPushState(getPermission()); }
+    };
+    return <button onClick={onEnable} className={cls}><FiBell className="w-4 h-4" /> Enable notifications</button>;
+  }
 
   // variant styles
   const base = "inline-flex items-center gap-2 font-bold rounded-full transition-colors";
