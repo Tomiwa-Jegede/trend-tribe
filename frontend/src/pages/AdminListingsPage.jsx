@@ -257,8 +257,10 @@ const AdminListingsPage = () => {
                   {l.isAvailable ? "Active" : "Inactive"}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mb-1">
-                @{l.seller?.username} · {l.category} · ♥ {l.favoriteCount ?? 0} · 👁 {l.contactViews ?? 0}
+              <p className="text-sm text-gray-600 mb-1 flex flex-wrap gap-x-2 gap-y-1">
+                <span>@{l.seller?.username} · {l.category}</span>
+                <span className="whitespace-nowrap flex-shrink-0">♥ {l.favoriteCount ?? 0}</span>
+                <span className="whitespace-nowrap flex-shrink-0">👁 {l.contactViews ?? 0}</span>
               </p>
               <div className="flex items-center justify-between mt-2">
                 <p className="text-sm font-semibold text-navy-900">
