@@ -78,7 +78,9 @@ const emitListing = (action, listing) => {
 
 const emitFavorite = (listingId, userId, favorited) => {
   try {
-    getIO().to("marketplace").emit("favorite", { listingId, userId, favorited });
+    const io = getIO();
+    io.to("marketplace").emit("favorite", { listingId, userId, favorited });
+    io.to("admin").emit("admin:favorite", { listingId, userId, favorited });
   } catch {}
 };
 

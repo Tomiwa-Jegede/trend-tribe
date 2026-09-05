@@ -92,6 +92,7 @@ const MarketplacePage = () => {
 
   // Real-time: socket instant + 15s polling fallback (Render cold start)
   useRealtime("listing", () => fetchListings(), { enabled: true });
+  useRealtime("favorite", () => fetchListings(), { enabled: true });
   useRealtimePolling(() => fetchListings(false), 15000, true);
   useEffect(() => {
     const onFocus = () => fetchListings();

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
 import { getAdminFavorites } from "../services/adminService";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
+import useRealtime from "../hooks/useRealtime";
 
 const AdminFavoritesPage = () => {
   const [favorites, setFavorites] = useState([]);
@@ -28,6 +29,12 @@ const AdminFavoritesPage = () => {
   useEffect(() => {
     fetchFavorites();
   }, [fetchFavorites]);
+  // Real-time: admin sees favorites instantly (no manual restart)
+  const silentFetch = useCallback(() => {
+    getAdminFavorites({ page }).then((d) => { setFavorites(d.favorites); setPagination(d.pagination); }).catch(() => {});
+  }, [page]);
+  useRealtime("admin:favorite", silentFetch, { enabled: true });
+  useRealtime("favorite", silentFetch, { enabled: true });
 
   return (
     <AdminLayout>
