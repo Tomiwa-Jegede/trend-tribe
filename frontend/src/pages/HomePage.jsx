@@ -305,8 +305,11 @@ const HomePage = () => {
                 aria-live="polite"
               >
                 <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm font-semibold text-white">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
-                  {stats ? `${stats.activeListings} active` : "— active"}
+                  <span className="relative flex h-2 w-2 flex-shrink-0" aria-hidden="true">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                  </span>
+                  {stats ? `${stats.activeListings} Active Listings` : "— Active Listings"}
                 </span>
                 <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm font-semibold text-white">
                   <FiUsers className="w-4 h-4 text-white/70" aria-hidden="true" />
@@ -318,8 +321,11 @@ const HomePage = () => {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 bg-[#25D366]/20 backdrop-blur-sm border border-[#25D366]/30 rounded-full px-4 py-2 text-sm font-semibold text-white hover:bg-[#25D366]/30 transition-colors"
                 >
-                  <span className="w-2 h-2 rounded-full bg-[#25D366]" aria-hidden="true" />
-                  {stats ? `${stats.whatsappMembers} WhatsApp` : "— WhatsApp"}
+                  <span className="relative flex h-2 w-2 flex-shrink-0" aria-hidden="true">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#25D366] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#25D366]" />
+                  </span>
+                  {stats ? `${stats.whatsappMembers} Community Members` : "— Community Members"}
                 </a>
               </motion.div>
 
