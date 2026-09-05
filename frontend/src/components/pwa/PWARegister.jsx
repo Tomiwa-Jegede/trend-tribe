@@ -48,32 +48,59 @@ export default function PWARegister() {
   }, [isAuthenticated]);
 
   // Keep app-icon badge in sync with unread notifications (where supported)
+  // First open after push should register as seen — mark read + clear badge
   useEffect(() => {
     if (!("setAppBadge" in navigator) && !("clearAppBadge" in navigator)) return;
     let timer;
-    const syncBadge = async () => {
+    let lastHiddenAt = 0;
+    const markAllSeen = async () => {
+      try {
+        await Promise.all([
+          api.post("/notifications/read-all").catch(() => {}),
+          api.post("/messages/read-all").catch(() => {}),
+        ]);
+      } catch {}
+    };
+    const syncBadge = async ({ markSeenOnOpen = false } = {}) => {
       if (!isAuthenticated) {
         clearBadge();
         return;
       }
       try {
-        // try notifications + messages unread (sum)
         const [n, m] = await Promise.all([
           api.get("/notifications/unread-count").then((r) => r.data.unreadCount).catch(() => 0),
           api.get("/messages/unread-count").then((r) => r.data.unreadCount).catch(() => 0),
         ]);
         const total = (n || 0) + (m || 0);
-        if (total > 0) setBadge(total);
-        else clearBadge();
+        if (total > 0) {
+          // if app was hidden (push outside) and now visible, first open marks as seen
+          if (markSeenOnOpen && Date.now() - lastHiddenAt < 30_000) {
+            await markAllSeen();
+            clearBadge();
+            return;
+          }
+          setBadge(total);
+        } else clearBadge();
       } catch {}
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") lastHiddenAt = Date.now();
+      else syncBadge({ markSeenOnOpen: true });
+    };
+    const onFocus = () => syncBadge({ markSeenOnOpen: true });
+    const onPushMsg = (e) => {
+      if (e.data?.type === "TRENDTRIBE_PUSH") syncBadge({ markSeenOnOpen: false });
     };
     syncBadge();
     timer = setInterval(syncBadge, 30_000);
-    const onFocus = () => syncBadge();
+    document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onFocus);
+    navigator.serviceWorker?.addEventListener("message", onPushMsg);
     return () => {
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("focus", onFocus);
+      navigator.serviceWorker?.removeEventListener("message", onPushMsg);
     };
   }, [isAuthenticated]);
 

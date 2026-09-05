@@ -23,6 +23,12 @@ const InboxPage = () => {
       const data = await getMyMessages({ limit: 20 });
       setMessages(data.messages);
       setPagination(data.pagination);
+      // first open registers as seen — mark all messages read so badge clears
+      if (data.messages?.some((m) => !m.read)) {
+        markAllMessagesRead().catch(() => {});
+        setMessages((prev) => prev.map((x) => ({ ...x, read: true })));
+        if ("clearAppBadge" in navigator) navigator.clearAppBadge().catch(() => {});
+      }
     } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage fetchMessages]", err?.response?.data || err.message); }
     finally { if (showLoader) setLoading(false); }
   }, [isAuthenticated, token]);
