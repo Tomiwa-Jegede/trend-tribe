@@ -2,7 +2,7 @@
 const express = require("express");
 const { logInstall, getStats } = require("../controllers/pwa.controller");
 const { protect } = require("../middleware/auth.middleware");
-const { requireAdmin } = require("../middleware/verified.middleware");
+const { requireAdmin } = require("../middleware/admin.middleware");
 
 const router = express.Router();
 
