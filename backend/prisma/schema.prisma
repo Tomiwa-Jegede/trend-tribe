@@ -266,6 +266,14 @@ model PWAInstall {
   @@map("pwa_installs")
 }
 
+model SiteConfig {
+  id              Int      @id @default(1)
+  whatsappMembers Int      @default(63)
+  updatedAt       DateTime @updatedAt
+
+  @@map("site_config")
+}
+
 enum Role {
   USER
   ADMIN

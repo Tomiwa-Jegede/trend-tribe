@@ -29,6 +29,7 @@ const messageRoutes = require("./routes/message.routes");
 const pushRoutes = require("./routes/push.routes");
 const pwaRoutes = require("./routes/pwa.routes");
 const sitemapRoutes = require("./routes/sitemap.routes");
+const statsRoutes = require("./routes/stats.routes");
 const { handleWebhook } = require("./controllers/payment.controller");
 
 const http = require("http");
@@ -99,6 +100,7 @@ app.use("/api/push", pushRoutes);
 app.use("/api/pwa", pwaRoutes);
 app.use("/sitemap.xml", sitemapRoutes);
 app.use("/api/sitemap.xml", sitemapRoutes);
+app.use("/api/stats", statsRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {

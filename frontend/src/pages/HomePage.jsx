@@ -1,9 +1,11 @@
 // src/pages/HomePage.jsx
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, useReducedMotion, useInView } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import api from "../api/axios";
+import useRealtime from "../hooks/useRealtime";
 import {
   FiSearch,
   FiShield,
@@ -126,6 +128,22 @@ const RevealSection = ({ children, className = "", delay = 0 }) => {
 const HomePage = () => {
   const { isAuthenticated } = useAuth();
   const reduced = useReducedMotion();
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const fetchStats = async () => {
+      try {
+        const { data } = await api.get("/stats");
+        if (alive) setStats(data);
+      } catch {}
+    };
+    fetchStats();
+    const id = setInterval(fetchStats, 30_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+  // realtime: listing create/delete or whatsapp manual update
+  useRealtime("listing:created", () => api.get("/stats").then(({data})=>setStats(data)).catch(()=>{}), { enabled: true });
+  useRealtime("stats:update", (data) => setStats((prev) => prev ? { ...prev, ...data } : data), { enabled: true });
   return (
     <div className="flex flex-col">
       <Helmet>
@@ -275,10 +293,35 @@ const HomePage = () => {
               {/* Subheading */}
               <motion.p
                 variants={reduced ? {} : fadeSlideUp}
-                className="text-lg text-white/75 leading-relaxed mb-10"
+                className="text-lg text-white/75 leading-relaxed mb-8"
               >
                 Buy and sell fashion, beauty, gadgets and more with students on your campus. 3 listings free. Extra listings, Featured boost and more days cost 1 token. No shipping — meet on campus.
               </motion.p>
+
+              {/* Live stats — active (real-time) + manual WhatsApp */}
+              <motion.div
+                variants={reduced ? {} : fadeSlideUp}
+                className="flex flex-wrap gap-3 mb-8"
+                aria-live="polite"
+              >
+                <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm font-semibold text-white">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
+                  {stats ? `${stats.activeListings} active` : "— active"}
+                </span>
+                <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm font-semibold text-white">
+                  <FiUsers className="w-4 h-4 text-white/70" aria-hidden="true" />
+                  {stats ? `${stats.totalUsers} students` : "— students"}
+                </span>
+                <a
+                  href="https://chat.whatsapp.com/HWJAMqgI9ebITZp4CorXOm?mode=gi_t"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#25D366]/20 backdrop-blur-sm border border-[#25D366]/30 rounded-full px-4 py-2 text-sm font-semibold text-white hover:bg-[#25D366]/30 transition-colors"
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#25D366]" aria-hidden="true" />
+                  {stats ? `${stats.whatsappMembers} WhatsApp` : "— WhatsApp"}
+                </a>
+              </motion.div>
 
               {/* PWA Install — visible on Android/desktop when installable, iOS shows instructions */}
               <motion.div variants={reduced ? {} : fadeSlideUp} className="mb-4">
