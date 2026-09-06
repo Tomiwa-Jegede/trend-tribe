@@ -1,7 +1,7 @@
 // src/components/listings/DiscoverFeed.jsx — TikTok-style infinite product feed
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiHeart, FiShare2, FiMessageCircle } from "react-icons/fi";
+import { FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
 import { useAuth } from "../../context/AuthContext";
 import { useFavorites } from "../../context/FavoritesContext";
 import { useToast } from "../../context/ToastContext";
@@ -78,10 +78,10 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
         <button
           type="button"
           onClick={onShare}
-          aria-label="Share listing"
+          aria-label="Copy link"
           className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
         >
-          <FiShare2 className="w-6 h-6 text-white" />
+          <FiLink2 className="w-6 h-6 text-white" />
         </button>
         <button
           type="button"
