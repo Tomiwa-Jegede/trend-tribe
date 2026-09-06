@@ -99,6 +99,8 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
 };
 
 // ─── Feed container: fetch, infinite loop, action wiring ───────
+const DISCOVER_SCROLL_KEY = "discoverFeedScrollIndex";
+
 const DiscoverFeed = () => {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -143,7 +145,11 @@ const DiscoverFeed = () => {
     const container = containerRef.current;
     const itemHeight = container.clientHeight;
     itemHeightRef.current = itemHeight;
-    container.scrollTop = itemHeight * listings.length; // start on the middle copy
+
+    const saved = Number(sessionStorage.getItem(DISCOVER_SCROLL_KEY));
+    const savedIndex = Number.isInteger(saved) && saved >= 0 && saved < listings.length ? saved : 0;
+
+    container.scrollTop = itemHeight * (listings.length + savedIndex); // resume on the middle copy, at the saved position
   }, [listings.length]);
 
   // Only correct the wraparound position once scrolling has fully settled —
@@ -156,7 +162,7 @@ const DiscoverFeed = () => {
       if (!container || listings.length === 0) return;
       const itemHeight = itemHeightRef.current || container.clientHeight;
       const total = listings.length;
-      const index = Math.round(container.scrollTop / itemHeight);
+      let index = Math.round(container.scrollTop / itemHeight);
 
       if (index < total || index >= total * 2) {
         const beforeListing = loopItems[index];
@@ -183,7 +189,13 @@ const DiscoverFeed = () => {
             if (container) container.style.scrollSnapType = "y mandatory";
           });
         });
+        index = targetIndex;
       }
+
+      // Persist position (relative to the original list) so returning from
+      // a product page resumes here instead of restarting from the top.
+      const logicalIndex = index - total;
+      sessionStorage.setItem(DISCOVER_SCROLL_KEY, String(logicalIndex));
     }, 120);
   };
 
