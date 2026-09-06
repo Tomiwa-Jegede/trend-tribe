@@ -29,9 +29,16 @@ const STAT_CONFIG = [
   { key: "newContactViews", label: "Contact Clicks (Last 7 Days)" },
 ];
 
+const CACHE_KEYS = { stats: "tt_admin_stats", hero: "tt_admin_hero" };
+const readCache = (key) => { try { const raw = localStorage.getItem(key); if (!raw) return null; const p = JSON.parse(raw); return p; } catch { return null; } };
+const writeCache = (key, data) => { try { localStorage.setItem(key, JSON.stringify({ data, updatedAt: new Date().toISOString() })); } catch {} };
+
 const AdminDashboardPage = () => {
-  
-  const [stats, setStats] = useState(null);
+  const cachedStats = readCache(CACHE_KEYS.stats);
+  const cachedHero = readCache(CACHE_KEYS.hero);
+  const [stats, setStats] = useState(cachedStats?.data || null);
+  const [statsUpdatedAt, setStatsUpdatedAt] = useState(cachedStats?.updatedAt || null);
+  const [statsLoading, setStatsLoading] = useState(!cachedStats);
   const [error, setError] = useState(null);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailRun, setEmailRun] = useState(null);
@@ -59,9 +66,14 @@ const AdminDashboardPage = () => {
   const [notifying, setNotifying] = useState(false);
   const [pwaStats, setPwaStats] = useState(null);
   const [pwaError, setPwaError] = useState("");
-  const [heroStats, setHeroStats] = useState(null);
-  const [whatsappInput, setWhatsappInput] = useState("");
+  const [heroStats, setHeroStats] = useState(cachedHero?.data || null);
+  const [heroUpdatedAt, setHeroUpdatedAt] = useState(cachedHero?.updatedAt || null);
+  const [heroLoading, setHeroLoading] = useState(!cachedHero);
+  const [whatsappInput, setWhatsappInput] = useState(cachedHero?.data ? String(cachedHero.data.whatsappMembers) : "");
   const [whatsappSaving, setWhatsappSaving] = useState(false);
+  const [jegedeInput, setJegedeInput] = useState("update");
+  const [jegedeLoading, setJegedeLoading] = useState(false);
+  const [jegede, setJegede] = useState(() => readCache("tt_jegede")?.data || null);
   const { toast } = useToast();
 
   const pollWeeklyEmailStatus = () => {
@@ -159,6 +171,20 @@ const AdminDashboardPage = () => {
     }
   };
 
+  const handleJegedeUpdate = async () => {
+    if (jegedeLoading) return;
+    setJegedeLoading(true);
+    try {
+      const { data } = await api.post("/jegede/update", { message: jegedeInput });
+      setJegede(data);
+      try { localStorage.setItem("tt_jegede", JSON.stringify({ data, updatedAt: new Date().toISOString() })); } catch {}
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Jegede could not build update");
+    } finally {
+      setJegedeLoading(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     let attempt = 0;
@@ -166,17 +192,24 @@ const AdminDashboardPage = () => {
     const RETRY_DELAY = 3000;
 
     const fetchWithRetry = async () => {
+      setStatsLoading(true);
       while (!cancelled && attempt < MAX_ATTEMPTS) {
         try {
           const data = await getAdminStats();
-          if (!cancelled) setStats(data);
+          if (!cancelled) {
+            setStats(data);
+            const now = new Date().toISOString();
+            setStatsUpdatedAt(now);
+            writeCache(CACHE_KEYS.stats, data);
+            setError(null);
+          }
           return;
         } catch (err) {
           attempt += 1;
           const isNetworkError = !err.response;
           const isServerError = err.response?.status >= 500;
           if ((!isNetworkError && !isServerError) || attempt >= MAX_ATTEMPTS) {
-            if (!cancelled) setError("Failed to load dashboard stats.");
+            if (!cancelled && !stats) setError("Failed to load dashboard stats.");
             return;
           }
           await new Promise((res) => setTimeout(res, RETRY_DELAY));
@@ -184,7 +217,7 @@ const AdminDashboardPage = () => {
       }
     };
 
-    fetchWithRetry();
+    fetchWithRetry().finally(() => { if (!cancelled) setStatsLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -214,12 +247,14 @@ const AdminDashboardPage = () => {
       .catch((e) => setPwaError(e.response?.data?.error || "Could not load PWA stats"));
   }, []);
   useEffect(() => {
-    api.get("/stats").then((r) => { setHeroStats(r.data); setWhatsappInput(String(r.data.whatsappMembers)); }).catch(() => {});
+    setHeroLoading(true);
+    api.get("/stats").then((r) => { setHeroStats(r.data); setHeroUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.hero, r.data); setWhatsappInput(String(r.data.whatsappMembers)); }).catch(() => {}).finally(()=> setHeroLoading(false));
   }, []);
   // Real-time: admin dashboard refreshes instantly (only admin)
   const refreshStats = useCallback(async () => {
-    try { const d = await getAdminStats(); setStats(d); } catch {}
+    try { const d = await getAdminStats(); setStats(d); setStatsUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.stats, d); } catch {}
     try { const r = await api.get("/pwa/stats"); setPwaStats(r.data); } catch {}
+    try { const h = await api.get("/stats"); setHeroStats(h.data); setHeroUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.hero, h.data); } catch {}
   }, []);
   useRealtime("admin:listing", refreshStats, { enabled: true });
   useRealtime("admin:favorite", refreshStats, { enabled: true });
@@ -249,9 +284,37 @@ const AdminDashboardPage = () => {
         ))}
       </div>
 
+      {/* ── Jegede: admin strategist — type "update" for briefing ── */}
+      <div className="mb-6 bg-navy-900 rounded-2xl p-5 text-white">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold tracking-widest uppercase text-white/60">Jegede — Data Strategist</p>
+          <span className="text-[10px] bg-white/10 rounded-full px-2 py-1">Professional analyst · Not a shopper like Frederick</span>
+        </div>
+        <p className="text-sm text-white/70 mb-3">Type <b>update</b> and Jegede reads all live numbers and tells you where we are and what to do next — in simple English.</p>
+        <div className="flex gap-2">
+          <input value={jegedeInput} onChange={(e)=>setJegedeInput(e.target.value)} onKeyDown={(e)=>{ if(e.key==="Enter"){ e.preventDefault(); handleJegedeUpdate(); }} } placeholder='Type "update"' className="flex-1 bg-white text-navy-900 rounded-xl px-4 py-2.5 text-sm outline-none" />
+          <button disabled={jegedeLoading} onClick={handleJegedeUpdate} className="bg-white text-navy-900 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-60">{jegedeLoading?"Thinking...":"Update"}</button>
+        </div>
+        {jegede?.briefing && (
+          <div className="mt-4 bg-white rounded-xl p-4 text-navy-900 text-sm leading-relaxed space-y-3">
+            <div><p className="text-xs font-bold uppercase tracking-widest text-gray-400">Snapshot</p><p className="mt-1">{jegede.briefing.snapshot}</p></div>
+            <div><p className="text-xs font-bold uppercase tracking-widest text-gray-400">Progress</p><p className="mt-1">{jegede.briefing.progress}</p></div>
+            <div className="grid sm:grid-cols-3 gap-3 text-xs">
+              <div className="bg-gray-50 rounded-lg p-3"><p className="font-bold text-gray-500">Funnel</p><p className="mt-1 text-navy-900">{jegede.briefing.funnelInsight}</p></div>
+              <div className="bg-gray-50 rounded-lg p-3"><p className="font-bold text-gray-500">Money</p><p className="mt-1 text-navy-900">{jegede.briefing.moneyInsight}</p></div>
+              <div className="bg-gray-50 rounded-lg p-3"><p className="font-bold text-gray-500">Trust</p><p className="mt-1 text-navy-900">{jegede.briefing.trustInsight}</p></div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3"><p className="text-xs font-bold uppercase tracking-widest text-amber-700">Diagnosis</p><p className="mt-1 font-semibold">{jegede.briefing.diagnosis}</p></div>
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-3"><p className="text-xs font-bold uppercase tracking-widest text-primary-700">Next move</p><p className="mt-1 font-semibold">{jegede.briefing.nextMove}</p></div>
+            {jegede.briefing.risks?.length>0 && <div><p className="text-xs font-bold uppercase tracking-widest text-gray-400">Risks / watch</p><ul className="list-disc ml-5 mt-1">{jegede.briefing.risks.map((r,i)=><li key={i}>{r}</li>)}</ul></div>}
+            <p className="text-[11px] text-gray-400">Generated {new Date(jegede.generatedAt).toLocaleString()} · Source: {jegede.meta?.source || jegede.briefing?.source || "live"} · Every number is a real DB count.</p>
+          </div>
+        )}
+      </div>
+
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
-      {!stats && !error && (
+      {!stats && !error && statsLoading && (
         <div className="flex items-center gap-2 text-sm text-gray-500 py-8">
           <MiniSpinner size={16} />
           Loading stats...
@@ -260,6 +323,8 @@ const AdminDashboardPage = () => {
 
       {stats && activeTab === "overview" && (
         <>
+          {(statsLoading || heroLoading) && <p className="text-xs text-gray-400 mb-3 flex items-center gap-1.5"><MiniSpinner size={12} /> Updating from database — showing last values until fresh data arrives {statsUpdatedAt ? `· last update ${new Date(statsUpdatedAt).toLocaleTimeString()}` : ""}</p>}
+          {!statsLoading && statsUpdatedAt && <p className="text-xs text-gray-400 mb-3">Live · updated {new Date(statsUpdatedAt).toLocaleTimeString()}</p>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {STAT_CONFIG.map(({ key, label, to }) => {
               const Card = (
