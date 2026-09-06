@@ -1,6 +1,7 @@
 // src/routes/sitemap.routes.js — dynamic sitemap (ponytail: one file, no deps)
 const express = require("express");
 const prisma = require("../db");
+const config = require("../config/env");
 
 const router = express.Router();
 
@@ -18,8 +19,8 @@ const STATIC_URLS = [
 let cache = { xml: null, expiresAt: 0 };
 const CACHE_MS = 60 * 60 * 1000; // 1h
 
-async function buildSitemapXml(baseUrl) {
-  const origin = (baseUrl || process.env.CLIENT_URL || "https://trendtribe.app").split(",")[0].trim().replace(/\/$/, "");
+async function buildSitemapXml() {
+  const origin = (config.clientUrl || process.env.CLIENT_URL || "https://trendtribe.app").split(",")[0].trim().replace(/\/$/, "");
   const urls = [...STATIC_URLS];
 
   try {
@@ -42,13 +43,14 @@ async function buildSitemapXml(baseUrl) {
     console.warn("[sitemap] listing fetch failed, serving static only", e.message);
   }
 
+  const escapeXml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
   const entries = urls
     .map(
       (u) => `  <url>
-    <loc>${origin}${u.loc}</loc>
-    ${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ""}
-    <changefreq>${u.changefreq}</changefreq>
-    <priority>${u.priority}</priority>
+    <loc>${escapeXml(origin + u.loc)}</loc>
+    ${u.lastmod ? `<lastmod>${escapeXml(u.lastmod)}</lastmod>` : ""}
+    <changefreq>${escapeXml(u.changefreq)}</changefreq>
+    <priority>${escapeXml(u.priority)}</priority>
   </url>`,
     )
     .join("\n");
@@ -66,7 +68,7 @@ router.get("/", async (req, res) => {
       res.set("Cache-Control", "public, max-age=3600");
       return res.send(cache.xml);
     }
-    const xml = await buildSitemapXml(req.headers.origin);
+    const xml = await buildSitemapXml();
     cache = { xml, expiresAt: Date.now() + CACHE_MS };
     res.set("Content-Type", "application/xml");
     res.set("Cache-Control", "public, max-age=3600");

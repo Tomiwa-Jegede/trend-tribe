@@ -33,4 +33,12 @@ const frederickLimiter = rateLimit({
   message: { error: "Too many AI requests, please try again shortly" },
 });
 
-module.exports = { authLimiter, otpLimiter, paymentLimiter, frederickLimiter };
+const jegedeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many Jegede updates, please try again shortly" },
+});
+
+module.exports = { authLimiter, otpLimiter, paymentLimiter, frederickLimiter, jegedeLimiter };

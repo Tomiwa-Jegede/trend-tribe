@@ -7,9 +7,11 @@
 const express = require("express");
 const { protect } = require("../middleware/auth.middleware");
 const { requireAdmin } = require("../middleware/admin.middleware");
+const { jegedeLimiter } = require("../middleware/rateLimit");
 const prisma = require("../db");
 
 const router = express.Router();
+router.use(jegedeLimiter);
 router.use(protect, requireAdmin);
 
 // ─── Build real snapshot from DB — every number is a real query ───────
@@ -171,13 +173,16 @@ Return ONLY JSON with keys: snapshot, progress, funnelInsight, moneyInsight, tru
 // POST /api/jegede/update — body: { message?: string } — "update" triggers full briefing; any other text also gets briefing (admin context)
 router.post("/update", async (req, res) => {
   try {
-    const msg = (req.body?.message || "update").toString().trim().toLowerCase();
+    const rawMsg = (req.body?.message || "update").toString();
+    if (rawMsg.length > 1000) return res.status(400).json({ error: "Message too long (max 1000)" });
+    const msg = rawMsg.trim().toLowerCase();
     // only respond to "update" or empty; otherwise still give briefing but note the phrase
     const isUpdate = !msg || msg === "update" || msg.includes("update");
 
     const snapshot = await buildSnapshot();
     let briefing = await geminiBriefing(snapshot);
-    if (!briefing) briefing = fallbackBriefing(snapshot);
+    let usedFallback = false;
+    if (!briefing) { briefing = fallbackBriefing(snapshot); usedFallback = true; }
 
     return res.status(200).json({
       ok: true,
@@ -186,7 +191,7 @@ router.post("/update", async (req, res) => {
       data: snapshot, // receipts — every number is verifiable
       briefing, // simple-English analyst output
       meta: {
-        source: briefing === fallbackBriefing(snapshot) ? "fallback" : "gemini",
+        source: usedFallback ? "fallback" : "gemini",
         phrase: req.body?.message || "update",
       },
     });
@@ -201,8 +206,9 @@ router.get("/update", async (req, res) => {
   try {
     const snapshot = await buildSnapshot();
     let briefing = await geminiBriefing(snapshot);
-    if (!briefing) briefing = fallbackBriefing(snapshot);
-    return res.status(200).json({ ok: true, generatedAt: snapshot.generatedAt, data: snapshot, briefing, meta: { source: "fallback-or-gemini" } });
+    let usedFallback = false;
+    if (!briefing) { briefing = fallbackBriefing(snapshot); usedFallback = true; }
+    return res.status(200).json({ ok: true, generatedAt: snapshot.generatedAt, data: snapshot, briefing, meta: { source: usedFallback ? "fallback" : "gemini" } });
   } catch (err) {
     console.error("[JEGEDE GET UPDATE ERROR]", err);
     return res.status(500).json({ error: "Could not build update" });
