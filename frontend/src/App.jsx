@@ -103,9 +103,13 @@ const usePageviewTracking = () => {
 // ─── App ──────────────────────────────────────────────────────
 const App = () => {
   usePageviewTracking();
+  const location = useLocation();
+  const isDiscoverMode =
+    location.pathname === "/marketplace" &&
+    new URLSearchParams(location.search).get("view") === "discover";
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
+      {!isDiscoverMode && <Navbar />}
 
       <main className="flex-1">
         <PageTransition>
@@ -253,7 +257,7 @@ const App = () => {
         </PageTransition>
       </main>
 
-      <Footer />
+      {!isDiscoverMode && <Footer />}
       <FrederickWidget />
       <PWARegister />
       <InstallPrompt />

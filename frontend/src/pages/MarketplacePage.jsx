@@ -11,6 +11,7 @@ import Alert from "../components/ui/Alert";
 import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
+import DiscoverFeed from "../components/listings/DiscoverFeed";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
@@ -59,6 +60,25 @@ const MarketplacePage = () => {
       maxPrice: searchParams.get("maxPrice") || "",
     });
 
+  // ── Category / Discover view toggle (URL-synced) ─────────
+  const view = searchParams.get("view") === "discover" ? "discover" : "category";
+  const [viewDirection, setViewDirection] = useState(0);
+
+  const handleSetView = (nextView) => {
+    if (nextView === view) return;
+    setViewDirection(nextView === "discover" ? 1 : -1);
+    const params = new URLSearchParams(searchParams);
+    if (nextView === "discover") params.set("view", "discover");
+    else params.delete("view");
+    setSearchParams(params, { replace: false });
+  };
+
+  const viewSlideVariants = {
+    enter: (dir) => ({ x: dir > 0 ? "100%" : "-100%" }),
+    center: { x: 0 },
+    exit: (dir) => ({ x: dir > 0 ? "-100%" : "100%" }),
+  };
+
   // ── Fetch listings from real API (only once a category is chosen) ──
   const fetchListings = useCallback(async () => {
     if (!filters.category) { setLoading(false); return; }
@@ -103,6 +123,7 @@ const MarketplacePage = () => {
       if (value) params[key] = value;
     });
     if (currentPage > 1) params.page = currentPage;
+    if (searchParams.get("view") === "discover") params.view = "discover";
     setSearchParams(params, { replace: true });
   }, [filters, currentPage]);
 
@@ -196,7 +217,69 @@ const MarketplacePage = () => {
         />
         <link rel="canonical" href="https://trendtribe.app/marketplace" />
       </Helmet>
+
+      <div className="relative overflow-hidden">
+        <AnimatePresence initial={false} custom={viewDirection}>
+          {view === "discover" ? (
+            <motion.div
+              key="discover-view"
+              custom={viewDirection}
+              variants={viewSlideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: prefersReducedMotion ? 0 : 0.35, ease: [0.4, 0, 0.2, 1] }}
+              className="fixed inset-0 z-30"
+            >
+              {/* ── Toggle overlay (fixed, floats above the feed) ── */}
+              <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40">
+                <div className="flex bg-white/20 backdrop-blur-xl rounded-full shadow-lg border border-white/30 p-0.5">
+                  <button
+                    onClick={() => handleSetView("category")}
+                    className="px-3 py-1 text-xs font-semibold rounded-full transition-colors text-white/80"
+                  >
+                    Category
+                  </button>
+                  <button
+                    onClick={() => handleSetView("discover")}
+                    className="px-3 py-1 text-xs font-semibold rounded-full transition-colors bg-white/25 backdrop-blur-md text-white border border-white/40"
+                  >
+                    Discover
+                  </button>
+                </div>
+              </div>
+              <DiscoverFeed />
+            </motion.div>
+          ) : (
+      <motion.div
+        key="category-view"
+        custom={viewDirection}
+        variants={viewSlideVariants}
+        initial="enter"
+        animate="center"
+        exit="exit"
+        transition={{ duration: prefersReducedMotion ? 0 : 0.35, ease: [0.4, 0, 0.2, 1] }}
+      >
       <HomeTicker variant="info" />
+
+      {/* ── Toggle: in-flow, centered below the ticker (never overlaps content) ── */}
+      <div className="relative flex justify-center pt-4 pb-2 z-40">
+        <div className="flex bg-white/20 backdrop-blur-xl rounded-full shadow-lg border border-white/30 p-0.5">
+          <button
+            onClick={() => handleSetView("category")}
+            className="px-3 py-1 text-xs font-semibold rounded-full transition-colors bg-primary-600/70 backdrop-blur-md text-white border border-white/50 shadow-sm"
+          >
+            Category
+          </button>
+          <button
+            onClick={() => handleSetView("discover")}
+            className="px-3 py-1 text-xs font-semibold rounded-full transition-colors text-gray-500"
+          >
+            Discover
+          </button>
+        </div>
+      </div>
+
       <div className="container-app py-10">
         {/* ── Page Header ──────────────────────────────────── */}
         <div className="mb-6 sm:mb-8">
@@ -433,6 +516,10 @@ const MarketplacePage = () => {
             </AnimatePresence>
           </>
         )}
+      </div>
+      </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </>
   );
