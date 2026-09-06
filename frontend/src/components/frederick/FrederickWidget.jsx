@@ -6,10 +6,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiMessageCircle, FiX, FiSend, FiShoppingBag, FiPaperclip } from "react-icons/fi";
 import { askFrederick } from "../../services/frederickService";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../api/axios";
 import BuyTokens from "../ui/BuyTokens";
 
 const FrederickWidget = () => {
-  const { refreshUser, isAuthenticated } = useAuth();
+  const { refreshUser, isAuthenticated, user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,13 +20,17 @@ const FrederickWidget = () => {
  const [sessionId, setSessionId] = useState(null); // regenerated each time the widget is opened
   const [buyTokensOpen, setBuyTokensOpen] = useState(false);
   const fileInputRef = useRef(null);
-    const INITIAL_MESSAGES = [
-    {
+    const ADMIN_INITIAL = {
+      role: "frederick",
+      text: "I'm Jegede — your data strategist. Type 'update' and I'll read all live numbers and tell you where we are and what to do next, in simple English.",
+      products: [],
+    };
+    const SHOPPER_INITIAL = {
       role: "frederick",
       text: "How far, I'm Jegede 👋 Tell me what you're looking for and I'll find it for you.",
       products: [],
-    },
-  ];
+    };
+    const INITIAL_MESSAGES = [isAdmin ? ADMIN_INITIAL : SHOPPER_INITIAL];
   const [idle, setIdle] = useState(false);
   useEffect(() => { if (open) { setIdle(false); return; } const t = setTimeout(() => setIdle(true), 4000); return () => clearTimeout(t); }, [open]);
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
@@ -42,14 +48,16 @@ const FrederickWidget = () => {
     setInput("");
     clearPendingImage();
   };
-  // ─── Reset chat when the user logs out ─────────────────────────
+  // ─── Reset chat when the user logs out / role changes ─────
   useEffect(() => {
     if (!isAuthenticated) {
       setOpen(false);
       setMessages(INITIAL_MESSAGES);
       setSessionId(null);
+    } else {
+      setMessages([isAdmin ? ADMIN_INITIAL : SHOPPER_INITIAL]);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isAdmin]);
 
   const clearPendingImage = () => {
     if (pendingImagePreview) {
@@ -80,6 +88,40 @@ const FrederickWidget = () => {
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
+
+    // ── Admin: Jegede is Data Strategist — "update" gives real briefing ──
+    const isUpdateCmd = isAdmin && trimmed.toLowerCase().includes("update");
+    if (isUpdateCmd) {
+      setMessages((prev) => [...prev, { role: "user", text: trimmed, products: [] }]);
+      setInput("");
+      setPendingImage(null);
+      if (pendingImagePreview) URL.revokeObjectURL(pendingImagePreview);
+      setPendingImagePreview(null);
+      setLoading(true);
+      try {
+        const { data } = await api.post("/jegede/update", { message: trimmed });
+        const b = data.briefing;
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "frederick",
+            text: b.snapshot + "\n\n" + b.progress,
+            jegedeBriefing: b,
+            generatedAt: data.generatedAt,
+            meta: data.meta,
+            products: [],
+          },
+        ]);
+      } catch (err) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "frederick", text: err.response?.data?.error || "Jegede could not build update right now. Try again.", products: [] },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     const imageToSend = pendingImage;
     const imagePreviewToSend = pendingImagePreview;
@@ -254,7 +296,7 @@ const FrederickWidget = () => {
               <FiShoppingBag className="w-5 h-5" />
               <div className="flex-1">
                 <p className="font-semibold text-sm leading-tight">Jegede</p>
-                <p className="text-xs text-primary-100 leading-tight">Your personal shopper</p>
+                <p className="text-xs text-primary-100 leading-tight">{isAdmin ? "Data Strategist — type 'update'" : "Your personal shopper"}</p>
               </div>
               <button
                 onClick={closeWidget}
@@ -282,7 +324,20 @@ const FrederickWidget = () => {
                         className="mb-1 max-h-32 rounded-lg object-cover"
                       />
                     )}
-                    <p>{m.text}</p>
+                    <p className="whitespace-pre-line">{m.text}</p>
+                    {m.jegedeBriefing && (
+                      <div className="mt-2 bg-white rounded-xl p-3 text-gray-800 text-xs leading-relaxed space-y-2 border border-sage-100">
+                        <div><p className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Diagnosis</p><p className="font-semibold">{m.jegedeBriefing.diagnosis}</p></div>
+                        <div><p className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Next move</p><p className="font-semibold text-primary-700">{m.jegedeBriefing.nextMove}</p></div>
+                        <div className="grid grid-cols-1 gap-1.5">
+                          <div className="bg-gray-50 rounded-lg p-2"><span className="font-bold text-gray-500">Funnel:</span> {m.jegedeBriefing.funnelInsight}</div>
+                          <div className="bg-gray-50 rounded-lg p-2"><span className="font-bold text-gray-500">Money:</span> {m.jegedeBriefing.moneyInsight}</div>
+                          <div className="bg-gray-50 rounded-lg p-2"><span className="font-bold text-gray-500">Trust:</span> {m.jegedeBriefing.trustInsight}</div>
+                        </div>
+                        {m.jegedeBriefing.risks?.length>0 && <div><p className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Risks</p><ul className="list-disc ml-4 mt-1">{m.jegedeBriefing.risks.map((r,i)=><li key={i}>{r}</li>)}</ul></div>}
+                        <p className="text-[10px] text-gray-400">Generated {m.generatedAt ? new Date(m.generatedAt).toLocaleString() : ""} · {m.meta?.source || "live"}</p>
+                      </div>
+                    )}
                    {m.tokenConfirm && (
                       <button
                         onClick={() =>
@@ -392,7 +447,7 @@ const FrederickWidget = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="What are you looking for?"
+                placeholder={isAdmin ? "Type 'update' for briefing..." : "What are you looking for?"}
                 className="flex-1 text-sm px-3 py-2 rounded-full border border-sage-200
                            focus:outline-none focus:border-primary-400"
               />

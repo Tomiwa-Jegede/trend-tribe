@@ -71,9 +71,6 @@ const AdminDashboardPage = () => {
   const [heroLoading, setHeroLoading] = useState(!cachedHero);
   const [whatsappInput, setWhatsappInput] = useState(cachedHero?.data ? String(cachedHero.data.whatsappMembers) : "");
   const [whatsappSaving, setWhatsappSaving] = useState(false);
-  const [jegedeInput, setJegedeInput] = useState("update");
-  const [jegedeLoading, setJegedeLoading] = useState(false);
-  const [jegede, setJegede] = useState(() => readCache("tt_jegede")?.data || null);
   const { toast } = useToast();
 
   const pollWeeklyEmailStatus = () => {
@@ -168,20 +165,6 @@ const AdminDashboardPage = () => {
       toast.error(err.response?.data?.error || "Failed to start email notify");
     } finally {
       setNotifying(false);
-    }
-  };
-
-  const handleJegedeUpdate = async () => {
-    if (jegedeLoading) return;
-    setJegedeLoading(true);
-    try {
-      const { data } = await api.post("/jegede/update", { message: jegedeInput });
-      setJegede(data);
-      try { localStorage.setItem("tt_jegede", JSON.stringify({ data, updatedAt: new Date().toISOString() })); } catch {}
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Jegede could not build update");
-    } finally {
-      setJegedeLoading(false);
     }
   };
 
@@ -282,34 +265,6 @@ const AdminDashboardPage = () => {
             {t.label}
           </button>
         ))}
-      </div>
-
-      {/* ── Jegede: admin strategist — type "update" for briefing ── */}
-      <div className="mb-6 bg-navy-900 rounded-2xl p-5 text-white">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-bold tracking-widest uppercase text-white/60">Jegede — Data Strategist</p>
-          <span className="text-[10px] bg-white/10 rounded-full px-2 py-1">Professional analyst · Not a shopper like Frederick</span>
-        </div>
-        <p className="text-sm text-white/70 mb-3">Type <b>update</b> and Jegede reads all live numbers and tells you where we are and what to do next — in simple English.</p>
-        <div className="flex gap-2">
-          <input value={jegedeInput} onChange={(e)=>setJegedeInput(e.target.value)} onKeyDown={(e)=>{ if(e.key==="Enter"){ e.preventDefault(); handleJegedeUpdate(); }} } placeholder='Type "update"' className="flex-1 bg-white text-navy-900 rounded-xl px-4 py-2.5 text-sm outline-none" />
-          <button disabled={jegedeLoading} onClick={handleJegedeUpdate} className="bg-white text-navy-900 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-60">{jegedeLoading?"Thinking...":"Update"}</button>
-        </div>
-        {jegede?.briefing && (
-          <div className="mt-4 bg-white rounded-xl p-4 text-navy-900 text-sm leading-relaxed space-y-3">
-            <div><p className="text-xs font-bold uppercase tracking-widest text-gray-400">Snapshot</p><p className="mt-1">{jegede.briefing.snapshot}</p></div>
-            <div><p className="text-xs font-bold uppercase tracking-widest text-gray-400">Progress</p><p className="mt-1">{jegede.briefing.progress}</p></div>
-            <div className="grid sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-gray-50 rounded-lg p-3"><p className="font-bold text-gray-500">Funnel</p><p className="mt-1 text-navy-900">{jegede.briefing.funnelInsight}</p></div>
-              <div className="bg-gray-50 rounded-lg p-3"><p className="font-bold text-gray-500">Money</p><p className="mt-1 text-navy-900">{jegede.briefing.moneyInsight}</p></div>
-              <div className="bg-gray-50 rounded-lg p-3"><p className="font-bold text-gray-500">Trust</p><p className="mt-1 text-navy-900">{jegede.briefing.trustInsight}</p></div>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3"><p className="text-xs font-bold uppercase tracking-widest text-amber-700">Diagnosis</p><p className="mt-1 font-semibold">{jegede.briefing.diagnosis}</p></div>
-            <div className="bg-primary-50 border border-primary-200 rounded-lg p-3"><p className="text-xs font-bold uppercase tracking-widest text-primary-700">Next move</p><p className="mt-1 font-semibold">{jegede.briefing.nextMove}</p></div>
-            {jegede.briefing.risks?.length>0 && <div><p className="text-xs font-bold uppercase tracking-widest text-gray-400">Risks / watch</p><ul className="list-disc ml-5 mt-1">{jegede.briefing.risks.map((r,i)=><li key={i}>{r}</li>)}</ul></div>}
-            <p className="text-[11px] text-gray-400">Generated {new Date(jegede.generatedAt).toLocaleString()} · Source: {jegede.meta?.source || jegede.briefing?.source || "live"} · Every number is a real DB count.</p>
-          </div>
-        )}
       </div>
 
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
