@@ -230,6 +230,8 @@ const DiscoverFeed = () => {
       navigate("/login");
       return;
     }
+    let win = null;
+    try { win = window.open("about:blank", "_blank", "noopener"); } catch {}
     setContactLoadingId(listing.id);
     try {
       const result = await revealContact(listing.slug || listing.id);
@@ -237,8 +239,11 @@ const DiscoverFeed = () => {
         const message = encodeURIComponent(
           `Hi ${listing.seller.fullName}, I'm interested in your listing:\n📦 Item: ${listing.title}\n💰 Price: ₦${listing.price}\n🔗 Listing: ${window.location.origin}/listings/${listing.slug || listing.id}\nIs this still available?`,
         );
-        window.open(`https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`, "_blank");
+        const url = `https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`;
+        if (win && !win.closed) win.location.href = url;
+        else window.location.href = url;
       } else {
+        if (win && !win.closed) win.close();
         toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
       }
     } finally {

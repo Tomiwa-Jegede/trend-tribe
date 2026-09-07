@@ -474,6 +474,8 @@ const ListingDetailPage = () => {
                     navigate("/login");
                     return;
                   }
+                  let win = null;
+                  try { win = window.open("about:blank", "_blank", "noopener"); } catch {}
                   setContactLoading(true);
                   const result = await revealContact(listing.slug || listing.id);
                   setContactLoading(false);
@@ -483,8 +485,11 @@ const ListingDetailPage = () => {
 💰 Price: ₦${listing.price}
 🔗 Listing: ${window.location.origin}/listings/${listing.slug || listing.id}
 Is this still available?`);
-                    window.open(`https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`, "_blank");
+                    const url = `https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`;
+                    if (win && !win.closed) win.location.href = url;
+                    else window.location.href = url;
                   } else {
+                    if (win && !win.closed) win.close();
                     toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
                   }
                 }}
