@@ -31,14 +31,14 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
         />
       )}
 
-      {/* Card — full-bleed on mobile, constrained + centered on desktop */}
-      <div className="relative w-full h-full md:max-w-[430px] md:aspect-[9/16] md:h-auto md:max-h-[85vh] md:rounded-2xl md:overflow-hidden md:shadow-2xl">
+      {/* Card — aspect-locked on all breakpoints to preserve ratio, centered */}
+      <div className="relative w-full h-full max-w-[430px] aspect-[9/16] h-auto max-h-[85vh] mx-auto rounded-2xl overflow-hidden shadow-2xl">
       <div className="absolute inset-0 block">
         {thumbnail ? (
           <img
             src={thumbnail}
             alt={listing.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-center"
             loading="lazy"
             decoding="async"
           />
