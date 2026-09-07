@@ -41,6 +41,22 @@ export const withdrawGig = async ({ amount, whatsapp }) => {
   const { data } = await api.post("/gigs/withdraw", { amount, whatsapp });
   return data;
 };
+export const getGigAccount = async () => {
+  const { data } = await api.get("/gigs/account");
+  return data;
+};
+export const resolveGigAccount = async (accountNumber) => {
+  const { data } = await api.post("/gigs/resolve", { accountNumber });
+  return data;
+};
+export const transferGig = async ({ toAccountNumber, amount }) => {
+  const { data } = await api.post("/gigs/transfer", { toAccountNumber, amount });
+  return data;
+};
+export const getGigTransfers = async () => {
+  const { data } = await api.get("/gigs/transfers");
+  return data;
+};
 export const initGigPayment = async (amount) => {
   const { data } = await api.post("/gigs/payments/init", { amount });
   return data;

@@ -202,6 +202,94 @@ const withdrawGig = async (req, res) => {
   }
 };
 
+// ─── Gig wallet account number (10 digits) + transfer ─────────
+const generateAccountNumber = async () => {
+  for (let i = 0; i < 10; i++) {
+    const num = "80" + Math.floor(10000000 + Math.random() * 90000000).toString() + Math.floor(10 + Math.random() * 90).toString(); // 10 digits starting 80
+    const exists = await prisma.user.findUnique({ where: { gigAccountNumber: num } });
+    if (!exists) return num.slice(0, 10);
+  }
+  return "80" + Date.now().toString().slice(-8);
+};
+
+const getGigAccount = async (req, res) => {
+  try {
+    let user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigAccountNumber: true, gigBalance: true } });
+    if (!user.gigAccountNumber) {
+      const acc = await generateAccountNumber();
+      user = await prisma.user.update({ where: { id: req.user.id }, data: { gigAccountNumber: acc }, select: { gigAccountNumber: true, gigBalance: true } });
+    }
+    return res.json({ accountNumber: user.gigAccountNumber, gigBalance: user.gigBalance });
+  } catch (err) {
+    console.error("[GET GIG ACCOUNT ERROR]", err);
+    return res.status(500).json({ error: "Could not load account" });
+  }
+};
+
+const resolveGigAccount = async (req, res) => {
+  try {
+    const { accountNumber } = req.body;
+    if (!accountNumber || !/^\d{10}$/.test(accountNumber.trim())) return res.status(400).json({ error: "Account number must be 10 digits" });
+    const user = await prisma.user.findUnique({ where: { gigAccountNumber: accountNumber.trim() }, select: { id: true, fullName: true, username: true, gigAccountNumber: true } });
+    if (!user) return res.status(404).json({ error: "Account not found" });
+    if (user.id === req.user.id) return res.status(400).json({ error: "Cannot transfer to yourself" });
+    return res.json({ user });
+  } catch (err) {
+    console.error("[RESOLVE GIG ACCOUNT ERROR]", err);
+    return res.status(500).json({ error: "Could not resolve" });
+  }
+};
+
+const transferGig = async (req, res) => {
+  try {
+    const { toAccountNumber, amount } = req.body;
+    if (!toAccountNumber || !/^\d{10}$/.test(toAccountNumber.trim())) return res.status(400).json({ error: "Recipient account must be 10 digits" });
+    const amt = parseInt(amount, 10);
+    if (!amt || amt < 1) return res.status(400).json({ error: "Amount must be at least ₦1" });
+    const amountKobo = amt * 100;
+    const feeKobo = amt > 10000 ? 10000 : 5000; // 100 above 10k, else 50
+    const totalKobo = amountKobo + feeKobo;
+
+    const recipient = await prisma.user.findUnique({ where: { gigAccountNumber: toAccountNumber.trim() }, select: { id: true, fullName: true, username: true } });
+    if (!recipient) return res.status(404).json({ error: "Recipient account not found" });
+    if (recipient.id === req.user.id) return res.status(400).json({ error: "Cannot transfer to yourself" });
+
+    const sender = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, gigAccountNumber: true } });
+    // ensure sender has accountNumber
+    let senderAcc = sender.gigAccountNumber;
+    if (!senderAcc) {
+      senderAcc = await generateAccountNumber();
+      await prisma.user.update({ where: { id: req.user.id }, data: { gigAccountNumber: senderAcc } });
+    }
+    if ((sender.gigBalance || 0) < totalKobo) return res.status(402).json({ error: `Insufficient Gig balance. Need ₦${(totalKobo/100).toLocaleString()} (₦${amt.toLocaleString()} + ₦${feeKobo/100} fee). You have ₦${((sender.gigBalance||0)/100).toLocaleString()}.`, required: totalKobo, fee: feeKobo, gigBalance: sender.gigBalance });
+
+    const transfer = await prisma.$transaction(async (tx) => {
+      const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: totalKobo } }, data: { gigBalance: { decrement: totalKobo } } });
+      if (ok.count === 0) throw new Error("BALANCE_RACE");
+      await tx.user.update({ where: { id: recipient.id }, data: { gigBalance: { increment: amountKobo } } });
+      // fee stays with platform (not credited to anyone) — could log as platform revenue
+      return tx.gigTransfer.create({ data: { fromUserId: req.user.id, toUserId: recipient.id, amount: amountKobo, fee: feeKobo, status: "SUCCESS" } });
+    });
+
+    return res.json({ transfer, fee: feeKobo, amount: amountKobo, recipient, message: `Transferred ₦${amt.toLocaleString()} to ${recipient.fullName} @${recipient.username} — fee ₦${feeKobo/100}` });
+  } catch (err) {
+    if (err.message === "BALANCE_RACE") return res.status(402).json({ error: "Balance changed, try again" });
+    console.error("[TRANSFER GIG ERROR]", err);
+    return res.status(500).json({ error: "Could not transfer" });
+  }
+};
+
+const listGigTransfers = async (req, res) => {
+  try {
+    const sent = await prisma.gigTransfer.findMany({ where: { fromUserId: req.user.id }, orderBy: { createdAt: "desc" }, take: 20, include: { toUser: { select: { fullName: true, username: true, gigAccountNumber: true } } } });
+    const received = await prisma.gigTransfer.findMany({ where: { toUserId: req.user.id }, orderBy: { createdAt: "desc" }, take: 20, include: { fromUser: { select: { fullName: true, username: true, gigAccountNumber: true } } } });
+    return res.json({ sent, received });
+  } catch (err) {
+    console.error("[LIST GIG TRANSFERS ERROR]", err);
+    return res.status(500).json({ error: "Could not load" });
+  }
+};
+
 // Cron helpers
 const expireGigs = async () => {
   try {
@@ -226,4 +314,4 @@ const autoReleaseGigs = async () => {
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };
 
-module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, expireGigs, autoReleaseGigs };
+module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, expireGigs, autoReleaseGigs };

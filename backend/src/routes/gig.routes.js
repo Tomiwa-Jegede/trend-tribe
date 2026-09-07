@@ -8,6 +8,11 @@ const router = express.Router();
 
 // Public feed
 router.get("/", listGigs);
+// Wallet account + transfer (protected, before :id)
+router.get("/account", protect, require("../controllers/gig.controller").getGigAccount);
+router.post("/resolve", protect, require("../controllers/gig.controller").resolveGigAccount);
+router.post("/transfer", protect, require("../controllers/gig.controller").transferGig);
+router.get("/transfers", protect, require("../controllers/gig.controller").listGigTransfers);
 // Payments (protected)
 router.post("/payments/init", protect, initGigPayment);
 router.get("/payments/verify", protect, verifyGigPayment);

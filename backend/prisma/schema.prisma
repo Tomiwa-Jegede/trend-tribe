@@ -33,6 +33,7 @@ model User {
   numberViewsRemaining Int             @default(0)
   tokenBalance         Float           @default(5)
   gigBalance           Int             @default(0) // kobo, separate from marketplace tokenBalance, buyable, Naira display
+  gigAccountNumber     String?         @unique // 10 digits like 8091234567
   firstServiceAt       DateTime?
   serviceTrialEndsAt   DateTime?
   marketingOptIn       Boolean         @default(true)
@@ -42,6 +43,8 @@ model User {
   gigsPosted           Gig[]           @relation("GigPoster")
   gigsClaimed          Gig[]           @relation("GigClaimer")
   gigWithdrawals       GigWithdrawal[]
+  gigTransfersSent     GigTransfer[]     @relation("GigTransferFrom")
+  gigTransfersReceived GigTransfer[]     @relation("GigTransferTo")
   serviceBookingsAsBooker ServiceBooking[] @relation("ServiceBooker")
   serviceBookingsAsProvider ServiceBooking[] @relation("ServiceProvider")
   listings             Listing[]
@@ -333,6 +336,23 @@ model GigWithdrawal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, status])
   @@map("gig_withdrawals")
+}
+
+model GigTransfer {
+  id          Int      @id @default(autoincrement())
+  fromUserId  Int
+  toUserId    Int
+  amount      Int      // kobo, without fee
+  fee         Int      // kobo, 5000 (50) or 10000 (100)
+  reference   String   @unique @default(cuid())
+  status      String   @default("SUCCESS") // SUCCESS | FAILED
+  createdAt   DateTime @default(now())
+  fromUser    User     @relation("GigTransferFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User     @relation("GigTransferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId, createdAt])
+  @@index([toUserId, createdAt])
+  @@map("gig_transfers")
 }
 
 model ServiceBooking {
