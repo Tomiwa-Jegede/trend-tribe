@@ -292,12 +292,35 @@ const createListing = async (req, res) => {
     } = req.body;
 
     // ── Enforce free-slot limit, then fall back to token spend ──
-    const activeListingCount = await prisma.listing.count({
-      where: { sellerId: req.user.id, isAvailable: true },
-    });
-
+    // SERVICES: 14d trial from first service covers all, then 1 free slot + 1 token per extra
+    const isServices = category === "SERVICES";
     const isAdmin = req.user.role === "ADMIN";
-    let usingFreeSlot = isAdmin || activeListingCount < FREE_LISTING_LIMIT;
+    let usingFreeSlot = false;
+    let activeListingCount = 0;
+    let activeServicesCount = 0;
+    let trialActive = false;
+    let isFirstService = false;
+    const now = new Date();
+    if (isServices) {
+      const svcUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { firstServiceAt: true, serviceTrialEndsAt: true } });
+      if (!svcUser?.firstServiceAt) {
+        isFirstService = true;
+        trialActive = true;
+        usingFreeSlot = true;
+      } else if (svcUser.serviceTrialEndsAt && now < new Date(svcUser.serviceTrialEndsAt)) {
+        trialActive = true;
+        usingFreeSlot = true;
+      } else {
+        activeServicesCount = await prisma.listing.count({ where: { sellerId: req.user.id, category: "SERVICES", isAvailable: true } });
+        usingFreeSlot = isAdmin || activeServicesCount < 1;
+        activeListingCount = activeServicesCount;
+      }
+    } else {
+      activeListingCount = await prisma.listing.count({
+        where: { sellerId: req.user.id, isAvailable: true, category: { not: "SERVICES" } },
+      });
+      usingFreeSlot = isAdmin || activeListingCount < FREE_LISTING_LIMIT;
+    }
     const { confirmSpend } = req.body;
 
     // ── 0.5 token per extra image beyond 3 (max 5 images)
@@ -373,9 +396,16 @@ const createListing = async (req, res) => {
     };
 
     const needsPayment = !isAdmin && totalCost > 0;
-    const listing = !needsPayment
-      ? await prisma.listing.create({ data: listingData, include: listingInclude })
-      : await prisma.$transaction(async (tx) => {
+    let listing;
+    if (!needsPayment) {
+      if (isServices && isFirstService) {
+        // Start 14d trial on first service
+        const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+        await prisma.user.update({ where: { id: req.user.id }, data: { firstServiceAt: now, serviceTrialEndsAt: trialEnds } });
+      }
+      listing = await prisma.listing.create({ data: listingData, include: listingInclude });
+    } else {
+      listing = await prisma.$transaction(async (tx) => {
           const updatedSeller = await tx.user.updateMany({
             where: { id: req.user.id, tokenBalance: { gte: totalCost } },
             data: { tokenBalance: { decrement: totalCost } },
@@ -385,8 +415,14 @@ const createListing = async (req, res) => {
             throw new Error("TOKEN_BALANCE_RACE");
           }
 
+          if (isServices && isFirstService) {
+            const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+            await tx.user.update({ where: { id: req.user.id }, data: { firstServiceAt: now, serviceTrialEndsAt: trialEnds } });
+          }
+
           return tx.listing.create({ data: listingData, include: listingInclude });
         });
+    }
 
     // Admin bell: new listing (in-app pull)
     try {

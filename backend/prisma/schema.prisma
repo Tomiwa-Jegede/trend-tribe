@@ -32,6 +32,8 @@ model User {
   aiUsesRemaining      Int             @default(0)
   numberViewsRemaining Int             @default(0)
   tokenBalance         Float           @default(5)
+  firstServiceAt       DateTime?
+  serviceTrialEndsAt   DateTime?
   marketingOptIn       Boolean         @default(true)
   unsubscribeToken     String          @unique @default(cuid())
   tokenPurchases       TokenPurchase[]
