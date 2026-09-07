@@ -85,7 +85,7 @@ export default function GigsPage() {
     if (!resolved) return toast.error("Resolve account first");
     const amt = parseInt(transferForm.amount,10);
     if (!amt || amt < 1) return toast.error("Enter amount");
-    if (!confirm(`Confirm transfer of ₦${amt.toLocaleString()} to ${resolved.fullName} @${resolved.username}? Fee: ₦${amt>10000?100:50}`)) return;
+    if (!confirm(`Confirm transfer of ₦${amt.toLocaleString()} to ${resolved.fullName} @${resolved.username}? Fee: ₦${(amt*0.0001).toFixed(2)} (0.01%)`)) return;
     setTransferring(true);
     try {
       const r = await transferGig({ toAccountNumber: transferForm.toAccount.trim(), amount: amt });
@@ -133,11 +133,11 @@ export default function GigsPage() {
           </form>
         </div>
 
-        <div className="border-t border-gray-100 pt-4">
+          <div className="border-t border-gray-100 pt-4">
           <p className="text-xs font-bold tracking-widest uppercase text-gray-500 mb-2">Transfer Gig Naira to another account</p>
           <div className="flex flex-col sm:flex-row gap-2 items-end">
             <div className="flex-1"><label className="text-xs font-semibold text-gray-500">Recipient 10-digit account</label><div className="flex gap-2 mt-1"><input value={transferForm.toAccount} onChange={e=>setTransferForm(f=>({...f, toAccount:e.target.value}))} placeholder="8091234567" maxLength={10} className="input-field flex-1" /><button type="button" onClick={handleResolve} className="btn-secondary px-3 py-2 text-sm">Resolve</button></div>{resolved && <p className="text-xs text-green-600 mt-1">→ {resolved.fullName} @{resolved.username}</p>}</div>
-            <div><label className="text-xs font-semibold text-gray-500">Amount ₦</label><input type="number" min="1" value={transferForm.amount} onChange={e=>setTransferForm(f=>({...f, amount:e.target.value}))} placeholder="500" className="input-field mt-1 w-28" /><p className="text-[10px] text-gray-400 mt-1">Fee ₦{transferForm.amount && parseInt(transferForm.amount,10)>10000?100:50} (50 ≤10k, 100 above)</p></div>
+            <div><label className="text-xs font-semibold text-gray-500">Amount ₦</label><input type="number" min="1" value={transferForm.amount} onChange={e=>setTransferForm(f=>({...f, amount:e.target.value}))} placeholder="500" className="input-field mt-1 w-28" /><p className="text-[10px] text-gray-400 mt-1">Fee 0.01% · {transferForm.amount ? `₦${(parseInt(transferForm.amount,10)*0.0001).toFixed(2)}` : "—"}</p></div>
             <button disabled={transferring || !resolved} onClick={handleTransfer} className="btn-primary px-4 py-2 text-sm flex items-center gap-1 disabled:opacity-60"><FiSend className="w-4 h-4"/> {transferring?"Sending...":"Send"}</button>
           </div>
           {transfers && (transfers.sent?.length>0 || transfers.received?.length>0) && (

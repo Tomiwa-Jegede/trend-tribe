@@ -247,7 +247,8 @@ const transferGig = async (req, res) => {
     const amt = parseInt(amount, 10);
     if (!amt || amt < 1) return res.status(400).json({ error: "Amount must be at least ₦1" });
     const amountKobo = amt * 100;
-    const feeKobo = amt > 10000 ? 10000 : 5000; // 100 above 10k, else 50
+    let feeKobo = Math.round(amountKobo * 0.0001); // 0.01%
+    if (feeKobo === 0 && amountKobo > 0) feeKobo = 1; // min 1 kobo
     const totalKobo = amountKobo + feeKobo;
 
     const recipient = await prisma.user.findUnique({ where: { gigAccountNumber: toAccountNumber.trim() }, select: { id: true, fullName: true, username: true } });
