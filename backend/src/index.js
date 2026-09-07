@@ -32,6 +32,7 @@ const sitemapRoutes = require("./routes/sitemap.routes");
 const statsRoutes = require("./routes/stats.routes");
 const jegedeRoutes = require("./routes/jegede.routes");
 const gigRoutes = require("./routes/gig.routes");
+const serviceBookingRoutes = require("./routes/serviceBooking.routes");
 const { handleWebhook } = require("./controllers/payment.controller");
 const { handleGigWebhook } = require("./controllers/gigPayment.controller");
 
@@ -112,6 +113,7 @@ app.use("/api/sitemap.xml", sitemapRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/jegede", jegedeRoutes);
 app.use("/api/gigs", gigRoutes);
+app.use("/api/services", serviceBookingRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {
@@ -190,6 +192,10 @@ async function startServer() {
     setInterval(autoReleaseGigs, 60 * 60 * 1000);
     expireGigs().catch(() => {});
     autoReleaseGigs().catch(() => {});
+    // ─── Services: 1h booking expiry ──
+    const { expireServiceBookings } = require("./controllers/serviceBooking.controller");
+    setInterval(expireServiceBookings, 5 * 60 * 1000);
+    expireServiceBookings().catch(() => {});
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);
     process.exit(1);

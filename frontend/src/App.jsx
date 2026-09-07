@@ -40,6 +40,7 @@ const MyListingsPage = lazy(() => import("./pages/MyListingsPage"));
 const InboxPage = lazy(() => import("./pages/InboxPage"));
 const AdminAnalyticsPage = lazy(() => import("./pages/AdminAnalyticsPage"));
 const GigsPage = lazy(() => import("./pages/GigsPage"));
+const ServiceBookingsPage = lazy(() => import("./pages/ServiceBookingsPage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -227,6 +228,7 @@ const App = () => {
             />
             <Route path="/gigs" element={<GigsPage />} />
             <Route path="/gigs/callback" element={<GigsPage />} />
+            <Route path="/bookings" element={<ProtectedRoute><ServiceBookingsPage /></ProtectedRoute>} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />

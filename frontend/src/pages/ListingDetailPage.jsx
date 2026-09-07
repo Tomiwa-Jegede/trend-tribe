@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { revealContact } from "../services/contactService";
+import { bookService } from "../services/serviceBookingService";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -75,6 +76,7 @@ const ListingDetailPage = () => {
   const [reporting, setReporting] = useState(false);
   const [contactConfirm, setContactConfirm] = useState(null); // { tokenBalance } | null
   const [contactLoading, setContactLoading] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   const fetchListing = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -465,6 +467,28 @@ const ListingDetailPage = () => {
                 <FiTrash2 className="w-4 h-4" />
                 Delete
               </button>
+            </div>
+          ) : listing.category === "SERVICES" ? (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={async () => {
+                  if (!isAuthenticated) { navigate("/login"); return; }
+                  if (!confirm(`Book "${listing.title}" for ₦${listing.price}? Provider has 1h to Confirm/Cancel (you notified). Provider pays 20% fee on Confirm.`)) return;
+                  setBookingLoading(true);
+                  try {
+                    const res = await bookService(listing.id);
+                    toast.success(res.message || "Booked — provider notified 1h");
+                  } catch (err) {
+                    toast.error(err.response?.data?.error || "Booking failed");
+                  } finally { setBookingLoading(false); }
+                }}
+                disabled={!listing.isAvailable || bookingLoading}
+                className="btn-primary flex items-center justify-center gap-2 py-3.5"
+              >
+                <FiMessageCircle className="w-5 h-5" />
+                {bookingLoading ? "Booking..." : listing.isAvailable ? `Book Service — ₦${listing.price}` : "Not Available"}
+              </button>
+              <p className="text-xs text-gray-500 text-center">1h timer, 20% provider fee on Confirm, auto-cancel if no response</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">

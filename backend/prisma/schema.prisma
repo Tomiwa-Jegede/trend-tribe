@@ -42,6 +42,8 @@ model User {
   gigsPosted           Gig[]           @relation("GigPoster")
   gigsClaimed          Gig[]           @relation("GigClaimer")
   gigWithdrawals       GigWithdrawal[]
+  serviceBookingsAsBooker ServiceBooking[] @relation("ServiceBooker")
+  serviceBookingsAsProvider ServiceBooking[] @relation("ServiceProvider")
   listings             Listing[]
   reports              Report[]
   favorites            Favorite[]
@@ -127,6 +129,7 @@ model Listing {
   notifications  Notification[]
   contactViewLogs ContactView[]
   messages       Message[]
+  serviceBookings ServiceBooking[]
 
   @@map("listings")
 }
@@ -330,6 +333,26 @@ model GigWithdrawal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, status])
   @@map("gig_withdrawals")
+}
+
+model ServiceBooking {
+  id          Int      @id @default(autoincrement())
+  listingId   Int
+  bookerId    Int
+  providerId  Int
+  amount      Int      // kobo, service price at booking time
+  status      String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED | EXPIRED | COMPLETED | DISPUTED
+  expiresAt   DateTime // 1h from booking
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  booker      User     @relation("ServiceBooker", fields: [bookerId], references: [id], onDelete: Cascade)
+  provider    User     @relation("ServiceProvider", fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([bookerId])
+  @@index([providerId, status])
+  @@map("service_bookings")
 }
 
 enum Role {
