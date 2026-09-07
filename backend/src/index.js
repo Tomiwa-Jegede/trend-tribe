@@ -31,7 +31,9 @@ const pwaRoutes = require("./routes/pwa.routes");
 const sitemapRoutes = require("./routes/sitemap.routes");
 const statsRoutes = require("./routes/stats.routes");
 const jegedeRoutes = require("./routes/jegede.routes");
+const gigRoutes = require("./routes/gig.routes");
 const { handleWebhook } = require("./controllers/payment.controller");
+const { handleGigWebhook } = require("./controllers/gigPayment.controller");
 
 const http = require("http");
 const { initRealtime } = require("./realtime");
@@ -63,6 +65,12 @@ app.use(morgan(config.isDev ? "dev" : "combined")); // verbose in dev, compact i
 // ─── Flutterwave Webhook (raw body required for hash verification) ──
 // Must be mounted BEFORE express.json() so the raw buffer is preserved.
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), handleWebhook);
+app.post("/api/gigs/payments/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  // Reuse same secret hash, dispatch by tx_ref prefix
+  const txRef = (() => { try { return JSON.parse(req.body.toString()).data?.tx_ref || ""; } catch { return ""; } })();
+  if (txRef.startsWith("gt_")) return handleGigWebhook(req, res);
+  return handleWebhook(req, res);
+});
 
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
@@ -103,6 +111,7 @@ app.use("/sitemap.xml", sitemapRoutes);
 app.use("/api/sitemap.xml", sitemapRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/jegede", jegedeRoutes);
+app.use("/api/gigs", gigRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {
@@ -175,6 +184,12 @@ async function startServer() {
         await prisma.listing.updateMany({ where: { boostedUntil: { lt: new Date() } }, data: { boostedUntil: null, boostedAt: null, boostTier: 1 } });
       } catch {}
     }, 60 * 60 * 1000); // hourly
+    // ─── Gigs: expire unclaimed + 72h auto-release ──
+    const { expireGigs, autoReleaseGigs } = require("./controllers/gig.controller");
+    setInterval(expireGigs, 60 * 60 * 1000);
+    setInterval(autoReleaseGigs, 60 * 60 * 1000);
+    expireGigs().catch(() => {});
+    autoReleaseGigs().catch(() => {});
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);
     process.exit(1);
