@@ -89,7 +89,7 @@ const FrederickWidget = () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
 
-    // ── Admin: Jegede is Data Strategist — "update" gives real briefing ──
+    // ── Admin: Jegede is Data Strategist — "update" gives real briefing (30s timeout for cold-start) ──
     const isUpdateCmd = isAdmin && trimmed.toLowerCase().includes("update");
     if (isUpdateCmd) {
       setMessages((prev) => [...prev, { role: "user", text: trimmed, products: [] }]);
@@ -99,7 +99,18 @@ const FrederickWidget = () => {
       setPendingImagePreview(null);
       setLoading(true);
       try {
-        const { data } = await api.post("/jegede/update", { message: trimmed });
+        let data;
+        try {
+          const res = await api.post("/jegede/update", { message: trimmed }, { timeout: 30000 });
+          data = res.data;
+        } catch (firstErr) {
+          // cold-start retry once after 2s
+          if (firstErr.code === "ECONNABORTED" || firstErr.response?.status >= 500) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const res2 = await api.post("/jegede/update", { message: trimmed }, { timeout: 30000 });
+            data = res2.data;
+          } else throw firstErr;
+        }
         const b = data.briefing;
         setMessages((prev) => [
           ...prev,
@@ -113,9 +124,10 @@ const FrederickWidget = () => {
           },
         ]);
       } catch (err) {
+        const isTimeout = err.code === "ECONNABORTED" || err.message?.includes("timeout");
         setMessages((prev) => [
           ...prev,
-          { role: "frederick", text: err.response?.data?.error || "Jegede could not build update right now. Try again.", products: [] },
+          { role: "frederick", text: isTimeout ? "Jegede is waking up (cold start ~20s) — please try 'update' again in a moment." : err.response?.data?.error || "Jegede could not build update right now. Try again.", products: [] },
         ]);
       } finally {
         setLoading(false);

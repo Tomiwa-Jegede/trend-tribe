@@ -104,6 +104,16 @@ export default function PWARegister() {
     };
   }, [isAuthenticated]);
 
+  // keep-alive ping every 5m to prevent Render cold-start for Jegede (30-50s wake vs 10s timeout)
+  useEffect(() => {
+    const ping = () => api.get("/health").catch(() => fetch("/api/health").catch(() => {}));
+    ping();
+    const id = setInterval(() => { if (document.visibilityState === "visible") ping(); }, 5 * 60 * 1000);
+    const onVis = () => { if (document.visibilityState === "visible") ping(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
+
   // offline/online toast could be added here
   useEffect(() => {
     const onOffline = () => console.log("[PWA] offline");
