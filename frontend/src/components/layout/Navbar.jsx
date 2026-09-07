@@ -238,6 +238,7 @@ const Navbar = () => {
             <div className="hidden md:flex items-center gap-6">
               <NavLink path="/" label="Home" />
               <NavLink path="/marketplace" label="Marketplace" />
+              <NavLink path="/gigs" label="Gigs" />
               <div className="relative" ref={moreRef}>
                 <button
                   onClick={() => setShowMore((v) => !v)}
@@ -459,6 +460,7 @@ const Navbar = () => {
             >
               <MobileNavLink path="/" label="Home" index={0} />
               <MobileNavLink path="/marketplace" label="Marketplace" index={1} />
+              <MobileNavLink path="/gigs" label="Gigs" index={1} />
               <div ref={moreMobileRef}>
                 <motion.div custom={2} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
                   <button
