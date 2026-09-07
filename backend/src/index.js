@@ -172,7 +172,7 @@ async function startServer() {
     // ─── Clear expired boosts (featured 24h) ──
     setInterval(async () => {
       try {
-        await prisma.listing.updateMany({ where: { boostedUntil: { lt: new Date() } }, data: { boostedUntil: null, boostedAt: null } });
+        await prisma.listing.updateMany({ where: { boostedUntil: { lt: new Date() } }, data: { boostedUntil: null, boostedAt: null, boostTier: 1 } });
       } catch {}
     }, 60 * 60 * 1000); // hourly
   } catch (err) {

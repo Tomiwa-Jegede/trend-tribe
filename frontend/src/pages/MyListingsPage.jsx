@@ -93,20 +93,22 @@ const MyListingsPage = () => {
     }
   };
 
-  const handleBoost = async (listing) => {
+  const handleBoost = async (listing, tier = 1) => {
     setToggling(listing.id);
     setErr(null);
     try {
       try {
-        const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, {});
-        setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil } : l)));
+        const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, { tier });
+        setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil, boostTier: data.listing.boostTier } : l)));
         refreshUser?.();
       } catch (e) {
         if (e.response?.status === 402 && e.response?.data?.needsTokenConfirm) {
-          const ok = confirm(e.response.data.error + "\n\nConfirm to spend 1 token for 24h Featured on top of Marketplace?");
+          const cost = e.response.data.cost || tier;
+          const tierLabel = (e.response.data.tier || tier) === 2 ? "Picks (Featured + top 5) 24h — 2 tokens" : "Top 5 category 24h — 1 token";
+          const ok = confirm(e.response.data.error + `\n\nConfirm to spend ${cost} token${cost>1?"s":""} for ${tierLabel}? Re-boost to climb if pushed down.`);
           if (!ok) throw e;
-          const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, { confirmSpend: true });
-          setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil } : l)));
+          const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, { tier: e.response.data.tier || tier, confirmSpend: true });
+          setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil, boostTier: data.listing.boostTier } : l)));
           refreshUser?.();
         } else {
           throw e;
@@ -206,16 +208,38 @@ const MyListingsPage = () => {
                         {toggling === l.id ? "..." : l.isAvailable ? "Mark Sold / Hide" : "Re-activate"}
                       </button>
                       {l.isAvailable && !boosted && (
-                        <button
-                          onClick={() => handleBoost(l)}
-                          disabled={toggling === l.id}
-                          className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500"
-                          title="Boost to Featured on top of Marketplace for 24h"
-                        >
-                          <span className="inline-flex items-center gap-1">Boost 24h · 1 <TokenIcon size={12} /></span>
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleBoost(l, 1)}
+                            disabled={toggling === l.id}
+                            className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500"
+                            title="Top 5 in category 24h — re-boost to climb"
+                          >
+                            <span className="inline-flex items-center gap-1">Boost x1 · 1 <TokenIcon size={12} /></span>
+                          </button>
+                          <button
+                            onClick={() => handleBoost(l, 2)}
+                            disabled={toggling === l.id}
+                            className="text-xs font-bold px-3 py-1.5 rounded-full border border-navy-900 bg-navy-900 text-white hover:bg-black"
+                            title="Picks Featured + top 5 24h — 2 tokens, all Picks shown, order curated"
+                          >
+                            <span className="inline-flex items-center gap-1">Boost x2 Picks · 2 <TokenIcon size={12} /></span>
+                          </button>
+                        </>
                       )}
-                      {boosted && <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">★ Featured {bLeft}h</span>}
+                      {boosted && (
+                        <>
+                          <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">★ {l.boostTier===2?"Picks":"Featured"} {bLeft}h</span>
+                          <button
+                            onClick={() => handleBoost(l, l.boostTier||1)}
+                            disabled={toggling === l.id}
+                            className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-50"
+                            title="Re-boost to climb to top"
+                          >
+                            Re-boost
+                          </button>
+                        </>
+                      )}
                       <Link to={`/listings/${l.slug || l.id}/edit`} className="text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50">
                         Edit
                       </Link>

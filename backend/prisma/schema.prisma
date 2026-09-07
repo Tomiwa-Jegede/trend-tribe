@@ -106,6 +106,7 @@ model Listing {
   archivedAt     DateTime?
   boostedAt      DateTime?
   boostedUntil   DateTime?
+  boostTier      Int?        @default(1)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   sellerId       Int
@@ -300,6 +301,7 @@ enum Category {
   SNACKS
   OTHERS
   GADGETS
+  SERVICES
 }
 
 enum Subcategory {

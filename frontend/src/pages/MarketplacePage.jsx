@@ -20,6 +20,7 @@ const CATEGORIES = [
   { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
   { label: "Snacks", emoji: "🍿", value: "SNACKS" },
   { label: "Gadgets", emoji: "📱", value: "GADGETS" },
+  { label: "Services", emoji: "🛠️", value: "SERVICES" },
   { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
 const SUBCATEGORY_DISPLAY = {
@@ -50,6 +51,22 @@ const MarketplacePage = () => {
   const isBoosted = (l) => l.boostedUntil && new Date(l.boostedUntil) > new Date();
   const boostedListings = listings.filter(isBoosted);
   const normalListings = listings.filter((l) => !isBoosted(l));
+
+  const [picks, setPicks] = useState([]);
+  const [picksLoading, setPicksLoading] = useState(false);
+  useEffect(() => {
+    if (filters.category) return;
+    let cancelled = false;
+    (async () => {
+      setPicksLoading(true);
+      try {
+        const data = await getListings({ picks: true, limit: 8 });
+        if (!cancelled) setPicks(data.listings || []);
+      } catch { if (!cancelled) setPicks([]); }
+      finally { if (!cancelled) setPicksLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [filters.category]);
 
     const [filters, setFilters] = useState({
       search: searchParams.get("search") || "",
@@ -304,6 +321,31 @@ const MarketplacePage = () => {
             </p>
           )}
         </div>
+
+        {/* ── Trend Tribe Picks — Featured before category (x2, all shown, order curated) ── */}
+        {!filters.category && (picksLoading || picks.length > 0) && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className="text-xs font-bold tracking-widest uppercase text-navy-900">Trend Tribe Picks</span>
+              <span className="text-xs text-gray-400">· Featured before category</span>
+              {picks.length > 0 && <span className="ml-auto text-xs font-medium text-navy-900 bg-primary-50 border border-primary-200 rounded-full px-2.5 py-1">{picks.length} picks</span>}
+            </div>
+            {picksLoading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                {Array.from({ length: 4 }).map((_, i) => <ListingCardSkeleton key={i} />)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                {picks.map((listing) => (
+                  <div key={`picks-${listing.id}`} className="relative">
+                    <span className="absolute top-2 left-2 z-10 bg-navy-900 text-white text-[10px] font-bold px-2 py-1 rounded-full">★ Picks</span>
+                    <ListingCard listing={listing} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Category Picker (shown until a category is chosen) ── */}
         {!filters.category ? (
