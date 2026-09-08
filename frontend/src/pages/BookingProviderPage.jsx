@@ -1,7 +1,7 @@
 // src/pages/BookingProviderPage.jsx — Provider view: confirm/cancel bookings made on your services
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { getServiceBookings, confirmServiceBooking, completeServiceBooking, cancelServiceBooking } from "../services/serviceBookingService";
+import { getServiceBookings, confirmServiceBooking, completeServiceBooking, disputeServiceBooking, cancelServiceBooking } from "../services/serviceBookingService";
 import { useToast } from "../context/ToastContext";
 import { FiClock, FiCheck, FiX } from "react-icons/fi";
 import InfoModal from "../components/ui/InfoModal";
@@ -48,7 +48,7 @@ export default function BookingProviderPage() {
   };
 
   const handleComplete = async (id) => {
-    if (!confirm("Mark service as completed? Escrow will be released to you.")) return;
+    if (!confirm("Mark service as completed? Both you and booker must confirm to release escrow.")) return;
     try {
       const r = await completeServiceBooking(id);
       toast.success(r.message);
@@ -56,6 +56,24 @@ export default function BookingProviderPage() {
     } catch (e) {
       toast.error(e.response?.data?.error || "Complete failed");
     }
+  };
+
+  const [disputeId, setDisputeId] = useState(null);
+  const [disputeReason, setDisputeReason] = useState("NOT_DONE");
+  const [disputeDesc, setDisputeDesc] = useState("");
+  const [disputing, setDisputing] = useState(false);
+  const openDispute = (id) => { setDisputeId(id); setDisputeReason("NOT_DONE"); setDisputeDesc(""); };
+  const handleDispute = async () => {
+    if (!disputeId) return;
+    setDisputing(true);
+    try {
+      const r = await disputeServiceBooking(disputeId, { reason: disputeReason, description: disputeDesc });
+      toast.success(r.message);
+      setDisputeId(null);
+      fetch();
+    } catch (e) {
+      toast.error(e.response?.data?.error || "Dispute failed");
+    } finally { setDisputing(false); }
   };
 
   if (loading) {
@@ -74,14 +92,36 @@ export default function BookingProviderPage() {
         <InfoModal title="How service bookings work">
           <p>Someone booked your service — you have 1 hour to act.</p>
           <ul className="list-disc ml-5">
-            <li><b>Confirm:</b> You pay a 20% fee from your Gig wallet, the booker’s payment is refunded to their Gig wallet, and they get your WhatsApp to arrange the service.</li>
+            <li><b>Confirm:</b> You pay a 20% fee from your Gig wallet, escrow stays held, and booker gets your WhatsApp.</li>
             <li><b>Cancel:</b> Full refund to the booker’s Gig wallet, no fee.</li>
             <li><b>Timer:</b> If you don’t act in 1h, it auto-cancels to avoid keeping them waiting.</li>
-            <li>After Confirm, chat on WhatsApp — no extra booking steps.</li>
+            <li>After Confirm, both must mark as completed to release escrow — or log dispute for admin.</li>
           </ul>
         </InfoModal>
       </div>
       <p className="text-sm text-gray-600 mb-6">Confirm within 1h to release, or cancel for a full refund to the booker.</p>
+
+      {disputeId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={()=>setDisputeId(null)}>
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl" onClick={e=>e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900">Log dispute</h3>
+            <p className="text-xs text-gray-500 mt-1">Escrow will be held for admin review.</p>
+            <label className="text-xs font-semibold text-gray-700 mt-3 block">Reason</label>
+            <select value={disputeReason} onChange={e=>setDisputeReason(e.target.value)} className="input-field mt-1">
+              <option value="NOT_DONE">Not done / no-show</option>
+              <option value="POOR_QUALITY">Poor quality</option>
+              <option value="NO_SHOW">Provider didn't show</option>
+              <option value="OTHER">Other</option>
+            </select>
+            <label className="text-xs font-semibold text-gray-700 mt-3 block">Details (optional)</label>
+            <textarea value={disputeDesc} onChange={e=>setDisputeDesc(e.target.value)} rows={3} placeholder="Describe the issue..." className="input-field mt-1" />
+            <div className="flex gap-2 mt-4">
+              <button onClick={()=>setDisputeId(null)} className="flex-1 btn-secondary py-2.5 text-sm">Cancel</button>
+              <button disabled={disputing} onClick={handleDispute} className="flex-1 btn-primary py-2.5 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-60">{disputing?"Submitting...":"Submit dispute"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {bookings.length === 0 ? (
         <p className="text-sm text-gray-500 card p-4 text-center">No bookings yet.</p>
@@ -107,11 +147,25 @@ export default function BookingProviderPage() {
               )}
               {b.status === "CONFIRMED" && (
                 <div className="flex flex-col gap-2 mt-3">
-                  <button onClick={() => handleComplete(b.id)} className="btn-primary px-4 py-1.5 text-xs bg-green-600 hover:bg-green-700">
-                    <FiCheck className="inline w-3 h-3" /> Mark as completed
-                  </button>
-                  <p className="text-[11px] text-gray-400">After service, release escrow to your Gig wallet</p>
+                  {b.providerCompletedAt ? (
+                    <p className="text-xs bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 rounded-lg">You marked as completed — waiting for booker to confirm</p>
+                  ) : (
+                    <button onClick={() => handleComplete(b.id)} className="btn-primary px-4 py-1.5 text-xs bg-green-600 hover:bg-green-700">
+                      <FiCheck className="inline w-3 h-3" /> Mark as completed
+                    </button>
+                  )}
+                  {b.bookerCompletedAt && !b.providerCompletedAt && (
+                    <p className="text-xs bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg">Booker marked as completed — tap above to release escrow</p>
+                  )}
+                  <button onClick={() => openDispute(b.id)} className="text-xs text-red-500 hover:text-red-600 underline text-left">Log dispute</button>
+                  <p className="text-[11px] text-gray-400">Both must mark completed to release escrow</p>
                 </div>
+              )}
+              {b.status === "DISPUTED" && (
+                <p className="text-xs bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg mt-3">Disputed — admin will review, escrow held</p>
+              )}
+              {b.status === "COMPLETED" && (
+                <p className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg mt-3">Completed — escrow released to you</p>
               )}
             </div>
           ))}

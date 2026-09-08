@@ -33,8 +33,8 @@ export const refundExpiredGig = async (id) => {
   const { data } = await api.post(`/gigs/${id}/refund-expired`);
   return data;
 };
-export const disputeGig = async (id) => {
-  const { data } = await api.post(`/gigs/${id}/dispute`);
+export const disputeGig = async (id, payload = {}) => {
+  const { data } = await api.post(`/gigs/${id}/dispute`, payload);
   return data;
 };
 export const withdrawGig = async ({ amount, bankCode, accountNumber, pin }) => {

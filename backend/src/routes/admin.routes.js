@@ -824,4 +824,97 @@ router.get("/profit-summary", protect, requireAdmin, async (req, res) => {
   }
 });
 
+// ─── Disputes — gigs + service bookings DISPUTED ──
+router.get("/disputes", protect, requireAdmin, async (req, res) => {
+  try {
+    const gigs = await prisma.gig.findMany({ where: { status: "DISPUTED" }, orderBy: { updatedAt: "desc" }, include: { poster: { select: { id:true, username:true, fullName:true } }, claimer: { select: { id:true, username:true, fullName:true } } } });
+    const bookings = await prisma.serviceBooking.findMany({ where: { status: "DISPUTED" }, orderBy: { updatedAt: "desc" }, include: { listing: { select: { id:true, title:true, price:true } }, booker: { select: { id:true, username:true, fullName:true } }, provider: { select: { id:true, username:true, fullName:true } } } });
+    return res.json({ gigs, bookings, total: gigs.length + bookings.length });
+  } catch (err) {
+    console.error("[DISPUTES ERROR]", err.message);
+    return res.status(500).json({ error: "Could not load disputes" });
+  }
+});
+
+router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
+  try {
+    const { type, id, decision } = req.body; // type: gig|service, decision: refund|release|split
+    if (!["gig","service"].includes(type) || !id || !["refund","release","split"].includes(decision)) {
+      return res.status(400).json({ error: "type must be gig/service, decision refund/release/split" });
+    }
+    if (type === "gig") {
+      const gigId = parseInt(id,10);
+      const gig = await prisma.gig.findUnique({ where: { id: gigId } });
+      if (!gig || gig.status !== "DISPUTED") return res.status(400).json({ error: "Gig not in DISPUTED" });
+      if (decision === "refund") {
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: gig.escrowAmount } } });
+          await tx.gig.update({ where: { id: gigId }, data: { status: "CANCELLED" } });
+        });
+      } else if (decision === "release") {
+        const pay = gig.escrowAmount - Math.floor(gig.escrowAmount*0.2);
+        const fee = Math.floor(gig.escrowAmount*0.2);
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
+          await tx.gig.update({ where: { id: gigId }, data: { status: "COMPLETED", completedAt: new Date() } });
+          await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: fee, netFee: fee, refId: String(gigId), meta: { gigId, disputed: true, decision } } });
+        });
+      } else if (decision === "split") {
+        const half = Math.floor(gig.escrowAmount/2);
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: half } } });
+          if (gig.claimerId) await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: gig.escrowAmount - half } } });
+          await tx.gig.update({ where: { id: gigId }, data: { status: "COMPLETED", completedAt: new Date() } });
+        });
+      }
+      // notify both
+      try {
+        await prisma.notification.createMany({ data: [
+          { userId: gig.posterId, actorId: req.user.id, type: "GIG_DISPUTED_RESOLVED", listingId: null },
+          ...(gig.claimerId ? [{ userId: gig.claimerId, actorId: req.user.id, type: "GIG_DISPUTED_RESOLVED", listingId: null }] : []),
+        ]});
+        const { emitNotification } = require("../realtime");
+        emitNotification(gig.posterId, { type: "GIG_DISPUTED_RESOLVED" });
+        if (gig.claimerId) emitNotification(gig.claimerId, { type: "GIG_DISPUTED_RESOLVED" });
+      } catch {}
+      return res.json({ message: `Gig #${gigId} resolved: ${decision}` });
+    } else {
+      const bookingId = parseInt(id,10);
+      const booking = await prisma.serviceBooking.findUnique({ where: { id: bookingId } });
+      if (!booking || booking.status !== "DISPUTED") return res.status(400).json({ error: "Booking not in DISPUTED" });
+      if (decision === "refund") {
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
+          await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "CANCELLED" } });
+        });
+      } else if (decision === "release") {
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
+          await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
+        });
+      } else if (decision === "split") {
+        const half = Math.floor(booking.amount/2);
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: half } } });
+          await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount - half } } });
+          await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
+        });
+      }
+      try {
+        await prisma.notification.createMany({ data: [
+          { userId: booking.bookerId, actorId: req.user.id, type: "SERVICE_DISPUTED_RESOLVED", listingId: booking.listingId },
+          { userId: booking.providerId, actorId: req.user.id, type: "SERVICE_DISPUTED_RESOLVED", listingId: booking.listingId },
+        ]});
+        const { emitNotification } = require("../realtime");
+        emitNotification(booking.bookerId, { type: "SERVICE_DISPUTED_RESOLVED", listingId: booking.listingId });
+        emitNotification(booking.providerId, { type: "SERVICE_DISPUTED_RESOLVED", listingId: booking.listingId });
+      } catch {}
+      return res.json({ message: `Booking #${bookingId} resolved: ${decision}` });
+    }
+  } catch (err) {
+    console.error("[DISPUTES RESOLVE ERROR]", err.message);
+    return res.status(500).json({ error: "Could not resolve dispute" });
+  }
+});
+
 module.exports = router;

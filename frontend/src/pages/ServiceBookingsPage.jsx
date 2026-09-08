@@ -1,7 +1,7 @@
 // src/pages/ServiceBookingsPage.jsx — 1h timer, 20% provider fee on Confirm, escrow from booker, auto-cancel
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { getServiceBookings, confirmServiceBooking, completeServiceBooking, cancelServiceBooking } from "../services/serviceBookingService";
+import { getServiceBookings, confirmServiceBooking, completeServiceBooking, disputeServiceBooking, cancelServiceBooking } from "../services/serviceBookingService";
 import { useToast } from "../context/ToastContext";
 import { FiClock, FiCheck, FiX } from "react-icons/fi";
 

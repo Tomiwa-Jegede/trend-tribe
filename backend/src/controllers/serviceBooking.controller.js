@@ -146,7 +146,7 @@ const disputeServiceBooking = async (req, res) => {
     if (booking.status !== "CONFIRMED") return res.status(400).json({ error: `Only CONFIRMED bookings can be disputed (now ${booking.status})` });
     if (booking.bookerId !== req.user.id && booking.providerId !== req.user.id) return res.status(403).json({ error: "Not your booking" });
 
-    const updated = await prisma.serviceBooking.update({ where: { id }, data: { status: "DISPUTED" } });
+    const updated = await prisma.serviceBooking.update({ where: { id }, data: { status: "DISPUTED", disputeReason: reason || null, disputeDescription: description || null } });
     try {
       const otherId = req.user.id === booking.bookerId ? booking.providerId : booking.bookerId;
       await prisma.notification.createMany({ data: [

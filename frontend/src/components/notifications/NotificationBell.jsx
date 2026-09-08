@@ -241,7 +241,12 @@ const NotificationBell = () => {
                 if (isMessage) to = "/inbox";
                 else if (n.type === "SERVICE_BOOKING") to = "/bookings/provider";
                 else if (n.type === "SERVICE_CONFIRMED") to = "/bookings/mine";
-                else if (n.type === "SERVICE_COMPLETED" || n.type === "SERVICE_CANCELLED" || n.type === "SERVICE_EXPIRED") to = "/bookings";
+                else if (n.type === "SERVICE_COMPLETED") to = n.listing ? `/bookings` : "/bookings";
+                else if (["SERVICE_CANCELLED","SERVICE_EXPIRED","SERVICE_DISPUTED","SERVICE_DISPUTED_RESOLVED","SERVICE_COMPLETED_PENDING"].includes(n.type)) to = "/bookings";
+                else if (n.type === "SERVICE_DISPUTED_ADMIN" || n.type === "GIG_DISPUTED_ADMIN") to = "/admin/disputes";
+                else if (["GIG_DISPUTED","GIG_DISPUTED_RESOLVED"].includes(n.type)) to = "/gigs";
+                else if (["GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN"].includes(n.type)) to = "/gigs/wallet";
+                else if (n.type === "ADMIN_WITHDRAW_PENDING") to = "/admin/withdrawals";
                 else if (n.type === "NEW_USER") to = "/admin/users";
                 else if (n.listing) to = `/listings/${n.listing.slug || n.listing.id}`;
                 const isSelected = selected.has(n.id);
@@ -303,7 +308,32 @@ const NotificationBell = () => {
                             <span className="font-semibold">Service completed</span> — {n.listing?.title || "Service"} <span className="block text-xs text-gray-500 mt-1">Escrow released — tap to view</span>
                           </>
                         )}
-                        {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE", "SERVICE_BOOKING", "SERVICE_CONFIRMED", "SERVICE_COMPLETED"].includes(n.type) && <>{n.type}</>}
+                        {n.type === "SERVICE_DISPUTED" && (
+                          <>
+                            <span className="font-semibold">Service disputed</span> — {n.listing?.title || "Service"} <span className="block text-xs text-gray-500 mt-1">Admin will review — tap to view</span>
+                          </>
+                        )}
+                        {["SERVICE_DISPUTED_ADMIN","GIG_DISPUTED_ADMIN"].includes(n.type) && (
+                          <>
+                            <span className="font-semibold">New dispute — admin review</span> <span className="block text-xs text-gray-500 mt-1">Tap to open disputes</span>
+                          </>
+                        )}
+                        {["GIG_DISPUTED","GIG_DISPUTED_RESOLVED","SERVICE_DISPUTED_RESOLVED"].includes(n.type) && (
+                          <>
+                            <span className="font-semibold">{n.type.replaceAll("_"," ").toLowerCase()}</span> <span className="block text-xs text-gray-500 mt-1">Tap to view</span>
+                          </>
+                        )}
+                        {["GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED"].includes(n.type) && (
+                          <>
+                            <span className="font-semibold">{n.type==="GIG_TRANSFER_SENT"?"Sent":"Received"} — Gig wallet</span> <span className="block text-xs text-gray-500 mt-1">Tap to view wallet</span>
+                          </>
+                        )}
+                        {["GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN","ADMIN_WITHDRAW_PENDING"].includes(n.type) && (
+                          <>
+                            <span className="font-semibold">Gig wallet update</span> <span className="block text-xs text-gray-500 mt-1">Tap to view</span>
+                          </>
+                        )}
+                        {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE", "SERVICE_BOOKING", "SERVICE_CONFIRMED", "SERVICE_COMPLETED","SERVICE_DISPUTED","SERVICE_DISPUTED_ADMIN","GIG_DISPUTED_ADMIN","GIG_DISPUTED","GIG_DISPUTED_RESOLVED","SERVICE_DISPUTED_RESOLVED","GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN","ADMIN_WITHDRAW_PENDING"].includes(n.type) && <>{n.type}</>}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                     </Link>

@@ -15,6 +15,7 @@ import {
   FiX,
   FiBarChart2,
   FiDollarSign,
+  FiAlertTriangle,
 } from "react-icons/fi";
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { label: "Reports", path: "/admin/reports", icon: FiFlag },
   { label: "Favorites", path: "/admin/favorites", icon: FiHeart },
   { label: "Withdrawals", path: "/admin/withdrawals", icon: FiDollarSign },
+  { label: "Disputes", path: "/admin/disputes", icon: FiAlertTriangle },
 ];
 
 const SidebarContent = ({ location, onNavigate }) => (

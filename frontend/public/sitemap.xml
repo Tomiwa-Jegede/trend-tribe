@@ -49,6 +49,12 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>http://localhost:5173/listings/french-curls-gyirxe</loc>
+    <lastmod>2026-09-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>http://localhost:5173/listings/italian-curls-kh139l</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
@@ -80,12 +86,6 @@
   </url>
   <url>
     <loc>http://localhost:5173/listings/bento-cake-qhwaup</loc>
-    <lastmod>2026-09-08</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/listings/french-curls-gyirxe</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

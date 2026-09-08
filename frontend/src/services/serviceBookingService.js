@@ -13,6 +13,10 @@ export const completeServiceBooking = async (bookingId) => {
   const { data } = await api.post(`/services/bookings/${bookingId}/complete`);
   return data;
 };
+export const disputeServiceBooking = async (bookingId, payload = {}) => {
+  const { data } = await api.post(`/services/bookings/${bookingId}/dispute`, payload);
+  return data;
+};
 export const cancelServiceBooking = async (bookingId) => {
   const { data } = await api.post(`/services/bookings/${bookingId}/cancel`);
   return data;

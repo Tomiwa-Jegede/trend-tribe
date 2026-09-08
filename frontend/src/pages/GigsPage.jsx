@@ -71,9 +71,18 @@ export default function GigsPage() {
     if(!confirm(`Cancel gig "${g?.description?.slice(0,40)||id}"?\n\n5% fee ₦${(fee/100).toLocaleString()} will be kept\n95% refund ₦${(refund/100).toLocaleString()} to your Gig wallet\n\nContinue?`)) return;
     try{ const r=await cancelGig(id); toast.success(r.message); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Cancel failed"); }
   };
+  const [disputeId, setDisputeId] = useState(null);
+  const [disputeReason, setDisputeReason] = useState("NOT_DONE");
+  const [disputeDesc, setDisputeDesc] = useState("");
+  const [disputing, setDisputing] = useState(false);
+  const openDispute = (id) => { setDisputeId(id); setDisputeReason("NOT_DONE"); setDisputeDesc(""); };
+  const handleDispute = async () => {
+    if (!disputeId) return;
+    setDisputing(true);
+    try { await disputeGig(disputeId, { reason: disputeReason, description: disputeDesc }); toast.success("Disputed — admin will review, auto-release paused"); setDisputeId(null); fetch(); } catch(e){ toast.error(e.response?.data?.error||"Dispute failed"); } finally { setDisputing(false); }
+  };
   const handleRenew = async (id) => { try{ await renewGig(id); toast.success("Renewed"); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Renew failed"); } };
   const handleRefund = async (id) => { try{ const r=await refundExpiredGig(id); toast.success(r.message); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Refund failed"); } };
-  const handleDispute = async (id) => { try{ await disputeGig(id); toast.success("Disputed — admin will review"); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Dispute failed"); } };
 
   return (
     <div className="container-app py-6 sm:py-8">
@@ -148,7 +157,7 @@ export default function GigsPage() {
               <div className="flex gap-2 mt-3 flex-wrap">
                 {g.status==="OPEN" && <button onClick={()=>handleClaim(g.id)} className="btn-primary px-4 py-1.5 text-xs">Claim — get WhatsApp</button>}
                 {g.posterId===user?.id && g.status==="OPEN" && <button onClick={()=>handleCancel(g.id)} className="btn-secondary px-3 py-1.5 text-xs"><FiX className="inline w-3 h-3"/> Cancel (5% fee)</button>}
-                {g.posterId===user?.id && g.status==="CLAIMED" && <><button onClick={()=>handleConfirm(g.id)} className="btn-primary px-3 py-1.5 text-xs"><FiCheck className="inline w-3 h-3"/> Confirm (send 80%)</button><button onClick={()=>handleDispute(g.id)} className="btn-secondary px-3 py-1.5 text-xs">Dispute</button></>}
+                {(g.posterId===user?.id || g.claimerId===user?.id) && g.status==="CLAIMED" && <><button onClick={()=>handleConfirm(g.id)} className="btn-primary px-3 py-1.5 text-xs"><FiCheck className="inline w-3 h-3"/> Confirm (send 80%)</button><button onClick={()=>openDispute(g.id)} className="btn-secondary px-3 py-1.5 text-xs">Dispute</button></>}
                 {g.posterId===user?.id && g.status==="EXPIRED" && <><button onClick={()=>handleRenew(g.id)} className="btn-secondary px-3 py-1.5 text-xs"><FiRefreshCw className="inline w-3 h-3"/> Renew</button><button onClick={()=>handleRefund(g.id)} className="btn-primary px-3 py-1.5 text-xs">Refund in full</button></>}
               </div>
             </div>
@@ -161,6 +170,27 @@ export default function GigsPage() {
           <h2 className="font-bold text-gray-900 mb-3">My Posted</h2>
           <div className="grid gap-3">
             {my.posted.map(g=> <div key={`p-${g.id}`} className="card p-3 text-sm"><p className="font-medium">{g.description.slice(0,80)}</p><p className="text-xs text-gray-500">{formatNaira(g.amount)} · {g.status} · {g.status==="CLAIMED"?"72h auto-release if not confirmed": new Date(g.expiresAt).toLocaleString()}</p></div>)}
+          </div>
+        </div>
+      )}
+
+      {disputeId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={()=>setDisputeId(null)}>
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl" onClick={e=>e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900">Log dispute</h3>
+            <p className="text-xs text-gray-500 mt-1">Escrow held, admin will review. Auto-release paused.</p>
+            <label className="text-xs font-semibold text-gray-700 mt-3 block">Reason</label>
+            <select value={disputeReason} onChange={e=>setDisputeReason(e.target.value)} className="input-field mt-1">
+              <option value="NOT_DONE">Not done / no-show</option>
+              <option value="POOR_QUALITY">Poor quality</option>
+              <option value="OTHER">Other</option>
+            </select>
+            <label className="text-xs font-semibold text-gray-700 mt-3 block">Details (optional)</label>
+            <textarea value={disputeDesc} onChange={e=>setDisputeDesc(e.target.value)} rows={3} placeholder="Describe..." className="input-field mt-1" />
+            <div className="flex gap-2 mt-4">
+              <button onClick={()=>setDisputeId(null)} className="flex-1 btn-secondary py-2.5 text-sm">Cancel</button>
+              <button disabled={disputing} onClick={handleDispute} className="flex-1 btn-primary py-2.5 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-60">{disputing?"Submitting...":"Submit dispute"}</button>
+            </div>
           </div>
         </div>
       )}
