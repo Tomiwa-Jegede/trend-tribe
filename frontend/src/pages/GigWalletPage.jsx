@@ -136,7 +136,7 @@ export default function GigWalletPage() {
   }
 
   return (
-    <div className="container-app py-6 sm:py-8 max-w-lg mx-auto">
+    <div className="container-app py-6 sm:py-8 max-w-lg lg:max-w-2xl mx-auto">
       <Helmet><title>Gig Wallet — Trend Tribe</title></Helmet>
 
       <div className="flex items-center gap-2 mb-6">
@@ -163,7 +163,7 @@ export default function GigWalletPage() {
           <p className="font-mono text-lg tracking-widest font-bold">{account?.accountNumber || "••••••••••"}</p>
           <button onClick={handleCopyAccount} className="ml-2 w-8 h-8 rounded-full bg-white/15 flex items-center justify-center hover:bg-white/25 transition-colors" aria-label="Copy account number"><FiCopy className="w-4 h-4" /></button>
         </div>
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <Link to="/gigs/wallet/transfer" className="flex-1 bg-white text-navy-900 font-bold px-6 py-3 rounded-full text-sm shadow-lg hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2"><FiSend className="w-4 h-4"/> Transfer</Link>
           <button onClick={() => setShowWithdraw((v) => !v)} className="flex-1 bg-white/15 text-white font-bold px-6 py-3 rounded-full text-sm border border-white/20 hover:bg-white/25 transition-colors inline-flex items-center justify-center gap-2"><FiArrowDownCircle className="w-4 h-4" /> Withdraw</button>
         </div>
@@ -172,12 +172,12 @@ export default function GigWalletPage() {
       {/* ── PIN — inside wallet, OTP gated ── */}
       <div className="mt-4">
         {!hasPin ? (
-          <div className="flex gap-2 items-end p-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-end p-3 bg-amber-50 border border-amber-200 rounded-xl">
             <div className="flex-1"><label className="text-xs font-semibold text-amber-800">Set 4-digit transfer PIN first</label><input type="password" maxLength={4} inputMode="numeric" value={newPin || ""} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="1234" className="input-field mt-1" /></div>
             <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits"); try{ await api.post("/gigs/pin", {pin:newPin}); toast.success("PIN set"); setHasPin(true); }catch(e){ toast.error(e.response?.data?.error||"Could not set PIN"); } }} className="btn-primary px-4 py-2 text-sm">Set PIN</button>
           </div>
         ) : (
-          <div className="flex gap-2 items-end p-3 bg-gray-50 border border-gray-200 rounded-xl">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-end p-3 bg-gray-50 border border-gray-200 rounded-xl">
             <div className="flex-1"><label className="text-xs text-gray-500">Change PIN (4-digit)</label><input type="password" maxLength={4} inputMode="numeric" value={newPin || ""} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="••••" className="input-field mt-1" /></div>
             <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("Enter new 4-digit PIN"); try{ await api.post("/gigs/pin/request-otp"); toast.success("OTP sent to your registered email"); }catch(e){ toast.error(e.response?.data?.error||"Could not send OTP"); } }} className="btn-secondary px-3 py-2 text-sm">Change PIN</button>
           </div>
@@ -191,7 +191,7 @@ export default function GigWalletPage() {
             <label className="text-xs font-semibold text-gray-500">Amount ₦</label>
             <input type="number" min="1000" value={withdrawForm.amount} onChange={(e) => setWithdrawForm((f) => ({ ...f, amount: e.target.value }))} placeholder="1000" className="input-field mt-1" required />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div><label className="text-xs font-semibold text-gray-500">Bank</label><select value={withdrawForm.bankCode} onChange={e=>setWithdrawForm(f=>({...f, bankCode:e.target.value}))} className="input-field mt-1"><option value="">Select bank</option>{banks.map(b=> <option key={b.code} value={b.code}>{b.name}</option>)}</select></div>
             <div><label className="text-xs font-semibold text-gray-500">Account number</label><input value={withdrawForm.accountNumber} onChange={e=>setWithdrawForm(f=>({...f, accountNumber:e.target.value.replace(/\D/g,"").slice(0,10)}))} placeholder="809..." maxLength={10} className="input-field mt-1 font-mono" required /></div>
           </div>
@@ -205,7 +205,7 @@ export default function GigWalletPage() {
       <div className="mt-4">
         <button onClick={() => setShowTopup((v) => !v)} className="text-xs font-semibold text-gray-500 hover:text-primary-600 inline-flex items-center gap-1"><FiPlusCircle className="w-3.5 h-3.5" /> Top up wallet</button>
         {showTopup && (
-          <div className="flex gap-2 mt-2">
+          <div className="flex flex-col sm:flex-row gap-2 mt-2">
             <input type="number" min="100" value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} placeholder="500" className="input-field flex-1 text-sm" />
             <button onClick={async()=>{ const amt=parseInt(topupAmount,10); if(!amt||amt<100) return toast.error("Min ₦100"); try{ const {authorizationUrl}=await initGigPayment(amt); window.location.href=authorizationUrl; }catch(e){ toast.error(e.response?.data?.error||"Top-up failed"); } }} className="btn-primary px-4 py-2 text-xs">Top up</button>
           </div>
