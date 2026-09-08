@@ -231,7 +231,7 @@ const DiscoverFeed = () => {
       return;
     }
     let win = null;
-    try { win = window.open("about:blank", "_blank", "noopener"); } catch {}
+    try { win = window.open("", "_blank"); } catch {}
     setContactLoadingId(listing.id);
     try {
       const result = await revealContact(listing.slug || listing.id);
@@ -240,10 +240,22 @@ const DiscoverFeed = () => {
           `Hi ${listing.seller.fullName}, I'm interested in your listing:\n📦 Item: ${listing.title}\n💰 Price: ₦${listing.price}\n🔗 Listing: ${window.location.origin}/listings/${listing.slug || listing.id}\nIs this still available?`,
         );
         const url = `https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`;
-        if (win && !win.closed) win.location.href = url;
-        else window.location.href = url;
+        let opened = false;
+        if (win && !win.closed) {
+          try { win.location.href = url; win.focus(); opened = true; } catch {}
+        }
+        if (!opened) {
+          const a = document.createElement("a");
+          a.href = url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => { if (!opened && document.visibilityState === "visible") window.location.href = url; }, 300);
+        }
       } else {
-        if (win && !win.closed) win.close();
+        if (win && !win.closed) try { win.close(); } catch {}
         toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
       }
     } finally {
