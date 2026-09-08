@@ -737,6 +737,38 @@ router.post("/send-weekly-email", async (req, res) => {
 // ─── Gig withdrawals — admin approve → Flutterwave transfer ──
 const { listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal } = require("../controllers/gig.controller");
 router.get("/gig-withdrawals", protect, requireAdmin, listGigWithdrawals);
+router.get("/gig-withdrawals/export", protect, requireAdmin, async (req, res) => {
+  try {
+    const status = (req.query.status || "PENDING").toUpperCase();
+    const where = status === "ALL" ? {} : { status };
+    const withdrawals = await prisma.gigWithdrawal.findMany({ where, orderBy: { createdAt: "asc" } });
+    const header = '"Account Number","Bank","Amount","Description"';
+    const codeToSlug = { "044": "access", "058": "gtb", "011": "firstbank", "033": "uba", "057": "zenith", "032": "union", "035": "wema", "999992": "opay", "50211": "kuda", "50515": "moniepoint", "999991": "palmpay", "035A": "wema" };
+    const rows = withdrawals.map(w => {
+      const acc = (w.bankAccountNumber || "").trim();
+      const bankRaw = (w.bankName || w.bankCode || "").trim();
+      let bank = bankRaw.split(" ")[0].toLowerCase();
+      // if bank is numeric code, map to slug like sample ("access" not "044")
+      const code = (w.bankCode || "").trim();
+      if (/^\d+$/.test(bank) && codeToSlug[code]) bank = codeToSlug[code];
+      else if (codeToSlug[bankRaw.toLowerCase()]) bank = codeToSlug[bankRaw.toLowerCase()];
+      // fallback: ensure lowercased, no spaces
+      bank = bank.toLowerCase();
+      const amount = String(Math.round((w.amount || 0) / 100));
+      const desc = "TrendTribe Payout";
+      const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+      return `${esc(acc)},${esc(bank)},${esc(amount)},${esc(desc)}`;
+    });
+    const csv = [header, ...rows].join("\n") + "\n";
+    const filename = `trend-tribe-payouts-${new Date().toISOString().slice(0,10)}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.send(csv);
+  } catch (err) {
+    console.error("[EXPORT CSV ERROR]", err.message);
+    return res.status(500).json({ error: "Could not generate CSV" });
+  }
+});
 router.post("/gig-withdrawals/:id/approve", protect, requireAdmin, approveGigWithdrawal);
 router.post("/gig-withdrawals/:id/reject", protect, requireAdmin, rejectGigWithdrawal);
 

@@ -343,51 +343,17 @@ const approveGigWithdrawal = async (req, res) => {
     if (w.status !== "PENDING") return res.status(400).json({ error: `Already ${w.status}` });
 
     const totalKobo = w.amount + (w.fee || 0);
-    // Already deducted on request — no need to check user balance again, just check Flutterwave cash
-    // Check Flutterwave main account balance (T+1) before transfer
-    const config = require("../config/env");
+    // Manual confirm — no Flutterwave transfer (removed per request). Mark COMPLETED + same push/inbox.
+    await prisma.gigWithdrawal.update({ where: { id }, data: { status: "COMPLETED" } });
     try {
-      const balRes = await fetch("https://api.flutterwave.com/v3/balances", { headers: { Authorization: `Bearer ${config.flutterwave.secretKey}` } });
-      const balData = await balRes.json();
-      const ngnBal = balData.data?.find?.(b=>b.currency==="NGN") || balData.data?.[0];
-      const availableKobo = ngnBal ? Math.round(parseFloat(ngnBal.available_balance || 0) * 100) : null;
-      if (availableKobo !== null && availableKobo < w.amount) {
-        return res.status(402).json({ error: `Flutterwave main account has insufficient cash (T+1). Available ₦${(availableKobo/100).toLocaleString()}, need ₦${(w.amount/100).toLocaleString()}. Keeps In review — will auto-retry after settlement.`, flutterwaveBalance: availableKobo });
-      }
+      await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_COMPLETED", listingId: null } });
+      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Completed", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} (fee ₦${(w.fee/100).toFixed(2)}) to ${w.bankName} • ${w.bankAccountNumber} — COMPLETED. ₦${(totalKobo/100).toLocaleString()} already debited on request — ref ${w.reference}.` } });
+      const { sendPushToUser } = require("../utils/push");
+      const { emitNotification } = require("../realtime");
+      sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal completed", body: `₦${(w.amount/100).toLocaleString()} sent to your bank`, url: "/gigs/wallet", tag: `gig-wd-c-${w.reference}` }).catch(()=>{});
+      try { emitNotification(w.userId, { type: "GIG_WITHDRAW_COMPLETED" }); } catch {}
     } catch {}
-
-    // Call Flutterwave transfer
-    const flwRes = await fetch("https://api.flutterwave.com/v3/transfers", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${config.flutterwave.secretKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        account_bank: w.bankCode,
-        account_number: w.bankAccountNumber,
-        amount: w.amount / 100,
-        currency: "NGN",
-        reference: w.reference || `gigw_${w.id}_${Date.now()}`,
-        narration: `Trend Tribe Gig payout ${w.reference}`,
-      }),
-    });
-    const data = await flwRes.json();
-    if (data.status === "success") {
-      // Already debited on request — just mark completed
-      await prisma.gigWithdrawal.update({ where: { id }, data: { status: "COMPLETED" } });
-      try {
-        await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_COMPLETED", listingId: null } });
-        await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Completed", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} (fee ₦${(w.fee/100).toFixed(2)}) to ${w.bankName} • ${w.bankAccountNumber} — COMPLETED. ₦${(totalKobo/100).toLocaleString()} already debited on request — ref ${w.reference}.` } });
-        const { sendPushToUser } = require("../utils/push");
-        const { emitNotification } = require("../realtime");
-        sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal completed", body: `₦${(w.amount/100).toLocaleString()} sent to your bank`, url: "/gigs/wallet", tag: `gig-wd-c-${w.reference}` }).catch(()=>{});
-        try { emitNotification(w.userId, { type: "GIG_WITHDRAW_COMPLETED" }); } catch {}
-      } catch {}
-      return res.json({ message: "Approved — Flutterwave transfer initiated", flutterwave: data.data });
-    }
-    // Insufficient funds on Flutterwave side — keep In review for retry, already debited (refund only on reject)
-    if (data.message?.toLowerCase().includes("insufficient") || data.message?.toLowerCase().includes("balance")) {
-      return res.status(402).json({ error: `Flutterwave has no cash to pay now (T+1). Kept In review — retry after next settlement.`, details: data });
-    }
-    return res.status(502).json({ error: data.message || "Transfer failed", details: data });
+    return res.json({ message: "Confirmed — payout marked completed (manual/bank app)", manual: true });
   } catch (err) {
     console.error("[APPROVE GIG WITHDRAWAL ERROR]", err);
     return res.status(500).json({ error: "Could not approve" });

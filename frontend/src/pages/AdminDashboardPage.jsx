@@ -11,6 +11,7 @@ import useRealtime from "../hooks/useRealtime";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import InfoModal from "../components/ui/InfoModal";
 
 
 const STAT_CONFIG = [
@@ -312,7 +313,21 @@ const AdminDashboardPage = () => {
           {/* Profit — personal profit from fees */}
           <div className="mb-6 bg-white border border-sage-100 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Personal profit — fees</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Personal profit — fees</p>
+                <InfoModal title="What each profit means (simple English)">
+                  <p className="text-sm text-gray-600 mb-2">This is money Trend Tribe keeps as platform fee. Not user balance.</p>
+                  <ul className="list-disc ml-5 space-y-2 text-sm">
+                    <li><b>Gig Confirm 20%</b> — When you confirm a gig is done, worker gets 80%, you keep 20%. Example: ₦1000 gig → ₦800 to worker, <b>₦200 profit</b>.</li>
+                    <li><b>Gig Cancel 5%</b> — When poster cancels before anyone claims, 95% goes back, you keep 5%. Example: ₦1000 gig → <b>₦50 profit</b>.</li>
+                    <li><b>Service Confirm 20%</b> — When provider confirms a service booking, provider pays 20% of the service price. Example: ₦5000 service → <b>₦1000 profit</b>.</li>
+                    <li><b>Gig Transfer 1%</b> — When user sends Gig Naira to another user (10-digit account), you keep 1%. Example: send ₦1000 → <b>₦10 profit</b>.</li>
+                    <li><b>Gig Withdraw 1%</b> — When user withdraws to bank (Kuda/OPay), you keep 1%. Example: withdraw ₦1000 → <b>₦10 profit</b> (user already debited ₦1010).</li>
+                    <li><b>Token Sold</b> — When someone buys tokens with card or Gig balance, you keep all. Example: 5 tokens × ₦200 = <b>₦1000 profit</b>.</li>
+                  </ul>
+                  <p className="text-xs text-gray-400 mt-3">Total combined = all above added. Today/7d shows recent earnings.</p>
+                </InfoModal>
+              </div>
               <span className="text-xs font-bold px-2 py-1 rounded-full bg-indigo-50 text-indigo-700">{profit ? formatNaira(profit.totalGrossKobo) + " total" : profitError ? "Error" : "Loading..."}</span>
             </div>
             {profit ? (
