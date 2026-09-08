@@ -4,6 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { getServiceBookings, confirmServiceBooking, cancelServiceBooking } from "../services/serviceBookingService";
 import { useToast } from "../context/ToastContext";
 import { FiClock, FiCheck, FiX } from "react-icons/fi";
+import InfoModal from "../components/ui/InfoModal";
 
 export default function BookingProviderPage() {
   const { toast } = useToast();
@@ -54,7 +55,18 @@ export default function BookingProviderPage() {
   return (
     <div className="container-app py-6 sm:py-8 max-w-lg mx-auto">
       <Helmet><title>Bookings — Provider — Trend Tribe</title></Helmet>
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Bookings on Your Services</h1>
+      <div className="flex items-center gap-2 mb-2">
+        <h1 className="text-2xl font-extrabold text-gray-900">Bookings on Your Services</h1>
+        <InfoModal title="How service bookings work">
+          <p>Someone booked your service — you have 1 hour to act.</p>
+          <ul className="list-disc ml-5">
+            <li><b>Confirm:</b> You pay a 20% fee, the booker’s escrow is refunded, and they get your WhatsApp to arrange the service.</li>
+            <li><b>Cancel:</b> Full refund to the booker, no fee.</li>
+            <li><b>Timer:</b> If you don’t act in 1h, it auto-cancels to avoid keeping them waiting.</li>
+            <li>After Confirm, chat on WhatsApp — no extra booking steps.</li>
+          </ul>
+        </InfoModal>
+      </div>
       <p className="text-sm text-gray-600 mb-6">Confirm within 1h to release, or cancel for a full refund to the booker.</p>
 
       {bookings.length === 0 ? (

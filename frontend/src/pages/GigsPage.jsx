@@ -6,6 +6,7 @@ import { getGigs, createGig, claimGig, confirmGig, cancelGig, renewGig, refundEx
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { FiClock, FiCheck, FiX, FiRefreshCw, FiCopy, FiSend, FiPlus } from "react-icons/fi";
+import InfoModal from "../components/ui/InfoModal";
 import api from "../api/axios";
 
 const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
@@ -146,8 +147,21 @@ export default function GigsPage() {
       <Helmet><title>Gigs — Trend Tribe</title></Helmet>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Gigs</h1>
-          <p className="text-sm text-gray-600 mt-1">Post a task, escrow Naira, claim free, confirm releases 80% to claimer (20% fee), 5% cancel fee, 72h auto-release. Gig wallet separate from marketplace tokens — no conversion.</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Gigs</h1>
+            <InfoModal title="How Gigs work">
+              <p>Post a task, someone claims it, you confirm when done.</p>
+              <ul className="list-disc ml-5">
+                <li><b>Post:</b> Your Naira is held safely (escrow) — not sent yet.</li>
+                <li><b>Claim:</b> Anyone can claim for free and gets your WhatsApp to chat.</li>
+                <li><b>Confirm:</b> When work is done, you tap Confirm — 80% goes to claimer, 20% is the platform fee.</li>
+                <li><b>Cancel:</b> Before anyone claims, cancelling costs 5%, rest is refunded.</li>
+                <li><b>Timer:</b> If no one claims before the timer ends, it expires — you can renew or get a full refund.</li>
+                <li><b>Auto-release:</b> If claimed but you don't confirm in 72h, it auto-pays the claimer.</li>
+              </ul>
+              <p>Your Gig wallet is separate from marketplace tokens — no mixing.</p>
+            </InfoModal>
+          </div>
           {my && <p className="text-xs text-gray-500 mt-1">Posted {my.posted?.length||0} · Claimed {my.claimed?.length||0}</p>}
         </div>
         <button onClick={()=>setShowPost(v=>!v)} className="btn-primary px-6 py-3 rounded-2xl text-sm font-bold">Post Gig</button>
@@ -305,12 +319,6 @@ export default function GigsPage() {
               <label className="text-xs font-semibold text-gray-700">Timer (hours)</label>
               <input type="number" min="1" max="168" value={form.timerHours} onChange={e=>setForm(f=>({...f, timerHours:e.target.value}))} className="input-field mt-1.5" />
             </div>
-          </div>
-
-          <div className="bg-primary-50 border border-primary-100 rounded-xl px-4 py-3">
-            <p className="text-xs text-primary-800 leading-relaxed">
-              <span className="font-semibold">On post:</span> ₦{form.amount ? parseInt(form.amount,10).toLocaleString() : "0"} is deducted to escrow. Claiming is free. Confirming releases 80% to the claimer (20% fee). Cancelling before a claim costs a 5% fee.
-            </p>
           </div>
 
           <button type="submit" disabled={submitting} className="w-full btn-primary py-3 rounded-full text-sm font-bold disabled:opacity-60">

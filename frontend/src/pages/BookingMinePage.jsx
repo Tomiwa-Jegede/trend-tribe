@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { getServiceBookings, cancelServiceBooking } from "../services/serviceBookingService";
 import { useToast } from "../context/ToastContext";
+import InfoModal from "../components/ui/InfoModal";
 
 export default function BookingMinePage() {
   const { toast } = useToast();
@@ -45,7 +46,18 @@ export default function BookingMinePage() {
   return (
     <div className="container-app py-6 sm:py-8 max-w-lg mx-auto">
       <Helmet><title>My Bookings — Trend Tribe</title></Helmet>
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-2">My Bookings</h1>
+      <div className="flex items-center gap-2 mb-2">
+        <h1 className="text-2xl font-extrabold text-gray-900">My Bookings</h1>
+        <InfoModal title="How your bookings work">
+          <p>You booked a service — here’s what happens.</p>
+          <ul className="list-disc ml-5">
+            <li>Your Naira is held safely until the provider decides.</li>
+            <li><b>Provider confirms</b> in 1h → you get their WhatsApp, 20% fee is on them.</li>
+            <li><b>Provider cancels</b> or <b>timer hits 1h</b> → you get a full refund, no fee.</li>
+            <li>After confirm, chat on WhatsApp to arrange — no more steps in-app.</li>
+          </ul>
+        </InfoModal>
+      </div>
       <p className="text-sm text-gray-600 mb-6">Bookings you've made, and whether the provider has confirmed.</p>
       {bookings.length === 0 ? (
         <p className="text-sm text-gray-500 card p-4 text-center">No bookings yet.</p>

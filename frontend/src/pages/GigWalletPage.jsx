@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async";
 import { getGigAccount, getMyGigs, getGigTransfers, withdrawGig, initGigPayment } from "../services/gigService";
 import { useToast } from "../context/ToastContext";
 import { FiCopy, FiSend, FiArrowDownCircle, FiChevronRight, FiPlusCircle } from "react-icons/fi";
+import InfoModal from "../components/ui/InfoModal";
 
 const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
 
@@ -106,7 +107,18 @@ export default function GigWalletPage() {
         <title>Gig Wallet — Trend Tribe</title>
       </Helmet>
 
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-6">Gig Wallet</h1>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-2xl font-extrabold text-gray-900">Gig Wallet</h1>
+        <InfoModal title="How Gig Wallet works">
+          <p>Your Gig Wallet is separate from your marketplace tokens. You see your balance in Naira, not tokens.</p>
+          <ul className="list-disc ml-5">
+            <li><b>Top up</b> adds Naira to your Gig balance (buyable via Flutterwave).</li>
+            <li><b>Transfer</b> to another 10-digit Gig account is instant — enter account, see name, enter amount, enter PIN.</li>
+            <li><b>Withdraw</b> to your bank needs your PIN and admin approval — money is sent via Flutterwave to your saved bank.</li>
+            <li>All moves are in Naira, shown as ₦. No conversion to marketplace tokens.</li>
+          </ul>
+        </InfoModal>
+      </div>
 
       {/* ── Balance card ── */}
       <div
