@@ -366,6 +366,7 @@ const createListing = async (req, res) => {
     }
 
       const slug = await generateUniqueSlug(prisma, title);
+      const finalCondition = condition || (isServices ? "NEW" : undefined);
       const listingData = {
         slug,
         title,
@@ -373,7 +374,7 @@ const createListing = async (req, res) => {
         price,
         category,
         subcategory: subcategory || null,
-        condition,
+        condition: finalCondition,
         images: images || [],
         imagePublicIds: imagePublicIds || [],
         coverPosition: coverPosition || { x: 50, y: 50 },

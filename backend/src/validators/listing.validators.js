@@ -72,6 +72,7 @@ const createListingRules = [
     }),
 
   body("condition")
+    .if((value, { req }) => req.body.category !== "SERVICES")
     .notEmpty()
     .withMessage("Condition is required")
     .isIn(VALID_CONDITIONS)
