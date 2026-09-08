@@ -184,7 +184,7 @@ export default function GigsPage() {
             <button onClick={()=>setShowHistory(v=>!v)} className="flex-1 bg-white/15 text-white font-bold px-6 py-3 rounded-full text-sm border border-white/20 hover:bg-white/25 transition-colors">{showHistory?"Hide History":"Transfer History"}</button>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-2 sm:flex gap-3">
+        <div className="mt-4 grid grid-cols-1 sm:flex gap-3">
           <div className="flex-1 card p-3"><label className="text-xs font-semibold text-gray-500">Top up</label><div className="flex gap-2 mt-1"><input type="number" min="100" value={topupAmount} onChange={e=>setTopupAmount(e.target.value)} placeholder="500" className="input-field flex-1 text-sm" /><button onClick={handleTopup} className="btn-primary px-3 py-2 text-xs">Top up</button></div></div>
           <form onSubmit={handleWithdraw} className="flex-1 card p-3 space-y-2">
             <p className="text-xs font-semibold text-gray-700">Withdraw to bank — PIN + admin approve → Flutterwave</p>
