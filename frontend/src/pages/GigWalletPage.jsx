@@ -299,6 +299,19 @@ export default function GigWalletPage() {
           </div>
           {withdrawAccountName ? <p className="text-sm text-green-600 font-medium bg-green-50 border border-green-200 rounded-lg px-3 py-2">→ {withdrawAccountName}</p> : withdrawResolving ? <p className="text-xs text-gray-400">Resolving...</p> : withdrawForm.accountNumber.length===10 && withdrawForm.bankCode ? <p className="text-xs text-red-500">Could not resolve account</p> : null}
           <div><label className="text-xs font-semibold text-gray-500">PIN</label><input type="password" maxLength={4} inputMode="numeric" value={withdrawForm.pin || ""} onChange={e=>setWithdrawForm(f=>({...f, pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="••••" className="input-field mt-1 w-24" required /></div>
+          {(() => {
+            const amt = parseInt(withdrawForm.amount, 10);
+            if (!amt || amt < 1000) return null;
+            const fee = Math.max(1, Math.round(amt * 100 * 0.01));
+            const total = amt * 100 + fee;
+            const enough = balance >= total;
+            return (
+              <div className={`rounded-xl px-3 py-2.5 text-[13px] border ${enough ? "bg-amber-50 border-amber-200 text-amber-900" : "bg-red-50 border-red-200 text-red-700"}`}>
+                <p className="font-bold">Total to be deducted: {formatNaira(total)} <span className="font-normal text-xs">({formatNaira(amt*100)} + fee {formatNaira(fee)} = {formatNaira(total)})</span></p>
+                <p className="text-xs mt-1">Gig balance: {formatNaira(balance)} → after: <span className={enough ? "font-bold" : "font-bold text-red-700"}>{formatNaira(balance - total)}</span> {enough ? "" : "· Insufficient"}</p>
+              </div>
+            );
+          })()}
           <div className="flex gap-2">
             <button type="submit" disabled={withdrawing} className="flex-1 btn-primary py-2.5 text-sm disabled:opacity-60">{withdrawing ? "Processing..." : "Withdraw — 1% fee"}</button>
             <button type="button" onClick={()=>{
@@ -308,7 +321,7 @@ export default function GigWalletPage() {
               try{ localStorage.removeItem("tt_gig_withdraw_form_v1"); localStorage.removeItem("tt_gig_withdraw_bankQuery_v1"); }catch{}
             }} className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 inline-flex items-center gap-1"><FiX className="w-4 h-4"/> Cancel</button>
           </div>
-          <p className="text-[10px] text-gray-400">Min ₦1000 · 1% fee · admin approves → auto transfer to bank</p>
+          <p className="text-[10px] text-gray-400">Min ₦1000 · 1% fee · admin approves → auto transfer to bank · Total shows before you confirm</p>
         </form>
       )}
 
