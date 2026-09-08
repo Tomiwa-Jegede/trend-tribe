@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { getGigs, createGig, claimGig, confirmGig, cancelGig, renewGig, refundExpiredGig, disputeGig, getMyGigs, withdrawGig, initGigPayment, getGigAccount, resolveGigAccount, transferGig, getGigTransfers } from "../services/gigService";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { FiClock, FiCheck, FiX, FiRefreshCw, FiCopy, FiSend } from "react-icons/fi";
+import { FiClock, FiCheck, FiX, FiRefreshCw, FiCopy, FiSend, FiPlus } from "react-icons/fi";
 import api from "../api/axios";
 
 const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
