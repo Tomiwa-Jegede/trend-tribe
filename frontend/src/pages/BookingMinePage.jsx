@@ -51,10 +51,10 @@ export default function BookingMinePage() {
         <InfoModal title="How your bookings work">
           <p>You booked a service — here’s what happens.</p>
           <ul className="list-disc ml-5">
-            <li>Your Naira is held safely until the provider decides.</li>
-            <li><b>Provider confirms</b> in 1h → you get their WhatsApp, 20% fee is on them.</li>
-            <li><b>Provider cancels</b> or <b>timer hits 1h</b> → you get a full refund, no fee.</li>
-            <li>After confirm, chat on WhatsApp to arrange — no more steps in-app.</li>
+            <li>Your payment is held safely until the provider responds.</li>
+            <li><b>Provider confirms</b> within 1 hour → you get their WhatsApp to arrange the service.</li>
+            <li><b>Provider cancels</b> or <b>timer hits 1 hour</b> → you get a full refund automatically.</li>
+            <li>After confirm, chat on WhatsApp — no extra steps needed.</li>
           </ul>
         </InfoModal>
       </div>

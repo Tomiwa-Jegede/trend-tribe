@@ -26,7 +26,7 @@ export default function ServiceBookingsPage() {
     <div className="container-app py-6 sm:py-8">
       <Helmet><title>Service Bookings — Trend Tribe</title></Helmet>
       <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Service Bookings</h1>
-      <p className="text-sm text-gray-600 mb-6">Booker escrow full price (marketplace tokens), provider Confirm pays 20% fee, 1h auto-cancel if no response. You notified of 1h.</p>
+      <p className="text-sm text-gray-600 mb-6">Payments held in Gig wallet — refunded if not confirmed within 1 hour.</p>
 
       <div className="grid md:grid-cols-2 gap-6">
         <div>
@@ -37,10 +37,10 @@ export default function ServiceBookingsPage() {
                 <div key={b.id} className="card p-4">
                   <p className="font-medium text-gray-900">{b.listing?.title} · ₦{b.listing?.price} · {b.status}</p>
                   <p className="text-xs text-gray-500">Booker @{b.booker?.username} · <FiClock className="inline w-3 h-3"/> expires {new Date(b.expiresAt).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">₦{(b.amount/100).toLocaleString()} escrow · 20% fee on Confirm</p>
+                  <p className="text-xs text-gray-500">₦{(b.amount/100).toLocaleString()} held · Confirm releases to you</p>
                   {b.status==="PENDING" && (
                     <div className="flex gap-2 mt-3">
-                      <button onClick={()=>handleConfirm(b.id)} className="btn-primary px-4 py-1.5 text-xs"><FiCheck className="inline w-3 h-3"/> Confirm (pay 20%)</button>
+                      <button onClick={()=>handleConfirm(b.id)} className="btn-primary px-4 py-1.5 text-xs"><FiCheck className="inline w-3 h-3"/> Confirm</button>
                       <button onClick={()=>handleCancel(b.id)} className="btn-secondary px-3 py-1.5 text-xs"><FiX className="inline w-3 h-3"/> Cancel</button>
                     </div>
                   )}
@@ -57,7 +57,7 @@ export default function ServiceBookingsPage() {
                 <div key={b.id} className="card p-4">
                   <p className="font-medium text-gray-900">{b.listing?.title} · ₦{b.listing?.price} · {b.status}</p>
                   <p className="text-xs text-gray-500">Provider @{b.provider?.username} {b.provider?.whatsapp && `· ${b.provider.whatsapp}`} · {new Date(b.createdAt).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">₦{(b.amount/100).toLocaleString()} escrow · provider pays 20% on Confirm · 1h timer</p>
+                  <p className="text-xs text-gray-500">₦{(b.amount/100).toLocaleString()} held · awaiting confirmation (1 hour)</p>
                   {b.status==="PENDING" && <button onClick={()=>handleCancel(b.id)} className="btn-secondary px-3 py-1.5 text-xs mt-2">Cancel booking</button>}
                   {b.status==="CONFIRMED" && b.provider?.whatsapp && <a href={`https://wa.me/${b.provider.whatsapp.replace(/\D/g,"")}`} target="_blank" rel="noreferrer" className="btn-primary px-4 py-1.5 text-xs mt-2 inline-block">Chat Provider</a>}
                 </div>

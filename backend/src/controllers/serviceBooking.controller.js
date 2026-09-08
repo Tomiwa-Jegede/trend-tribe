@@ -17,16 +17,15 @@ const bookService = async (req, res) => {
     const amountKobo = Math.round(parseFloat(listing.price) * 100);
     const expiresAt = new Date(Date.now() + BOOKING_EXPIRE_HOURS * 60 * 60 * 1000);
 
-    // For SERVICES, escrow is whole amount from booker's marketplace token wallet (1 token = ₦200 = 20000 kobo)
-    // Require booker has enough tokens to cover amount
-    const requiredTokens = Math.ceil(amountKobo / 20000);
-    const booker = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tokenBalance: true } });
-    if ((booker?.tokenBalance || 0) < requiredTokens) {
-      return res.status(402).json({ error: `Need ${requiredTokens} tokens to book this service (₦${(amountKobo/100).toLocaleString()}). You have ${booker?.tokenBalance||0}.`, requiredTokens, tokenBalance: booker?.tokenBalance||0 });
+    // For SERVICES, escrow is whole amount from booker's Gig wallet (Naira kobo)
+    const booker = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true } });
+    if ((booker?.gigBalance || 0) < amountKobo) {
+      return res.status(402).json({ error: `Insufficient Gig balance. Need ₦${(amountKobo/100).toLocaleString()} in Gig wallet to book. You have ₦${((booker?.gigBalance||0)/100).toLocaleString()}. Please fund your Gig wallet.`, requiredKobo: amountKobo, gigBalance: booker?.gigBalance||0 });
     }
 
     const booking = await prisma.$transaction(async (tx) => {
-      await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: requiredTokens } }, data: { tokenBalance: { decrement: requiredTokens } } });
+      const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: amountKobo } }, data: { gigBalance: { decrement: amountKobo } } });
+      if (ok.count === 0) throw new Error("BALANCE_RACE");
       return tx.serviceBooking.create({
         data: { listingId, bookerId: req.user.id, providerId: listing.sellerId, amount: amountKobo, status: "PENDING", expiresAt },
       });
@@ -39,7 +38,7 @@ const bookService = async (req, res) => {
       emitNotification(listing.sellerId, { type: "SERVICE_BOOKING", listingId });
     } catch {}
 
-    return res.status(201).json({ booking, message: `Booked — provider has 1h to Confirm/Cancel. You are notified of 1h window. 20% provider fee on Confirm.` });
+    return res.status(201).json({ booking, message: `Booked — ₦${(amountKobo/100).toLocaleString()} held from Gig wallet. Provider has 1 hour to confirm.` });
   } catch (err) {
     if (err.message.includes("TOKEN")) return res.status(402).json({ error: "Balance changed" });
     console.error("[BOOK SERVICE ERROR]", err);
@@ -57,15 +56,13 @@ const confirmServiceBooking = async (req, res) => {
     if (booking.expiresAt < new Date()) return res.status(400).json({ error: "Booking expired (1h)" });
 
     const feeKobo = Math.floor(booking.amount * 0.2);
-    const feeTokens = Math.ceil(feeKobo / 20000);
-    const provider = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tokenBalance: true } });
-    if ((provider?.tokenBalance || 0) < feeTokens) return res.status(402).json({ error: `Need ${feeTokens} tokens for 20% fee (₦${(feeKobo/100).toLocaleString()}). You have ${provider?.tokenBalance||0}.`, feeTokens });
+    const provider = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true } });
+    if ((provider?.gigBalance || 0) < feeKobo) return res.status(402).json({ error: `Insufficient Gig balance for 20% fee. Need ₦${(feeKobo/100).toLocaleString()} in Gig wallet. You have ₦${((provider?.gigBalance||0)/100).toLocaleString()}. Please fund your Gig wallet.`, feeKobo });
 
-    const bookerRefundTokens = Math.ceil(booking.amount / 20000);
     await prisma.$transaction(async (tx) => {
-      const ok = await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: feeTokens } }, data: { tokenBalance: { decrement: feeTokens } } });
+      const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: feeKobo } }, data: { gigBalance: { decrement: feeKobo } } });
       if (ok.count === 0) throw new Error("FEE_RACE");
-      await tx.user.update({ where: { id: booking.bookerId }, data: { tokenBalance: { increment: bookerRefundTokens } } });
+      await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
       await tx.serviceBooking.update({ where: { id }, data: { status: "CONFIRMED" } });
       await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
     });
@@ -78,7 +75,7 @@ const confirmServiceBooking = async (req, res) => {
       emitNotification(booking.bookerId, { type: "SERVICE_CONFIRMED", listingId: booking.listingId });
     } catch {}
 
-    return res.json({ message: `Confirmed — 20% fee ₦${(feeKobo/100).toLocaleString()} (${feeTokens} tokens) charged. Booker gets your WhatsApp.`, whatsapp: providerUser?.whatsapp, feeTokens, feeKobo });
+    return res.json({ message: `Confirmed — booking completed. Booker gets your WhatsApp.`, whatsapp: providerUser?.whatsapp, feeKobo });
   } catch (err) {
     console.error("[CONFIRM SERVICE BOOKING ERROR]", err);
     return res.status(500).json({ error: "Could not confirm" });
@@ -93,12 +90,11 @@ const cancelServiceBooking = async (req, res) => {
     if (booking.providerId !== req.user.id && booking.bookerId !== req.user.id) return res.status(403).json({ error: "Not your booking" });
     if (booking.status !== "PENDING") return res.status(400).json({ error: `Cannot cancel ${booking.status}` });
 
-    const refundTokens = Math.ceil(booking.amount / 20000);
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: booking.bookerId }, data: { tokenBalance: { increment: refundTokens } } });
+      await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
       await tx.serviceBooking.update({ where: { id }, data: { status: "CANCELLED" } });
     });
-    return res.json({ message: `Cancelled — refunded ₦${(booking.amount/100).toLocaleString()} to booker.` });
+    return res.json({ message: `Cancelled — ₦${(booking.amount/100).toLocaleString()} refunded to your Gig wallet.` });
   } catch (err) {
     console.error("[CANCEL SERVICE BOOKING ERROR]", err);
     return res.status(500).json({ error: "Could not cancel" });
@@ -110,12 +106,11 @@ const expireServiceBookings = async () => {
     const now = new Date();
     const expired = await prisma.serviceBooking.findMany({ where: { status: "PENDING", expiresAt: { lte: now } } });
     for (const b of expired) {
-      const refundTokens = Math.ceil(b.amount / 20000);
       await prisma.$transaction(async (tx) => {
-        await tx.user.update({ where: { id: b.bookerId }, data: { tokenBalance: { increment: refundTokens } } });
+        await tx.user.update({ where: { id: b.bookerId }, data: { gigBalance: { increment: b.amount } } });
         await tx.serviceBooking.update({ where: { id: b.id }, data: { status: "EXPIRED" } });
       });
-      console.log(`[SERVICE BOOKING] Auto-expired ${b.id} after 1h`);
+      console.log(`[SERVICE BOOKING] Auto-expired ${b.id} after 1h — refunded to Gig wallet`);
     }
   } catch (e) { console.error("[SERVICE BOOKING EXPIRE ERROR]", e.message); }
 };

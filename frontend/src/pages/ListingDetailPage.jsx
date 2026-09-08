@@ -474,11 +474,11 @@ const ListingDetailPage = () => {
               <button
                 onClick={async () => {
                   if (!isAuthenticated) { navigate("/login"); return; }
-                  if (!confirm(`Book "${listing.title}" for ₦${listing.price}? Provider has 1h to Confirm/Cancel (you notified). Provider pays 20% fee on Confirm.`)) return;
+                  if (!confirm(`Book "${listing.title}" for ₦${listing.price}? Provider has 1 hour to confirm. You'll be notified — if they don't respond in 1 hour, you get a full refund.`)) return;
                   setBookingLoading(true);
                   try {
                     const res = await bookService(listing.id);
-                    toast.success(res.message || "Booked — provider notified 1h");
+                    toast.success(res.message || "Booked — provider notified (1h to respond)");
                   } catch (err) {
                     toast.error(err.response?.data?.error || "Booking failed");
                   } finally { setBookingLoading(false); }
@@ -489,7 +489,7 @@ const ListingDetailPage = () => {
                 <FiMessageCircle className="w-5 h-5" />
                 {bookingLoading ? "Booking..." : listing.isAvailable ? `Book Service — ₦${listing.price}` : "Not Available"}
               </button>
-              <p className="text-xs text-gray-500 text-center">1h timer, 20% provider fee on Confirm, auto-cancel if no response</p>
+              <p className="text-xs text-gray-500 text-center">₦{listing.price} will be held from your Gig wallet — refunded to Gig wallet if not confirmed in 1 hour</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">

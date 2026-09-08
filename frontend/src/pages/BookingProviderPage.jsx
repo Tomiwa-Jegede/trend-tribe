@@ -60,8 +60,8 @@ export default function BookingProviderPage() {
         <InfoModal title="How service bookings work">
           <p>Someone booked your service — you have 1 hour to act.</p>
           <ul className="list-disc ml-5">
-            <li><b>Confirm:</b> You pay a 20% fee, the booker’s escrow is refunded, and they get your WhatsApp to arrange the service.</li>
-            <li><b>Cancel:</b> Full refund to the booker, no fee.</li>
+            <li><b>Confirm:</b> You pay a 20% fee from your Gig wallet, the booker’s payment is refunded to their Gig wallet, and they get your WhatsApp to arrange the service.</li>
+            <li><b>Cancel:</b> Full refund to the booker’s Gig wallet, no fee.</li>
             <li><b>Timer:</b> If you don’t act in 1h, it auto-cancels to avoid keeping them waiting.</li>
             <li>After Confirm, chat on WhatsApp — no extra booking steps.</li>
           </ul>

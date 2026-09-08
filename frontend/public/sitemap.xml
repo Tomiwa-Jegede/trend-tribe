@@ -49,6 +49,18 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>http://localhost:5173/listings/hdjbsjssn-q5ncvr</loc>
+    <lastmod>2026-09-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>http://localhost:5173/listings/adorable-packet-hair-4st1co</loc>
+    <lastmod>2026-09-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>http://localhost:5173/listings/bento-cake-qhwaup</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
@@ -74,12 +86,6 @@
   </url>
   <url>
     <loc>http://localhost:5173/listings/deep-wave-e1mte1</loc>
-    <lastmod>2026-09-08</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/listings/adorable-packet-hair-4st1co</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
