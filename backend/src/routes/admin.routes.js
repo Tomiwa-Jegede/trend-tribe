@@ -851,6 +851,7 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
           await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: gig.escrowAmount } } });
           await tx.gig.update({ where: { id: gigId }, data: { status: "CANCELLED" } });
         });
+        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_DISPUTE_REFUND", title: "Dispute resolved — refunded", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for gig #${gigId} (admin decision: refund).`, meta: { gigId } }); } catch {}
       } else if (decision === "release") {
         const pay = gig.escrowAmount - Math.floor(gig.escrowAmount*0.2);
         const fee = Math.floor(gig.escrowAmount*0.2);
@@ -859,6 +860,7 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
           await tx.gig.update({ where: { id: gigId }, data: { status: "COMPLETED", completedAt: new Date() } });
           await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: fee, netFee: fee, refId: String(gigId), meta: { gigId, disputed: true, decision } } });
         });
+        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_DISPUTE_RELEASE", title: "Dispute resolved — released", body: `Credit: ₦${(pay/100).toLocaleString()} released for gig #${gigId} (admin decision: release, fee ₦${(fee/100).toLocaleString()}).`, meta: { gigId } }); } catch {}
       } else if (decision === "split") {
         const half = Math.floor(gig.escrowAmount/2);
         await prisma.$transaction(async (tx) => {
@@ -866,6 +868,11 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
           if (gig.claimerId) await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: gig.escrowAmount - half } } });
           await tx.gig.update({ where: { id: gigId }, data: { status: "COMPLETED", completedAt: new Date() } });
         });
+        try {
+          const { recordWalletMovement } = require("../utils/wallet");
+          await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${(half/100).toLocaleString()} for gig #${gigId} (admin split).`, meta: { gigId } });
+          if (gig.claimerId) await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: gig.escrowAmount - half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${((gig.escrowAmount - half)/100).toLocaleString()} for gig #${gigId} (admin split).`, meta: { gigId } });
+        } catch {}
       }
       // notify both
       try {
@@ -887,11 +894,13 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
           await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
           await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "CANCELLED" } });
         });
+        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_DISPUTE_REFUND", title: "Service dispute — refunded", body: `Credit: ₦${(booking.amount/100).toLocaleString()} refunded for booking #${bookingId} (admin refund).`, meta: { bookingId } }); } catch {}
       } else if (decision === "release") {
         await prisma.$transaction(async (tx) => {
           await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
           await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
         });
+        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_DISPUTE_RELEASE", title: "Service dispute — released", body: `Credit: ₦${(booking.amount/100).toLocaleString()} released to provider for booking #${bookingId} (admin release).`, meta: { bookingId } }); } catch {}
       } else if (decision === "split") {
         const half = Math.floor(booking.amount/2);
         await prisma.$transaction(async (tx) => {
@@ -899,6 +908,11 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
           await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount - half } } });
           await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
         });
+        try {
+          const { recordWalletMovement } = require("../utils/wallet");
+          await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: half, fee: 0, type: "SERVICE_DISPUTE_SPLIT", title: "Service dispute — split", body: `Credit: ₦${(half/100).toLocaleString()} for booking #${bookingId} (admin split).`, meta: { bookingId } });
+          await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount - half, fee: 0, type: "SERVICE_DISPUTE_SPLIT", title: "Service dispute — split", body: `Credit: ₦${((booking.amount - half)/100).toLocaleString()} for booking #${bookingId} (admin split).`, meta: { bookingId } });
+        } catch {}
       }
       try {
         await prisma.notification.createMany({ data: [

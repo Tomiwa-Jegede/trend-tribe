@@ -26,6 +26,11 @@ const createGig = async (req, res) => {
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       return tx.gig.create({ data: { description: description.trim(), whatsapp: whatsapp.trim(), amount: amountKobo, escrowAmount: amountKobo, timerHours: hours, status: "OPEN", posterId: req.user.id, expiresAt } });
     });
+    // wallet: debit + history + credit notification
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "GIG_CREATE", title: "Gig posted — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for gig #${gig.id} "${gig.description.slice(0,40)}" — escrow from Gig wallet.`, meta: { gigId: gig.id } });
+    } catch {}
     // realtime badge + push to all users when gig goes live
     try {
       const { emitGig } = require("../realtime");
@@ -122,6 +127,10 @@ const confirmGig = async (req, res) => {
       await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
       await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(id), meta: { gigId: id, posterId: gig.posterId, claimerId: gig.claimerId } } });
     });
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_PAYOUT", title: "Gig payout — credited", body: `Credit: ₦${(pay/100).toLocaleString()} from gig #${id} (fee ₦${(gross/100).toLocaleString()} retained) — credited to Gig wallet.`, meta: { gigId: id, fee: gross } });
+    } catch {}
     return res.json({ message: `Confirmed — ₦${(pay/100).toLocaleString()} sent to claimer, ₦${(gross/100).toLocaleString()} fee retained.`, payout: pay, fee: gross });
   } catch (err) {
     if (err.message === "ALREADY") return res.status(409).json({ error: `Gig is no longer claimable` });
@@ -145,6 +154,10 @@ const cancelGig = async (req, res) => {
       await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: refund } } });
       await tx.platformProfit.create({ data: { source: "GIG_CANCEL_5", grossFee: cancelFee, netFee: cancelFee, refId: String(id), meta: { gigId: id } } });
     });
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: refund, fee: 0, type: "GIG_CANCEL_REFUND", title: "Gig cancelled — refund", body: `Credit: ₦${(refund/100).toLocaleString()} refunded for gig #${id} (fee ₦${(cancelFee/100).toLocaleString()} retained).`, meta: { gigId: id, fee: cancelFee } });
+    } catch {}
     return res.json({ message: `Cancelled — 5% fee ₦${(cancelFee/100).toLocaleString()}, refund ₦${(refund/100).toLocaleString()} to Gig wallet.`, refund, fee: cancelFee });
   } catch (err) {
     if (err.message === "ALREADY") return res.status(409).json({ error: `Cannot cancel` });
@@ -183,6 +196,10 @@ const refundExpired = async (req, res) => {
       await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: gig.escrowAmount } } });
       await tx.gig.update({ where: { id }, data: { status: "CANCELLED" } });
     });
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_EXPIRED_REFUND", title: "Expired gig — refund", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for expired gig #${id}.`, meta: { gigId: id } });
+    } catch {}
     return res.json({ message: `Refunded ₦${(gig.escrowAmount/100).toLocaleString()} to Gig wallet.` });
   } catch (err) {
     console.error("[REFUND EXPIRED ERROR]", err);
@@ -272,6 +289,11 @@ const withdrawGig = async (req, res) => {
       await tx.platformProfit.create({ data: { source: "GIG_WITHDRAW_1P", grossFee: feeKobo, netFee: feeKobo, refId: wd.reference, meta: { withdrawalId: wd.id, amount: kobo } } });
       return wd;
     });
+    // ledger for history
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: kobo, fee: feeKobo, type: "WITHDRAW", title: "Withdrawal — in review", body: `Debit: ₦${(totalKobo/100).toLocaleString()} (₦${amt.toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)}) to ${bankName || cleanBank} • ${cleanAcc} — ref ${reference} — In review`, meta: { withdrawalId: w.id, reference } });
+    } catch {}
     // inbox + push + notification for debit (red) — request received + admin push for pending
     try {
       await prisma.notification.create({ data: { userId: req.user.id, type: "GIG_WITHDRAW_PENDING", listingId: null } });
@@ -393,6 +415,10 @@ const rejectGigWithdrawal = async (req, res) => {
       await tx.platformProfit.deleteMany({ where: { refId: w.reference, source: "GIG_WITHDRAW_1P" } }).catch(()=>{});
     });
     try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: w.userId, direction: "CREDIT", amount: totalKobo, fee: 0, type: "WITHDRAW_REFUND", title: "Withdrawal rejected — refunded", body: `Credit: ₦${(totalKobo/100).toLocaleString()} refunded (withdrawal rejected — ref ${w.reference}).`, meta: { withdrawalId: w.id, reference: w.reference } });
+    } catch {}
+    try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_REJECTED", listingId: null } });
       await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Rejected — Fully Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — REJECTED — ₦${(totalKobo/100).toLocaleString()} fully refunded to Gig wallet (was ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited) — ref ${w.reference}.` } });
       const { sendPushToUser } = require("../utils/push");
@@ -422,6 +448,10 @@ const cancelGigWithdrawal = async (req, res) => {
       await tx.gigWithdrawal.update({ where: { id }, data: { status: "CANCELLED" } });
       await tx.platformProfit.deleteMany({ where: { refId: w.reference, source: "GIG_WITHDRAW_1P" } }).catch(()=>{});
     });
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: w.userId, direction: "CREDIT", amount: totalKobo, fee: 0, type: "WITHDRAW_REFUND", title: "Withdrawal cancelled — refunded", body: `Credit: ₦${(totalKobo/100).toLocaleString()} refunded (withdrawal cancelled — ref ${w.reference}).`, meta: { withdrawalId: w.id, reference: w.reference } });
+    } catch {}
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_CANCELLED", listingId: null } });
       await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Cancelled — Fully Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — CANCELLED — ₦${(totalKobo/100).toLocaleString()} fully refunded to Gig wallet (was ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited) — ref ${w.reference}.` } });
@@ -516,6 +546,14 @@ const transferGig = async (req, res) => {
       await tx.platformProfit.create({ data: { source: "GIG_TRANSFER_1P", grossFee: feeKobo, netFee: feeKobo, refId: tr.reference, meta: { transferId: tr.id, from: req.user.id, to: recipient.id } } });
       return tr;
     });
+    // ledger + history for both sides
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await Promise.all([
+        recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: feeKobo, type: "TRANSFER", title: `Transfer sent to @${recipient.username}`, body: `Debit: ₦${(totalKobo/100).toLocaleString()} sent to @${recipient.username} (amount ₦${amt.toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)}) — ref ${transfer.reference}`, meta: { transferId: transfer.id, toUserId: recipient.id, reference: transfer.reference } }),
+        recordWalletMovement({ userId: recipient.id, direction: "CREDIT", amount: amountKobo, fee: 0, type: "TRANSFER", title: "Transfer received", body: `Credit: ₦${amt.toLocaleString()} received from @${(await prisma.user.findUnique({where:{id:req.user.id},select:{username:true}}))?.username} — ref ${transfer.reference}`, meta: { transferId: transfer.id, fromUserId: req.user.id, reference: transfer.reference } }),
+      ]);
+    } catch {}
     // notify both + push + inbox — debit red for sender, credit green for receiver
     try {
       const senderUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { username: true } });
@@ -569,6 +607,170 @@ const listMyGigPurchases = async (req, res) => {
   } catch (err) {
     console.error("[LIST MY GIG PURCHASES ERROR]", err);
     return res.status(500).json({ error: "Could not load" });
+  }
+};
+
+const getWalletHistory = async (req, res) => {
+  try {
+    const { page = 1, limit = 30 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
+    const userId = req.user.id;
+
+    // Fetch ledger + legacy sources in parallel (cap 100 each to keep merge manageable)
+    const [ledger, sent, received, topups, withdrawals, tokenBuysRaw, gigsPosted, gigsClaimed, bookingsAsBooker, bookingsAsProvider] = await Promise.all([
+      prisma.gigWalletTransaction.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 }),
+      prisma.gigTransfer.findMany({ where: { fromUserId: userId }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.gigTransfer.findMany({ where: { toUserId: userId }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.gigTokenPurchase.findMany({ where: { userId, status: "SUCCESS" }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.gigWithdrawal.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.tokenPurchase.findMany({ where: { userId, status: "SUCCESS" }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.gig.findMany({ where: { posterId: userId }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.gig.findMany({ where: { claimerId: userId }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.serviceBooking.findMany({ where: { bookerId: userId }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.serviceBooking.findMany({ where: { providerId: userId }, orderBy: { createdAt: "desc" }, take: 50 }),
+    ]);
+
+    const ledgerRefs = new Set(ledger.map(l => l.reference).filter(Boolean));
+    const ledgerGigIds = new Set(ledger.filter(l => l.meta && l.meta.gigId).map(l => String(l.meta.gigId)));
+    const ledgerBookingIds = new Set(ledger.filter(l => l.meta && l.meta.bookingId).map(l => String(l.meta.bookingId)));
+    const ledgerTransferRefs = new Set(ledger.filter(l => l.type === "TRANSFER").map(l => l.meta && (l.meta.reference || l.reference)).filter(Boolean));
+
+    const norm = [];
+
+    // ledger entries as-is (already correct shape) — normalize to unified shape for sorting
+    for (const tx of ledger) {
+      norm.push({
+        id: `ledger-${tx.id}`,
+        ledgerId: tx.id,
+        direction: tx.direction, // CREDIT|DEBIT
+        type: tx.type,
+        amount: tx.amount,
+        fee: tx.fee,
+        total: tx.total,
+        reference: tx.reference,
+        createdAt: tx.createdAt,
+        meta: tx.meta,
+        source: "ledger",
+      });
+    }
+
+    // legacy transfers not yet in ledger
+    for (const t of sent) {
+      if (ledgerTransferRefs.has(t.reference)) continue;
+      norm.push({ id: `tr-sent-${t.id}`, direction: "DEBIT", type: "TRANSFER", amount: t.amount, fee: t.fee, total: t.amount + t.fee, reference: t.reference, createdAt: t.createdAt, meta: { transferId: t.id, toUserId: t.toUserId }, source: "transfer" });
+    }
+    for (const t of received) {
+      if (ledgerTransferRefs.has(t.reference)) continue;
+      norm.push({ id: `tr-recv-${t.id}`, direction: "CREDIT", type: "TRANSFER", amount: t.amount, fee: 0, total: t.amount, reference: t.reference, createdAt: t.createdAt, meta: { transferId: t.id, fromUserId: t.fromUserId }, source: "transfer" });
+    }
+
+    // topups (gig token purchases)
+    for (const p of topups) {
+      if (ledgerRefs.has(p.reference)) continue;
+      norm.push({ id: `topup-${p.id}`, direction: "CREDIT", type: "TOPUP", amount: p.amount, fee: 0, total: p.amount, reference: p.reference, createdAt: p.createdAt, meta: { purchaseId: p.id }, source: "topup" });
+    }
+
+    // withdrawals
+    for (const w of withdrawals) {
+      const total = w.amount + (w.fee || 0);
+      if (w.status === "REJECTED" || w.status === "CANCELLED") {
+        if (ledgerRefs.has(w.reference)) continue;
+        // ledger for these would be WITHDRAW_REFUND, but legacy path is refund credit
+        norm.push({ id: `wd-refund-${w.id}`, direction: "CREDIT", type: "WITHDRAW_REFUND", amount: total, fee: 0, total, reference: w.reference, createdAt: w.updatedAt || w.createdAt, meta: { withdrawalId: w.id, status: w.status }, source: "withdrawal" });
+      } else {
+        if (ledgerRefs.has(w.reference)) continue;
+        norm.push({ id: `wd-${w.id}`, direction: "DEBIT", type: "WITHDRAW", amount: w.amount, fee: w.fee || 0, total, reference: w.reference, createdAt: w.createdAt, meta: { withdrawalId: w.id, status: w.status }, source: "withdrawal" });
+      }
+    }
+
+    // token buys via gig balance (legacy before ledger)
+    for (const tp of tokenBuysRaw) {
+      const via = tp.meta && (tp.meta.via === "GIG_BALANCE" || tp.meta.via === "GIG_BALANCE" || (tp.flutterwaveTransactionId && tp.flutterwaveTransactionId.startsWith("gig_")));
+      // also check if amount matches token logic: if flutter ref starts with gig_ it's via gig
+      const isViaGig = via || (tp.reference && tp.reference.startsWith("gig_"));
+      if (!isViaGig) continue;
+      if (ledgerRefs.has(tp.reference)) continue;
+      const costKobo = tp.quantity * 200 * 100;
+      norm.push({ id: `tokenbuy-${tp.id}`, direction: "DEBIT", type: "TOKEN_BUY", amount: costKobo, fee: 0, total: costKobo, reference: tp.reference, createdAt: tp.createdAt, meta: { tokenPurchaseId: tp.reference, quantity: tp.quantity }, source: "tokenBuy" });
+    }
+
+    // gigs posted — derive escrow held (only if not already in ledger)
+    for (const g of gigsPosted) {
+      if (ledgerGigIds.has(String(g.id))) continue;
+      // escrow debit at creation
+      norm.push({ id: `gig-create-${g.id}`, direction: "DEBIT", type: "GIG_CREATE", amount: g.escrowAmount || g.amount, fee: 0, total: g.escrowAmount || g.amount, reference: `gig-${g.id}-create`, createdAt: g.createdAt, meta: { gigId: g.id }, source: "gig" });
+      // cancel refund (5%) — if CANCELLED and not expired refund path, derive from updatedAt
+      if (g.status === "CANCELLED") {
+        // Check if ledger already has refund for this gig (any type with gigId)
+        const hasRefund = ledger.some(l => l.meta && String(l.meta.gigId) === String(g.id) && (l.type.includes("REFUND") || l.type === "GIG_CANCEL_REFUND" || l.type === "GIG_EXPIRED_REFUND"));
+        if (!hasRefund) {
+          // distinguish expired vs cancel: if expiresAt < updatedAt and not claimed, it's expired refund full; else 5% fee
+          const isExpired = g.expiresAt && g.updatedAt && new Date(g.updatedAt) > new Date(g.expiresAt) && !g.claimerId;
+          if (isExpired) {
+            norm.push({ id: `gig-exp-refund-${g.id}`, direction: "CREDIT", type: "GIG_EXPIRED_REFUND", amount: g.escrowAmount || g.amount, fee: 0, total: g.escrowAmount || g.amount, reference: `gig-${g.id}-expired`, createdAt: g.updatedAt, meta: { gigId: g.id }, source: "gig" });
+          } else {
+            const fee = Math.floor((g.escrowAmount || g.amount) * 0.05);
+            const refund = (g.escrowAmount || g.amount) - fee;
+            norm.push({ id: `gig-cancel-refund-${g.id}`, direction: "CREDIT", type: "GIG_CANCEL_REFUND", amount: refund, fee: 0, total: refund, reference: `gig-${g.id}-cancel`, createdAt: g.updatedAt, meta: { gigId: g.id, fee }, source: "gig" });
+          }
+        }
+      }
+    }
+
+    // gigs claimed — payouts to claimer
+    for (const g of gigsClaimed) {
+      if (g.status !== "COMPLETED") continue;
+      if (ledgerGigIds.has(String(g.id))) continue;
+      const pay = (g.escrowAmount || g.amount) - Math.floor((g.escrowAmount || g.amount) * 0.2);
+      const fee = Math.floor((g.escrowAmount || g.amount) * 0.2);
+      norm.push({ id: `gig-payout-${g.id}`, direction: "CREDIT", type: "GIG_PAYOUT", amount: pay, fee: 0, total: pay, reference: `gig-${g.id}-payout`, createdAt: g.completedAt || g.updatedAt, meta: { gigId: g.id, fee }, source: "gig" });
+    }
+
+    // service bookings as booker — book debit, refund credit if cancelled/expired
+    for (const b of bookingsAsBooker) {
+      if (ledgerBookingIds.has(String(b.id))) continue;
+      // book debit at creation if not already ledger
+      const hasBook = ledger.some(l => l.meta && String(l.meta.bookingId) === String(b.id) && l.type === "SERVICE_BOOK");
+      if (!hasBook) {
+        norm.push({ id: `sb-book-${b.id}`, direction: "DEBIT", type: "SERVICE_BOOK", amount: b.amount, fee: 0, total: b.amount, reference: `sb-${b.id}-book`, createdAt: b.createdAt, meta: { bookingId: b.id }, source: "service" });
+      }
+      if (b.status === "CANCELLED" || b.status === "EXPIRED") {
+        const hasRefund = ledger.some(l => l.meta && String(l.meta.bookingId) === String(b.id) && (l.type === "SERVICE_REFUND" || l.type === "SERVICE_EXPIRED_REFUND"));
+        if (!hasRefund) {
+          norm.push({ id: `sb-refund-${b.id}`, direction: "CREDIT", type: b.status === "EXPIRED" ? "SERVICE_EXPIRED_REFUND" : "SERVICE_REFUND", amount: b.amount, fee: 0, total: b.amount, reference: `sb-${b.id}-refund`, createdAt: b.updatedAt, meta: { bookingId: b.id }, source: "service" });
+        }
+      }
+    }
+
+    // service bookings as provider — fee debit, payout credit
+    for (const b of bookingsAsProvider) {
+      if (b.status === "CONFIRMED" || b.status === "COMPLETED" || b.status === "DISPUTED") {
+        const hasFee = ledger.some(l => l.meta && String(l.meta.bookingId) === String(b.id) && l.type === "SERVICE_FEE");
+        if (!hasFee) {
+          const fee = Math.floor(b.amount * 0.2);
+          norm.push({ id: `sb-fee-${b.id}`, direction: "DEBIT", type: "SERVICE_FEE", amount: fee, fee: 0, total: fee, reference: `sb-${b.id}-fee`, createdAt: b.updatedAt, meta: { bookingId: b.id, fee }, source: "service" });
+        }
+      }
+      if (b.status === "COMPLETED") {
+        const hasPayout = ledger.some(l => l.meta && String(l.meta.bookingId) === String(b.id) && l.type === "SERVICE_PAYOUT");
+        if (!hasPayout) {
+          // only provider gets payout, avoid duplicate if booker also has same booking completed but not payout
+          norm.push({ id: `sb-payout-${b.id}`, direction: "CREDIT", type: "SERVICE_PAYOUT", amount: b.amount, fee: 0, total: b.amount, reference: `sb-${b.id}-payout`, createdAt: b.updatedAt, meta: { bookingId: b.id }, source: "service" });
+        }
+      }
+    }
+
+    // sort by createdAt desc
+    norm.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const totalCount = norm.length;
+    const sliced = norm.slice(skip, skip + limitNum);
+
+    return res.json({ transactions: sliced, pagination: { totalCount, totalPages: Math.ceil(totalCount / limitNum), currentPage: pageNum, limit: limitNum } });
+  } catch (err) {
+    console.error("[GET WALLET HISTORY ERROR]", err);
+    return res.status(500).json({ error: "Could not load wallet history" });
   }
 };
 
@@ -689,8 +891,12 @@ const autoReleaseGigs = async () => {
         await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(g.id), meta: { gigId: g.id, autoReleased: true } } });
       });
       console.log(`[GIGS] Auto-released gig ${g.id} → ₦${pay/100} to ${g.claimerId} fee ₦${gross/100}`);
+      try {
+        const { recordWalletMovement } = require("../utils/wallet");
+        await recordWalletMovement({ userId: g.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_AUTO_RELEASE", title: "Gig auto-released — credited", body: `Credit: ₦${(pay/100).toLocaleString()} auto-released for gig #${g.id} (fee ₦${(gross/100).toLocaleString()} retained) — 72h`, meta: { gigId: g.id, autoReleased: true } });
+      } catch {}
     }
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };
 
-module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, listMyGigWithdrawals, listMyGigPurchases, setGigPin, requestPinOtp, hasGigPin, setBank, resolveBank, getBanks, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, cancelGigWithdrawal, expireGigs, autoReleaseGigs };
+module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, listMyGigWithdrawals, listMyGigPurchases, getWalletHistory, setGigPin, requestPinOtp, hasGigPin, setBank, resolveBank, getBanks, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, cancelGigWithdrawal, expireGigs, autoReleaseGigs };

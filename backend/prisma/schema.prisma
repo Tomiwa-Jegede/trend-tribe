@@ -51,6 +51,7 @@ model User {
   gigWithdrawals       GigWithdrawal[]
   gigTransfersSent     GigTransfer[]     @relation("GigTransferFrom")
   gigTransfersReceived GigTransfer[]     @relation("GigTransferTo")
+  gigWalletTransactions GigWalletTransaction[]
   serviceBookingsAsBooker ServiceBooking[] @relation("ServiceBooker")
   serviceBookingsAsProvider ServiceBooking[] @relation("ServiceProvider")
   listings             Listing[]
@@ -403,6 +404,24 @@ model PlatformProfit {
   @@index([source, createdAt])
   @@index([createdAt])
   @@map("platform_profits")
+}
+
+model GigWalletTransaction {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String   // e.g. GIG_CREATE | GIG_PAYOUT | GIG_CANCEL_REFUND | TOPUP | WITHDRAW | TRANSFER_SENT | TRANSFER_RECEIVED | SERVICE_BOOK | SERVICE_FEE | SERVICE_REFUND | SERVICE_PAYOUT | TOKEN_BUY | ADMIN_REFUND | ADMIN_RELEASE | ADMIN_SPLIT
+  direction String   // CREDIT | DEBIT
+  amount    Int      // kobo principal (without fee)
+  fee       Int      @default(0) // kobo fee if any
+  total     Int      // kobo total moved (amount+fee for DEBIT, amount for CREDIT)
+  reference String?  @unique @default(cuid())
+  meta      Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@map("gig_wallet_transactions")
 }
 
 enum Role {

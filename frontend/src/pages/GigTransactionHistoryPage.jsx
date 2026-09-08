@@ -20,10 +20,11 @@ export default function GigTransactionHistoryPage() {
     (async () => {
       setLoading(true);
       try {
-        const [tr, topups, withdrawals] = await Promise.all([
+        const [tr, topups, withdrawals, walletHist] = await Promise.all([
           getGigTransfers().catch(()=>({sent:[],received:[]})),
           api.get("/gigs/payments/history").then(r=>r.data).catch(()=>({purchases:[]})),
           api.get("/gigs/withdrawals").then(r=>r.data).catch(()=>({withdrawals:[]})),
+          api.get("/gigs/wallet/history", { params: { limit: 100 } }).then(r=>r.data).catch(()=>({transactions:[]})),
         ]);
         const sent = (tr?.sent || []).map((t) => ({ ...t, direction: "sent", type: "transfer" }));
         const received = (tr?.received || []).map((t) => ({ ...t, direction: "received", type: "transfer" }));
@@ -35,9 +36,39 @@ export default function GigTransactionHistoryPage() {
           }
           return [{ id: `wd-${w.id}`, direction: "sent", type: "withdrawal", amount: w.amount, fee: w.fee, total, createdAt: w.createdAt, status: w.status, reference: w.reference }];
         });
-        const merged = [...sent, ...received, ...tops, ...wds].sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-        );
+        const ledger = (walletHist.transactions || []).map(tx => {
+          const isCredit = tx.direction === "CREDIT";
+          const labelMap = {
+            GIG_CREATE: "Gig escrow held",
+            GIG_PAYOUT: "Gig payout",
+            GIG_CANCEL_REFUND: "Gig cancel refund",
+            GIG_EXPIRED_REFUND: "Expired gig refund",
+            GIG_AUTO_RELEASE: "Gig auto-release",
+            GIG_DISPUTE_REFUND: "Dispute refund",
+            GIG_DISPUTE_RELEASE: "Dispute release",
+            GIG_DISPUTE_SPLIT: "Dispute split",
+            SERVICE_BOOK: "Service escrow held",
+            SERVICE_FEE: "Service fee (20%)",
+            SERVICE_PAYOUT: "Service payout",
+            SERVICE_REFUND: "Service refund",
+            SERVICE_EXPIRED_REFUND: "Expired booking refund",
+            SERVICE_DISPUTE_REFUND: "Service dispute refund",
+            SERVICE_DISPUTE_RELEASE: "Service dispute release",
+            SERVICE_DISPUTE_SPLIT: "Service dispute split",
+            TOPUP: "Top up",
+            TRANSFER: isCredit ? "Transfer received" : "Transfer sent",
+            WITHDRAW: "Withdrawal",
+            WITHDRAW_REFUND: "Withdrawal refund",
+            TOKEN_BUY: "Buy tokens",
+          };
+          return { id: `ledger-${tx.id}`, direction: isCredit ? "received" : "sent", type: "ledger", amount: tx.amount, fee: tx.fee, total: tx.total, createdAt: tx.createdAt, label: labelMap[tx.type] || tx.type.replaceAll("_"," "), directionRaw: tx.direction, ledgerType: tx.type, meta: tx.meta, reference: tx.reference };
+        });
+        const ledgerRefs = new Set(ledger.map(l=> l.reference).filter(Boolean));
+        const sentF = sent.filter(s => !s.reference || !ledgerRefs.has(s.reference));
+        const recF = received.filter(r => !r.reference || !ledgerRefs.has(r.reference));
+        const topsF = tops.filter(t => !walletHist.transactions?.some(l => l.type==="TOPUP" && l.amount===t.amount));
+        const wdsF = wds.filter(w => !w.reference || !ledgerRefs.has(w.reference));
+        const merged = [...ledger, ...sentF, ...recF, ...topsF, ...wdsF].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setTransactions(merged);
       } catch (e) {
         toast.error(e.response?.data?.error || "Failed to load transaction history");
@@ -74,22 +105,22 @@ export default function GigTransactionHistoryPage() {
             <div key={t.id} className="card p-4 flex items-center justify-between text-sm">
               <div>
                 <p className="font-medium text-gray-900">
-                  {t.type === "topup" ? "↑ Top up" : t.type === "refund" ? "↩ Withdrawal refunded" : t.type === "withdrawal" ? "↓ Withdrawal" : t.direction === "sent"
+                  {t.type === "ledger" ? `${t.directionRaw === "CREDIT" ? "↑" : "↓"} ${t.label}` : t.type === "topup" ? "↑ Top up" : t.type === "refund" ? "↩ Withdrawal refunded" : t.type === "withdrawal" ? "↓ Withdrawal" : t.direction === "sent"
                     ? `→ ${t.toUser?.fullName || t.toUser?.username || "Unknown"}`
                     : `← ${t.fromUser?.fullName || t.fromUser?.username || "Unknown"}`}
-                  {t.status && t.status !== "SUCCESS" && t.status !== "COMPLETED" ? ` · ${t.status === "PENDING" ? "In review" : t.status}` : t.type === "refund" ? ` · Refunded — ${formatNaira(t.amount)} back` : ""}
+                  {t.type === "ledger" ? ` · ${t.directionRaw === "CREDIT" ? "Credit" : "Debit"}` : t.status && t.status !== "SUCCESS" && t.status !== "COMPLETED" ? ` · ${t.status === "PENDING" ? "In review" : t.status}` : t.type === "refund" ? ` · Refunded — ${formatNaira(t.amount)} back` : ""}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {t.type === "topup" ? "Top up" : t.type === "refund" ? `Refund — ${formatNaira(t.amount)} fully refunded (was ${formatNaira(t.total)} debited)` : t.type === "withdrawal" ? `Withdrawal — ${formatNaira(t.amount)} + fee ${formatNaira(t.fee)} = ${formatNaira(t.total)}` : t.direction === "sent" ? `@${t.toUser?.username || "unknown"} — Debit` : `@${t.fromUser?.username || "unknown"} — Credit`}{" "}
+                  {t.type === "ledger" ? `${t.label} — ${t.directionRaw === "CREDIT" ? "Credit" : "Debit"}${t.fee ? ` (fee ${formatNaira(t.fee)})` : ""}` : t.type === "topup" ? "Top up" : t.type === "refund" ? `Refund — ${formatNaira(t.amount)} fully refunded (was ${formatNaira(t.total)} debited)` : t.type === "withdrawal" ? `Withdrawal — ${formatNaira(t.amount)} + fee ${formatNaira(t.fee)} = ${formatNaira(t.total)}` : t.direction === "sent" ? `@${t.toUser?.username || "unknown"} — Debit` : `@${t.fromUser?.username || "unknown"} — Credit`}{" "}
                   · {new Date(t.createdAt).toLocaleString()}
                 </p>
               </div>
               <div className="text-right">
-                <p className={`font-bold ${t.direction === "sent" || t.type === "withdrawal" ? "text-red-600" : "text-green-600"}`}>
-                  {t.direction === "sent" || t.type === "withdrawal" ? "-" : "+"}
+                <p className={`font-bold ${t.direction === "sent" || t.type === "withdrawal" || t.directionRaw === "DEBIT" ? "text-red-600" : "text-green-600"}`}>
+                  {t.direction === "sent" || t.type === "withdrawal" || t.directionRaw === "DEBIT" ? "-" : "+"}
                   {formatNaira(t.amount)}
                 </p>
-                {t.direction === "sent" && t.fee ? (
+                {((t.direction === "sent" && t.fee) || (t.type==="ledger" && t.fee)) ? (
                   <p className="text-xs text-gray-400">fee ₦{(t.fee / 100).toFixed(2)}</p>
                 ) : null}
               </div>

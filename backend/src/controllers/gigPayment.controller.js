@@ -59,7 +59,11 @@ async function creditGigPurchase(purchase, flutterwaveTransactionId) {
   const { count } = await prisma.gigTokenPurchase.updateMany({ where: { reference: purchase.reference, status: "PENDING" }, data: { status: "SUCCESS", flutterwaveTransactionId } });
   if (count === 1) {
     await prisma.user.update({ where: { id: purchase.userId }, data: { gigBalance: { increment: purchase.amount } } });
-    // inbox + push + notification for top-up (credit green)
+    // inbox + push + notification for top-up (credit green) + ledger
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: purchase.userId, direction: "CREDIT", amount: purchase.amount, fee: 0, type: "TOPUP", title: "Gig wallet top-up", body: `Credit: ₦${(purchase.amount/100).toLocaleString()} top-up credited — ref ${purchase.reference}.`, meta: { purchaseId: purchase.id, reference: purchase.reference } });
+    } catch {}
     try {
       await prisma.notification.create({ data: { userId: purchase.userId, type: "GIG_TOPUP", listingId: null } });
       await prisma.message.create({ data: { senderId: purchase.userId, recipientId: purchase.userId, subject: "Gig Wallet Top-up", body: `Your Gig wallet was credited ₦${(purchase.amount/100).toLocaleString()} — ref ${purchase.reference}. Balance updated.` } });

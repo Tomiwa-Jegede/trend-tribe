@@ -245,7 +245,7 @@ const NotificationBell = () => {
                 else if (["SERVICE_CANCELLED","SERVICE_EXPIRED","SERVICE_DISPUTED","SERVICE_DISPUTED_RESOLVED","SERVICE_COMPLETED_PENDING"].includes(n.type)) to = "/bookings";
                 else if (n.type === "SERVICE_DISPUTED_ADMIN" || n.type === "GIG_DISPUTED_ADMIN") to = "/admin/disputes";
                 else if (["GIG_DISPUTED","GIG_DISPUTED_RESOLVED"].includes(n.type)) to = "/gigs";
-                else if (["GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN"].includes(n.type)) to = "/gigs/wallet";
+                else if (["GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN"].includes(n.type) || n.type.startsWith("GIG_") && (n.type.endsWith("_CREDIT") || n.type.endsWith("_DEBIT")) || n.type.startsWith("SERVICE_") && (n.type.endsWith("_CREDIT") || n.type.endsWith("_DEBIT")) || ["GIG_WALLET_CREDIT","GIG_WALLET_DEBIT","GIG_TOPUP","TOKEN_BUY_DEBIT"].includes(n.type)) to = "/gigs/wallet";
                 else if (n.type === "ADMIN_WITHDRAW_PENDING") to = "/admin/withdrawals";
                 else if (n.type === "NEW_USER") to = "/admin/users";
                 else if (n.listing) to = `/listings/${n.listing.slug || n.listing.id}`;
@@ -333,7 +333,12 @@ const NotificationBell = () => {
                             <span className="font-semibold">Gig wallet update</span> <span className="block text-xs text-gray-500 mt-1">Tap to view</span>
                           </>
                         )}
-                        {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE", "SERVICE_BOOKING", "SERVICE_CONFIRMED", "SERVICE_COMPLETED","SERVICE_DISPUTED","SERVICE_DISPUTED_ADMIN","GIG_DISPUTED_ADMIN","GIG_DISPUTED","GIG_DISPUTED_RESOLVED","SERVICE_DISPUTED_RESOLVED","GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN","ADMIN_WITHDRAW_PENDING"].includes(n.type) && <>{n.type}</>}
+                        {((n.type.startsWith("GIG_") || n.type.startsWith("SERVICE_") || n.type.startsWith("TOKEN_")) && (n.type.endsWith("_CREDIT") || n.type.endsWith("_DEBIT")) || ["GIG_WALLET_CREDIT","GIG_WALLET_DEBIT","GIG_TOPUP"].includes(n.type)) && !["GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN"].includes(n.type) && (
+                          <>
+                            <span className="font-semibold">{n.type.includes("CREDIT") ? "Credit" : "Debit"} — Gig wallet</span> <span className="block text-xs text-gray-500 mt-1">{n.type.replaceAll("_"," ")} — tap to view wallet</span>
+                          </>
+                        )}
+                        {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE", "SERVICE_BOOKING", "SERVICE_CONFIRMED", "SERVICE_COMPLETED","SERVICE_DISPUTED","SERVICE_DISPUTED_ADMIN","GIG_DISPUTED_ADMIN","GIG_DISPUTED","GIG_DISPUTED_RESOLVED","SERVICE_DISPUTED_RESOLVED","GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN","ADMIN_WITHDRAW_PENDING"].includes(n.type) && !n.type.startsWith("GIG_") && !n.type.startsWith("SERVICE_") && !n.type.startsWith("TOKEN_") && !["GIG_WALLET_CREDIT","GIG_WALLET_DEBIT","GIG_TOPUP"].includes(n.type) && <>{n.type}</>}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                     </Link>

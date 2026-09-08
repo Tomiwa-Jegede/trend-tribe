@@ -147,10 +147,15 @@ const ProfilePage = () => {
     );
   }
 
-  const ogImage = seller?.avatar || "https://trendtribe.app/icon-512.png";
-  const ogUrl = seller?.slug ? `https://trendtribe.app/profile/${seller.slug}` : typeof window !== "undefined" ? window.location.href : "";
+  const rawAvatar = seller?.avatar?.trim();
+  const ogImageRaw = rawAvatar || "https://trendtribe.app/icon-512.png";
+  const ogImage = ogImageRaw.startsWith("http://") ? ogImageRaw.replace(/^http:\/\//i, "https://") : ogImageRaw;
+  const ogImageSecure = ogImage.startsWith("https://") ? ogImage : ogImage.replace(/^http:\/\//i, "https://");
+  const ogImageType = ogImage.toLowerCase().endsWith(".png") ? "image/png" : ogImage.toLowerCase().endsWith(".webp") ? "image/webp" : "image/jpeg";
+  const ogUrl = seller?.slug ? `https://trendtribe.app/profile/${seller.slug}` : typeof window !== "undefined" ? window.location.href : "https://trendtribe.app";
   const ogTitle = seller ? `${seller.fullName} (@${seller.username}) — Trend Tribe` : "Trend Tribe — Student Marketplace";
-  const ogDescription = seller?.bio || seller?.school ? `${seller?.bio || ""} ${seller?.school ? `· ${seller.school}` : ""}`.trim() : "Student marketplace for campus communities";
+  const ogDescription = seller?.bio || seller?.school ? `${seller?.bio || ""} ${seller?.school ? `· ${seller.school}` : ""}`.trim().slice(0, 160) : "Student marketplace for campus communities";
+  const ogImageAlt = seller ? `${seller.fullName}'s profile photo — ${seller.username} on Trend Tribe` : "Trend Tribe logo";
 
   return (
     <div className="container-app py-6 sm:py-10">
@@ -159,14 +164,19 @@ const ProfilePage = () => {
         <meta property="og:title" content={ogTitle} />
         <meta property="og:description" content={ogDescription} />
         <meta property="og:image" content={ogImage} />
+        <meta property="og:image:secure_url" content={ogImageSecure} />
+        <meta property="og:image:type" content={ogImageType} />
         <meta property="og:image:width" content="512" />
         <meta property="og:image:height" content="512" />
+        <meta property="og:image:alt" content={ogImageAlt} />
         <meta property="og:url" content={ogUrl} />
         <meta property="og:type" content="profile" />
+        <meta property="og:site_name" content="Trend Tribe" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content={ogTitle} />
         <meta name="twitter:description" content={ogDescription} />
-        <meta name="twitter:image" content={ogImage} />
+        <meta name="twitter:image" content={ogImageSecure} />
+        <meta name="twitter:image:alt" content={ogImageAlt} />
       </Helmet>
       {isOwnProfile && seller.role === "SELLER" && !seller.whatsapp && (
         <Alert

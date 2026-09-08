@@ -1,7 +1,6 @@
-// netlify/edge-functions/profile-meta.js
-// Serves crawler-friendly Open Graph tags for profile pages
-// Uses slug with hash, profile image as og:image (per-profile), fallback to TrendTribe logo
-// WhatsApp/Facebook/Twitter bots don't run JS, so Helmet in ProfilePage.jsx is invisible to them.
+// frontend/functions/profile/[slug].js — Cloudflare Pages Function for crawler OG tags
+// Mirrors frontend/netlify/edge-functions/profile-meta.js but for Cloudflare.
+// WhatsApp/Facebook/Twitter bots don't run JS, so Helmet tags in ProfilePage.jsx are invisible.
 
 const API_BASE = "https://trend-tribe.onrender.com/api";
 
@@ -16,8 +15,10 @@ const escapeHtml = (str = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
-export default async (request, context) => {
+export async function onRequest(context) {
+  const request = context.request;
   const userAgent = request.headers.get("user-agent") || "";
+
   if (!CRAWLER_UA_REGEX.test(userAgent)) {
     return context.next();
   }
@@ -25,24 +26,23 @@ export default async (request, context) => {
   const url = new URL(request.url);
   const slug = url.pathname.split("/profile/")[1]?.split("/")[0]?.split("?")[0]?.split("#")[0];
   if (!slug) return context.next();
+
   const siteUrl = url.origin;
   const profileUrl = `${siteUrl}/profile/${slug}`;
 
   try {
     const apiRes = await fetch(`${API_BASE}/listings/user/${encodeURIComponent(slug)}`, {
       headers: { Accept: "application/json", "User-Agent": "TrendTribe-OG/1.0" },
-      // edge fetch timeout handled by platform; keep fast
     });
-    if (!apiRes.ok) throw new Error(`API returned ${apiRes.status}`);
+    if (!apiRes.ok) throw new Error(`API ${apiRes.status}`);
     const { seller } = await apiRes.json();
-    if (!seller) throw new Error("No seller");
+    if (!seller) throw new Error("no seller");
 
     const title = escapeHtml(`${seller.fullName || seller.username} (@${seller.username}) — Trend Tribe`);
     const description = escapeHtml(
       (seller.bio || seller.school || `Student at ${seller.school || "Trend Tribe"}`).slice(0, 160) || "Student marketplace for campus communities"
     );
     const rawImage = seller.avatar && String(seller.avatar).trim() ? String(seller.avatar).trim() : `${siteUrl}/icon-512.png`;
-    // Force https — crawlers (WhatsApp) reject http for og:image
     const image = rawImage.startsWith("http://") ? rawImage.replace(/^http:\/\//i, "https://") : rawImage;
     const imageSecure = image.startsWith("https://") ? image : image.replace(/^http:\/\//i, "https://");
     const imageType = image.toLowerCase().endsWith(".png") ? "image/png" : image.toLowerCase().endsWith(".webp") ? "image/webp" : "image/jpeg";
@@ -79,21 +79,11 @@ export default async (request, context) => {
       status: 200,
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=60",
+        "Cache-Control": "public, max-age=300, s-maxage=3600",
       },
     });
   } catch (err) {
-    console.error("[profile-meta] error", err);
-    // Fail open: return minimal HTML with fallback image so crawler still gets an image, don't redirect
-    const fallbackImage = `${siteUrl}/icon-512.png`;
-    const html = `<!doctype html><html><head><meta property="og:image" content="${escapeHtml(fallbackImage)}" /><meta property="og:image:width" content="512" /><meta property="og:image:height" content="512" /><meta property="og:type" content="profile" /><meta name="twitter:card" content="summary" /><meta name="twitter:image" content="${escapeHtml(fallbackImage)}" /></head><body></body></html>`;
-    return new Response(html, {
-      status: 200,
-      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=60" },
-    });
+    console.error("[profile-og] error", err);
+    return context.next();
   }
-};
-
-export const config = {
-  path: "/profile/:slug",
-};
+}

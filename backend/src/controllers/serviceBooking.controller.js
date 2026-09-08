@@ -31,7 +31,11 @@ const bookService = async (req, res) => {
       });
     });
 
-    // Notify provider
+    // ledger debit for booker + notify provider
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "SERVICE_BOOK", title: "Service booked — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for service booking #${booking.id} — escrow from Gig wallet.`, meta: { bookingId: booking.id, listingId } });
+    } catch {}
     try {
       await prisma.notification.create({ data: { userId: listing.sellerId, actorId: req.user.id, listingId, type: "SERVICE_BOOKING" } });
       const { emitNotification } = require("../realtime");
@@ -66,6 +70,12 @@ const confirmServiceBooking = async (req, res) => {
       await tx.serviceBooking.update({ where: { id }, data: { status: "CONFIRMED" } });
       await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
     });
+
+    // ledger debit for provider fee
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: feeKobo, fee: 0, type: "SERVICE_FEE", title: "Service confirm fee — 20%", body: `Debit: ₦${(feeKobo/100).toLocaleString()} fee for confirming booking #${id} — debited from Gig wallet.`, meta: { bookingId: id } });
+    } catch {}
 
     // Notify booker with provider whatsapp — escrow still held
     const providerUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { whatsapp: true } });
@@ -116,6 +126,12 @@ const completeServiceBooking = async (req, res) => {
       await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
       await tx.serviceBooking.update({ where: { id }, data: { status: "COMPLETED", [field]: new Date() } });
     });
+
+    // ledger credit for provider
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_PAYOUT", title: "Service completed — payout", body: `Credit: ₦${(booking.amount/100).toLocaleString()} escrow released for booking #${id} — credited to Gig wallet.`, meta: { bookingId: id } });
+    } catch {}
 
     try {
       await prisma.notification.createMany({ data: [
@@ -186,6 +202,10 @@ const cancelServiceBooking = async (req, res) => {
       await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
       await tx.serviceBooking.update({ where: { id }, data: { status: "CANCELLED" } });
     });
+    try {
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_REFUND", title: "Booking cancelled — refund", body: `Credit: ₦${(booking.amount/100).toLocaleString()} refunded for cancelled booking #${id}.`, meta: { bookingId: id } });
+    } catch {}
     return res.json({ message: `Cancelled — ₦${(booking.amount/100).toLocaleString()} refunded to your Gig wallet.` });
   } catch (err) {
     console.error("[CANCEL SERVICE BOOKING ERROR]", err);
@@ -203,6 +223,10 @@ const expireServiceBookings = async () => {
         await tx.serviceBooking.update({ where: { id: b.id }, data: { status: "EXPIRED" } });
       });
       console.log(`[SERVICE BOOKING] Auto-expired ${b.id} after 1h — refunded to Gig wallet`);
+      try {
+        const { recordWalletMovement } = require("../utils/wallet");
+        await recordWalletMovement({ userId: b.bookerId, direction: "CREDIT", amount: b.amount, fee: 0, type: "SERVICE_EXPIRED_REFUND", title: "Booking expired — refund", body: `Credit: ₦${(b.amount/100).toLocaleString()} refunded for expired booking #${b.id} (1h).`, meta: { bookingId: b.id } });
+      } catch {}
     }
   } catch (e) { console.error("[SERVICE BOOKING EXPIRE ERROR]", e.message); }
 };

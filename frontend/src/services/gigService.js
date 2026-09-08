@@ -57,6 +57,10 @@ export const getGigTransfers = async () => {
   const { data } = await api.get("/gigs/transfers");
   return data;
 };
+export const getWalletHistory = async (params = {}) => {
+  const { data } = await api.get("/gigs/wallet/history", { params });
+  return data;
+};
 export const initGigPayment = async (amount) => {
   const { data } = await api.post("/gigs/payments/init", { amount });
   return data;

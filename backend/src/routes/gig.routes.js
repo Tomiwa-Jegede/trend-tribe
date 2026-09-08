@@ -20,6 +20,7 @@ router.post("/bank/resolve", protect, require("../controllers/gig.controller").r
 router.get("/withdrawals", protect, require("../controllers/gig.controller").listMyGigWithdrawals);
 router.post("/withdrawals/:id/cancel", protect, require("../controllers/gig.controller").cancelGigWithdrawal);
 router.get("/payments/history", protect, require("../controllers/gig.controller").listMyGigPurchases);
+router.get("/wallet/history", protect, require("../controllers/gig.controller").getWalletHistory);
 router.post("/resolve", protect, gigResolveLimiter, require("../controllers/gig.controller").resolveGigAccount);
 router.post("/transfer", protect, gigTransferLimiter, require("../controllers/gig.controller").transferGig);
 router.get("/transfers", protect, require("../controllers/gig.controller").listGigTransfers);
