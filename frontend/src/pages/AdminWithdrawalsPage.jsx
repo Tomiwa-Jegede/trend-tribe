@@ -25,7 +25,7 @@ export default function AdminWithdrawalsPage() {
   useEffect(() => { fetch(); }, [filter]);
 
   const handleApprove = async (id) => {
-    if (!confirm("Approve this withdrawal? Flutterwave will pay the bank now and deduct from user's Gig wallet.")) return;
+    if (!confirm("Approve this withdrawal? Flutterwave will pay the bank now (already debited from Gig wallet on request).")) return;
     setActing(id);
     try {
       const { data } = await api.post(`/admin/gig-withdrawals/${id}/approve`);
@@ -36,7 +36,7 @@ export default function AdminWithdrawalsPage() {
   };
   const handleReject = async (id) => {
     const reason = prompt("Reason for rejection (optional):") || "";
-    if (!confirm("Reject? No money will be deducted, request will close.")) return;
+    if (!confirm("Reject? Amount + fee will be refunded to user's Gig wallet.")) return;
     setActing(id);
     try {
       const { data } = await api.post(`/admin/gig-withdrawals/${id}/reject`, { reason });
@@ -52,13 +52,13 @@ export default function AdminWithdrawalsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-navy-900">Gig Withdrawals</h1>
         <select value={filter} onChange={e=>setFilter(e.target.value)} className="border border-sage-100 rounded-lg px-3 py-2 text-sm">
-          <option value="PENDING">Pending</option>
+          <option value="PENDING">In review</option>
           <option value="COMPLETED">Completed</option>
           <option value="REJECTED">Rejected</option>
           <option value="ALL">All</option>
         </select>
       </div>
-      <p className="text-sm text-gray-500 mb-4">User requests withdraw Gig Naira to bank (PIN verified, 1% fee). You approve → Flutterwave `POST /v3/transfers` sends to `bankCode/accountNumber`. If Flutterwave has no cash (T+1), it stays Pending — retry after settlement. Reject closes with no deduction.</p>
+      <p className="text-sm text-gray-500 mb-4">User requests withdraw Gig Naira to bank (PIN verified, 1% fee — debited immediately, shows In review). You approve → Flutterwave `POST /v3/transfers` sends to `bankCode/accountNumber`. If Flutterwave has no cash (T+1), it stays In review — retry after settlement. Reject refunds instantly.</p>
 
       {loading ? <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div> : withdrawals.length===0 ? <div className="card p-8 text-center text-gray-500">No {filter.toLowerCase()} withdrawals.</div> : (
         <div className="space-y-3">
@@ -66,7 +66,7 @@ export default function AdminWithdrawalsPage() {
             <div key={w.id} className="card p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <p className="font-bold text-gray-900">{formatNaira(w.amount)} {w.fee ? <span className="text-xs text-gray-500">fee {formatNaira(w.fee)}</span> : null} · {w.status} · {w.bankName || w.bankCode} {w.bankAccountNumber} {w.accountName ? `· ${w.accountName}` : ""}</p>
+                  <p className="font-bold text-gray-900">{formatNaira(w.amount)} {w.fee ? <span className="text-xs text-gray-500">fee {formatNaira(w.fee)}</span> : null} · {w.status === "PENDING" ? "In review" : w.status} · {w.bankName || w.bankCode} {w.bankAccountNumber} {w.accountName ? `· ${w.accountName}` : ""}</p>
                   <p className="text-xs text-gray-500">By @{w.user?.username} {w.user?.fullName} · {w.user?.gigAccountNumber} · {new Date(w.createdAt).toLocaleString()} · Ref {w.reference || "—"}</p>
                 </div>
                 {w.status==="PENDING" && (

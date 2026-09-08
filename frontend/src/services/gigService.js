@@ -37,8 +37,8 @@ export const disputeGig = async (id) => {
   const { data } = await api.post(`/gigs/${id}/dispute`);
   return data;
 };
-export const withdrawGig = async ({ amount, whatsapp }) => {
-  const { data } = await api.post("/gigs/withdraw", { amount, whatsapp });
+export const withdrawGig = async ({ amount, bankCode, accountNumber, pin }) => {
+  const { data } = await api.post("/gigs/withdraw", { amount, bankCode, accountNumber, pin });
   return data;
 };
 export const getGigAccount = async () => {

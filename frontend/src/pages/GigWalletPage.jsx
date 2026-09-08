@@ -18,13 +18,27 @@ export default function GigWalletPage() {
   const [loading, setLoading] = useState(true);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const withdrawRef = useRef(null);
-  const [withdrawForm, setWithdrawForm] = useState({ amount: "", bankCode: "", accountNumber: "", pin: "", bankName: "" });
+  const [withdrawForm, setWithdrawForm] = useState(() => {
+    try {
+      const raw = localStorage.getItem("tt_gig_withdraw_form_v1");
+      if (raw) { const p = JSON.parse(raw); return { amount: p.amount||"", bankCode: p.bankCode||"", accountNumber: p.accountNumber||"", pin: p.pin||"", bankName: p.bankName||"" }; }
+    } catch {}
+    return { amount: "", bankCode: "", accountNumber: "", pin: "", bankName: "" };
+  });
   const [withdrawing, setWithdrawing] = useState(false);
   const [banks, setBanks] = useState([]);
-  const [bankQuery, setBankQuery] = useState("");
+  const [withdrawAccountName, setWithdrawAccountName] = useState("");
+  const [withdrawResolving, setWithdrawResolving] = useState(false);
+  const [bankQuery, setBankQuery] = useState(() => {
+    try { return localStorage.getItem("tt_gig_withdraw_bankQuery_v1") || ""; } catch { return ""; }
+  });
   const [showBankList, setShowBankList] = useState(false);
+  const [rawWithdrawals, setRawWithdrawals] = useState([]);
+  const [cancellingId, setCancellingId] = useState(null);
   const [showTopup, setShowTopup] = useState(false);
   const [topupAmount, setTopupAmount] = useState("");
+  const [tokenQty, setTokenQty] = useState("");
+  const [buyingTokens, setBuyingTokens] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferStep, setTransferStep] = useState(1);
   const [transferForm, setTransferForm] = useState({ toAccount: "", amount: "", pin: "" });
@@ -45,17 +59,29 @@ export default function GigWalletPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [acc, mine, tr, pinCheck] = await Promise.all([
+      const [acc, mine, tr, pinCheck, topups, withdrawals] = await Promise.all([
         getGigAccount().catch(() => null),
         getMyGigs().catch(() => ({ gigBalance: 0 })),
         getGigTransfers().catch(() => ({ sent: [], received: [] })),
         api.get("/gigs/pin").then(r=>r.data).catch(()=>({hasPin:false})),
+        api.get("/gigs/payments/history").then(r=>r.data).catch(()=>({purchases:[]})),
+        api.get("/gigs/withdrawals").then(r=>r.data).catch(()=>({withdrawals:[]})),
       ]);
       setAccount(acc);
       setMy(mine);
-      const sent = (tr?.sent || []).map((t) => ({ ...t, direction: "sent" }));
-      const received = (tr?.received || []).map((t) => ({ ...t, direction: "received" }));
-      const merged = [...sent, ...received].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setRawWithdrawals(withdrawals.withdrawals || []);
+      const sent = (tr?.sent || []).map((t) => ({ ...t, direction: "sent", type: "transfer", amount: t.amount }));
+      const received = (tr?.received || []).map((t) => ({ ...t, direction: "received", type: "transfer", amount: t.amount }));
+      const tops = (topups.purchases || []).filter(p=>p.status==="SUCCESS").map(p=> ({ id: `topup-${p.id}`, direction: "received", type: "topup", amount: p.amount, createdAt: p.createdAt, description: "Top up" }));
+      const wds = (withdrawals.withdrawals || []).flatMap(w=> {
+        const total = w.amount + (w.fee || 0);
+        if (w.status === "REJECTED" || w.status === "CANCELLED") {
+          // refunded exact amount back (principal), fee retained — show as credit green with breakdown
+          return [{ id: `wd-refund-${w.id}`, direction: "received", type: "refund", amount: w.amount, fee: w.fee, total, createdAt: w.updatedAt || w.createdAt, status: w.status === "CANCELLED" ? "Cancelled" : "Refunded", reference: w.reference, bankName: w.bankName }];
+        }
+        return [{ id: `wd-${w.id}`, direction: "sent", type: "withdrawal", amount: w.amount, fee: w.fee, total, createdAt: w.createdAt, status: w.status, reference: w.reference, bankName: w.bankName }];
+      });
+      const merged = [...sent, ...received, ...tops, ...wds].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setTransactions(merged);
       // keep raw for history view
       setTransfers(tr);
@@ -64,7 +90,19 @@ export default function GigWalletPage() {
     finally { setLoading(false); }
   };
   useEffect(() => { fetchAll(); }, []);
+  // persist withdraw form so refresh continues where stopped (does not auto-send)
+  useEffect(() => { try { localStorage.setItem("tt_gig_withdraw_form_v1", JSON.stringify(withdrawForm)); } catch {} }, [withdrawForm]);
+  useEffect(() => { try { localStorage.setItem("tt_gig_withdraw_bankQuery_v1", bankQuery); } catch {} }, [bankQuery]);
+  useEffect(() => { try { const v = localStorage.getItem("tt_gig_withdraw_open_v1"); if (v === "1") setShowWithdraw(true); } catch {} }, []);
+  useEffect(() => { try { localStorage.setItem("tt_gig_withdraw_open_v1", showWithdraw ? "1" : "0"); } catch {} }, [showWithdraw]);
   useEffect(() => { api.get("/gigs/banks").then(r=>{ if(r.data?.banks) setBanks(r.data.banks); }).catch(()=>{ setBanks([{code:"044", name:"Access Bank"}, {code:"058", name:"GTBank"}, {code:"011", name:"First Bank"}, {code:"033", name:"UBA"}, {code:"057", name:"Zenith Bank"}, {code:"999992", name:"OPay"}, {code:"50211", name:"Kuda Bank"}, {code:"50515", name:"Moniepoint"}, {code:"999991", name:"PalmPay"}]); }); }, []);
+  useEffect(() => {
+    const { bankCode, accountNumber } = withdrawForm;
+    if (bankCode && /^\d{10}$/.test(accountNumber)) {
+      setWithdrawResolving(true);
+      api.post("/gigs/bank/resolve", { accountNumber, bankCode }).then(r=> setWithdrawAccountName(r.data.accountName || r.data.bankName || "")).catch(()=> setWithdrawAccountName("")).finally(()=> setWithdrawResolving(false));
+    } else setWithdrawAccountName("");
+  }, [withdrawForm.bankCode, withdrawForm.accountNumber]);
   useEffect(() => { if (showWithdraw && withdrawRef.current) withdrawRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, [showWithdraw]);
 
   const handleCopyAccount = async () => {
@@ -75,15 +113,40 @@ export default function GigWalletPage() {
   const handleWithdraw = async (e) => {
     e.preventDefault();
     if (!/^\d{4}$/.test(withdrawForm.pin)) return toast.error("Enter 4-digit PIN");
+    const amt = parseInt(withdrawForm.amount, 10);
+    if (!amt || amt < 1000) return toast.error("Minimum withdraw ₦1000");
+    const cleanAcc = (withdrawForm.accountNumber || "").replace(/\D/g,"").slice(0,10);
+    if (!/^\d{10}$/.test(cleanAcc)) return toast.error("Enter 10-digit account number");
+    let bankCode = (withdrawForm.bankCode || "").trim();
+    let bankName = withdrawForm.bankName || "";
+    // fallback: if user typed name without selecting dropdown, resolve code from bankQuery
+    if (!bankCode && bankQuery) {
+      const hit = banks.find(b=> b.name.toLowerCase() === bankQuery.toLowerCase().trim() || b.name.toLowerCase().includes(bankQuery.toLowerCase().trim()));
+      if (hit) { bankCode = hit.code; bankName = hit.name; }
+      else if (/^\d+$/.test(bankQuery.trim())) bankCode = bankQuery.trim(); // typed code directly
+    }
+    if (!bankCode) return toast.error("Select a bank — search and tap from list");
     setWithdrawing(true);
     try {
-      const r = await withdrawGig({ amount: parseInt(withdrawForm.amount, 10), bankCode: withdrawForm.bankCode, accountNumber: withdrawForm.accountNumber, pin: withdrawForm.pin });
+      const r = await withdrawGig({ amount: amt, bankCode, accountNumber: cleanAcc, pin: withdrawForm.pin });
       toast.success(r.message);
-      setWithdrawForm({ amount: "", bankCode: "044", accountNumber: "", pin: "" });
+      setWithdrawForm({ amount: "", bankCode: "", accountNumber: "", pin: "", bankName: "" });
+      setBankQuery("");
+      try { localStorage.removeItem("tt_gig_withdraw_form_v1"); localStorage.removeItem("tt_gig_withdraw_bankQuery_v1"); localStorage.setItem("tt_gig_withdraw_open_v1","0"); } catch {}
       setShowWithdraw(false);
       fetchAll();
     } catch (err) { toast.error(err.response?.data?.error || "Withdraw failed"); }
     finally { setWithdrawing(false); }
+  };
+  const handleCancelWithdrawal = async (id) => {
+    if (!confirm("Cancel this withdrawal? ₦ amount will be refunded instantly (fee ₦ retained).")) return;
+    setCancellingId(id);
+    try {
+      const { data } = await api.post(`/gigs/withdrawals/${id}/cancel`);
+      toast.success(data.message || "Cancelled — refunded");
+      fetchAll();
+    } catch (err) { toast.error(err.response?.data?.error || "Cancel failed"); }
+    finally { setCancellingId(null); }
   };
   const handleTopup = async () => {
     const amt = parseInt(topupAmount, 10);
@@ -146,12 +209,12 @@ export default function GigWalletPage() {
       <div className="flex items-center gap-2 mb-6">
         <h1 className="text-2xl font-extrabold text-gray-900">Gig Wallet</h1>
         <InfoModal title="How Gig Wallet works">
-          <p>Your Gig Wallet is separate from your marketplace tokens. You see your balance in Naira, not tokens.</p>
+          <p>Your Gig Wallet is Naira (kobo), separate but you can convert directly to tokens.</p>
           <ul className="list-disc ml-5">
             <li><b>Top up</b> adds Naira to your Gig balance (buyable via Flutterwave).</li>
             <li><b>Transfer</b> to another 10-digit Gig account is instant — enter account, see name, enter amount, enter PIN.</li>
             <li><b>Withdraw</b> to your bank needs your PIN and admin approval — money is sent via Flutterwave to your saved bank.</li>
-            <li>All moves are in Naira, shown as ₦. No conversion to marketplace tokens.</li>
+            <li><b>Buy tokens</b> with Gig Naira instantly — ₦200/token, no card needed (uses Gig balance directly).</li>
           </ul>
         </InfoModal>
       </div>
@@ -178,15 +241,50 @@ export default function GigWalletPage() {
         {!hasPin ? (
           <div className="flex flex-col sm:flex-row gap-2 sm:items-end p-3 bg-amber-50 border border-amber-200 rounded-xl">
             <div className="flex-1"><label className="text-xs font-semibold text-amber-800">Set 4-digit transfer PIN first</label><input type="password" maxLength={4} inputMode="numeric" value={newPin || ""} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="1234" className="input-field mt-1" /></div>
-            <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits"); try{ await api.post("/gigs/pin", {pin:newPin}); toast.success("PIN set"); setHasPin(true); }catch(e){ toast.error(e.response?.data?.error||"Could not set PIN"); } }} className="btn-primary px-4 py-2 text-sm">Set PIN</button>
+            <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits"); try{ await api.post("/gigs/pin", {pin:newPin}); toast.success("PIN set"); setHasPin(true); setNewPin(""); }catch(e){ toast.error(e.response?.data?.error||"Could not set PIN"); } }} className="btn-primary px-4 py-2 text-sm">Set PIN</button>
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row gap-2 sm:items-end p-3 bg-gray-50 border border-gray-200 rounded-xl">
-            <div className="flex-1"><label className="text-xs text-gray-500">Change PIN (4-digit)</label><input type="password" maxLength={4} inputMode="numeric" value={newPin || ""} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="••••" className="input-field mt-1" /></div>
-            <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("Enter new 4-digit PIN"); try{ await api.post("/gigs/pin/request-otp"); toast.success("OTP sent to your registered email"); }catch(e){ toast.error(e.response?.data?.error||"Could not send OTP"); } }} className="btn-secondary px-3 py-2 text-sm">Change PIN</button>
+            <div className="flex-1"><label className="text-xs text-gray-500">Change PIN (4-digit new PIN)</label><input type="password" maxLength={4} inputMode="numeric" value={newPin || ""} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="••••" className="input-field mt-1" /></div>
+            <button disabled={pinOtpSending} onClick={async()=>{
+              if(!/^\d{4}$/.test(newPin)) return toast.error("Enter new 4-digit PIN first");
+              setPinOtpSending(true);
+              try{
+                const { data } = await api.post("/gigs/pin/request-otp");
+                setPendingNewPin(newPin);
+                setShowOtpModal(true);
+                toast.success(data.message || "OTP sent to your registered email");
+                if (data.devOtp) toast.success(`Dev OTP: ${data.devOtp}`);
+              }catch(e){ toast.error(e.response?.data?.error||"Could not send OTP"); }
+              finally { setPinOtpSending(false); }
+            }} className="btn-secondary px-3 py-2 text-sm disabled:opacity-60">{pinOtpSending ? "Sending..." : "Get OTP"}</button>
           </div>
         )}
       </div>
+      {/* OTP modal for PIN change */}
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="font-bold text-gray-900">Enter OTP to confirm PIN change</h3>
+            <p className="text-xs text-gray-500 mt-1">OTP sent to your registered email. New PIN: <span className="font-mono font-bold">{pendingNewPin ? "••••" : ""}</span> — expires in 10 min.</p>
+            <input type="text" maxLength={6} inputMode="numeric" value={pinOtp} onChange={e=>setPinOtp(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="6-digit OTP" className="input-field mt-4 text-center text-lg tracking-widest font-mono" autoFocus />
+            <div className="flex gap-2 mt-4">
+              <button onClick={()=>{ setShowOtpModal(false); setPinOtp(""); }} className="flex-1 btn-secondary py-2.5 text-sm">Cancel</button>
+              <button disabled={pinSaving || pinOtp.length!==6} onClick={async()=>{
+                if(!/^\d{6}$/.test(pinOtp)) return toast.error("Enter 6-digit OTP");
+                setPinSaving(true);
+                try{
+                  await api.post("/gigs/pin", { pin: pendingNewPin, otp: pinOtp });
+                  toast.success("PIN updated");
+                  setShowOtpModal(false); setPinOtp(""); setPendingNewPin(""); setNewPin("");
+                }catch(e){ toast.error(e.response?.data?.error||"Could not update PIN"); }
+                finally { setPinSaving(false); }
+              }} className="flex-1 btn-primary py-2.5 text-sm disabled:opacity-60">{pinSaving ? "Saving..." : "Confirm"}</button>
+            </div>
+            <button onClick={async()=>{ try{ const {data}=await api.post("/gigs/pin/request-otp"); toast.success("OTP resent"); if(data.devOtp) toast.success(`Dev OTP: ${data.devOtp}`);}catch(e){ toast.error("Resend failed"); } }} className="text-xs text-primary-600 mt-3 underline">Resend OTP</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Withdraw form (inline, toggled) — navigates to card ── */}
       {showWithdraw && (
@@ -199,10 +297,38 @@ export default function GigWalletPage() {
             <div className="relative"><label className="text-xs font-semibold text-gray-500">Bank — search</label><input value={withdrawForm.bankCode ? (banks.find(b=>b.code===withdrawForm.bankCode)?.name || bankQuery) : bankQuery} onChange={e=>{ const q=e.target.value; setBankQuery(q); setShowBankList(true); if(!q) setWithdrawForm(f=>({...f, bankCode:"", bankName:""})); }} onFocus={()=>setShowBankList(true)} onBlur={()=>setTimeout(()=>setShowBankList(false),150)} placeholder="Search OPay, Kuda..." className="input-field mt-1" />{showBankList && <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">{banks.filter(b=> !bankQuery || b.name.toLowerCase().includes(bankQuery.toLowerCase()) || b.code.includes(bankQuery)).slice(0,20).map(b=> <button key={`${b.code}-${b.name}`} type="button" onClick={()=>{ setWithdrawForm(f=>({...f, bankCode:b.code, bankName:b.name})); setBankQuery(b.name); setShowBankList(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex justify-between"><span>{b.name}</span><span className="text-xs text-gray-400">{b.code}</span></button>)} </div>}</div>
             <div><label className="text-xs font-semibold text-gray-500">Account number</label><input value={withdrawForm.accountNumber} onChange={e=>setWithdrawForm(f=>({...f, accountNumber:e.target.value.replace(/\D/g,"").slice(0,10)}))} placeholder="809..." maxLength={10} className="input-field mt-1 font-mono" required /></div>
           </div>
+          {withdrawAccountName ? <p className="text-sm text-green-600 font-medium bg-green-50 border border-green-200 rounded-lg px-3 py-2">→ {withdrawAccountName}</p> : withdrawResolving ? <p className="text-xs text-gray-400">Resolving...</p> : withdrawForm.accountNumber.length===10 && withdrawForm.bankCode ? <p className="text-xs text-red-500">Could not resolve account</p> : null}
           <div><label className="text-xs font-semibold text-gray-500">PIN</label><input type="password" maxLength={4} inputMode="numeric" value={withdrawForm.pin || ""} onChange={e=>setWithdrawForm(f=>({...f, pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="••••" className="input-field mt-1 w-24" required /></div>
-          <button type="submit" disabled={withdrawing} className="btn-primary py-2.5 text-sm disabled:opacity-60">{withdrawing ? "Processing..." : "Withdraw — 1% fee"}</button>
+          <div className="flex gap-2">
+            <button type="submit" disabled={withdrawing} className="flex-1 btn-primary py-2.5 text-sm disabled:opacity-60">{withdrawing ? "Processing..." : "Withdraw — 1% fee"}</button>
+            <button type="button" onClick={()=>{
+              setWithdrawForm({ amount: "", bankCode: "", accountNumber: "", pin: "", bankName: "" });
+              setBankQuery("");
+              setWithdrawAccountName("");
+              try{ localStorage.removeItem("tt_gig_withdraw_form_v1"); localStorage.removeItem("tt_gig_withdraw_bankQuery_v1"); }catch{}
+            }} className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 inline-flex items-center gap-1"><FiX className="w-4 h-4"/> Cancel</button>
+          </div>
           <p className="text-[10px] text-gray-400">Min ₦1000 · 1% fee · admin approves → auto transfer to bank</p>
         </form>
+      )}
+
+      {/* ── Pending withdrawals — In review (no cancel after submit) */}
+      {rawWithdrawals.filter(w=>w.status==="PENDING").length > 0 && (
+        <div className="mt-4 card p-4 border border-amber-200 bg-amber-50/50">
+          <p className="text-xs font-bold text-amber-800 mb-2">Pending withdrawal — In review</p>
+          <div className="flex flex-col gap-2">
+            {rawWithdrawals.filter(w=>w.status==="PENDING").map(w=> (
+              <div key={w.id} className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-amber-100">
+                <div className="text-sm">
+                  <p className="font-bold text-gray-900">{formatNaira(w.amount)} <span className="text-xs font-normal text-gray-500">+ fee {formatNaira(w.fee)} = {formatNaira(w.amount+(w.fee||0))}</span> <span className="text-xs text-amber-600">· In review</span></p>
+                  <p className="text-xs text-gray-500">{w.bankName || w.bankCode} • {w.bankAccountNumber} · {new Date(w.createdAt).toLocaleString()} · Ref {w.reference}</p>
+                </div>
+                <span className="ml-3 text-xs text-amber-700 font-semibold">In review</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-amber-700 mt-2">Awaiting admin approval — cannot cancel after submit.</p>
+        </div>
       )}
 
       {/* ── Top up (secondary, collapsed) ── */}
@@ -214,6 +340,25 @@ export default function GigWalletPage() {
             <button onClick={async()=>{ const amt=parseInt(topupAmount,10); if(!amt||amt<100) return toast.error("Min ₦100"); try{ const {authorizationUrl}=await initGigPayment(amt); window.location.href=authorizationUrl; }catch(e){ toast.error(e.response?.data?.error||"Top-up failed"); } }} className="btn-primary px-4 py-2 text-xs">Top up</button>
           </div>
         )}
+      </div>
+
+      {/* ── Buy tokens directly with Gig balance — instant, no card ── */}
+      <div className="mt-4 card p-4 border border-indigo-100 bg-indigo-50/50">
+        <p className="text-sm font-bold text-indigo-900">Buy tokens with Gig balance</p>
+        <p className="text-xs text-gray-500 mt-1">1 token = ₦200 · Instant from Gig Naira, no Flutterwave. Balance: <span className="font-bold text-indigo-700">{formatNaira(balance)}</span></p>
+        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          <input type="number" min="1" value={tokenQty} onChange={e=>setTokenQty(e.target.value.replace(/\D/g,""))} placeholder="Qty (e.g. 5)" className="input-field flex-1 text-sm" />
+          <button disabled={buyingTokens || !tokenQty} onClick={async()=>{
+            const qty = parseInt(tokenQty,10);
+            if (!qty || qty<1) return toast.error("Enter quantity ≥1");
+            if (qty*200*100 > balance) return toast.error(`Need ₦${(qty*200).toLocaleString()} in Gig wallet — you have ${formatNaira(balance)}`);
+            setBuyingTokens(true);
+            try { const { data } = await api.post("/payments/buy-with-gig", { quantity: qty }); toast.success(data.message || `${qty} token(s) credited`); setTokenQty(""); fetchAll(); } catch(e){ toast.error(e.response?.data?.error || "Could not buy tokens"); } finally { setBuyingTokens(false); }
+          }} className="btn-primary px-5 py-2 text-sm disabled:opacity-60 whitespace-nowrap">
+            {buyingTokens ? "Buying..." : tokenQty ? `Buy ${tokenQty} for ₦${(parseInt(tokenQty||0)*200).toLocaleString()}` : "Buy tokens"}
+          </button>
+        </div>
+        {tokenQty && parseInt(tokenQty,10)>=1 && <p className="text-[11px] text-gray-500 mt-1">Cost: ₦{(parseInt(tokenQty,10)*200).toLocaleString()} will be debited from Gig wallet, tokens added instantly.</p>}
       </div>
 
       {/* ── Recent transactions — inline, scrollable ── */}
@@ -229,10 +374,13 @@ export default function GigWalletPage() {
             {recentTransactions.map((t) => (
               <div key={t.id} className="card p-3 flex items-center justify-between text-sm">
                 <div>
-                  <p className="font-medium text-gray-900">{t.direction === "sent" ? `→ ${t.toUser?.username || "Unknown"}` : `← ${t.fromUser?.username || "Unknown"}`}</p>
-                  <p className="text-xs text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</p>
+                  <p className="font-medium text-gray-900">
+                    {t.type === "topup" ? "↑ Top up" : t.type === "refund" ? "↩ Withdrawal refunded" : t.type === "withdrawal" ? "↓ Withdrawal" : t.direction === "sent" ? `→ ${t.toUser?.username || "Unknown"}` : `← ${t.fromUser?.username || "Unknown"}`}
+                    {t.status && t.status !== "SUCCESS" && t.status !== "COMPLETED" ? ` · ${t.status === "PENDING" ? "In review" : t.status}` : t.type === "refund" ? ` · Refunded — ${formatNaira(t.amount)} back` : ""}
+                  </p>
+                  <p className="text-xs text-gray-400">{new Date(t.createdAt).toLocaleDateString()} · {t.type === "topup" ? "Top up" : t.type === "refund" ? `Refund — ${formatNaira(t.amount)} back (fee ${formatNaira(t.fee)} retained, debited ${formatNaira(t.total)})` : t.type === "withdrawal" ? `Withdrawal — ${formatNaira(t.amount)} + fee ${formatNaira(t.fee)} = ${formatNaira(t.total)}` : t.direction === "sent" ? "Debit" : "Credit"}{t.status === "PENDING" ? " · In review" : ""}</p>
                 </div>
-                <p className={`font-bold ${t.direction === "sent" ? "text-gray-900" : "text-green-600"}`}>{t.direction === "sent" ? "-" : "+"}{formatNaira(t.amount)}</p>
+                <p className={`font-bold ${t.direction === "sent" || t.type === "withdrawal" ? "text-red-600" : "text-green-600"}`}>{t.direction === "sent" || t.type === "withdrawal" ? "-" : "+"}{formatNaira(t.amount)}</p>
               </div>
             ))}
           </div>

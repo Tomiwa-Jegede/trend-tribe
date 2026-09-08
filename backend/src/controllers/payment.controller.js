@@ -190,4 +190,37 @@ async function creditPurchase(purchase, flutterwaveTransactionId) {
   }
 }
 
-module.exports = { initPayment, verifyPayment, handleWebhook };
+const buyWithGigBalance = async (req, res) => {
+  try {
+    const qty = parseInt(req.body.quantity, 10);
+    if (!qty || qty < 1) return res.status(400).json({ error: "Quantity must be at least 1" });
+    const costKobo = qty * TOKEN_PRICE_NAIRA * 100;
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, tokenBalance: true } });
+    if ((user?.gigBalance || 0) < costKobo) {
+      return res.status(402).json({ error: `Need ₦${(costKobo/100).toLocaleString()} in Gig wallet for ${qty} token(s). You have ₦${((user?.gigBalance||0)/100).toLocaleString()}.`, required: costKobo, gigBalance: user?.gigBalance||0 });
+    }
+    const ref = `gig_${req.user.id}_${Date.now()}`;
+    await prisma.$transaction(async (tx) => {
+      const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: costKobo } }, data: { gigBalance: { decrement: costKobo }, tokenBalance: { increment: qty } } });
+      if (ok.count === 0) throw new Error("BALANCE_RACE");
+      await tx.tokenPurchase.create({ data: { userId: req.user.id, reference: ref, quantity: qty, amount: qty * TOKEN_PRICE_NAIRA, status: "SUCCESS", flutterwaveTransactionId: ref } });
+    });
+    // inbox + push + notification
+    try {
+      await prisma.notification.create({ data: { userId: req.user.id, type: "GIG_TO_TOKEN", listingId: null } });
+      await prisma.message.create({ data: { senderId: req.user.id, recipientId: req.user.id, subject: `Bought ${qty} token(s) with Gig balance`, body: `Converted ₦${(costKobo/100).toLocaleString()} Gig Naira → ${qty} token(s) at ₦${TOKEN_PRICE_NAIRA}/token — ref ${ref}. Gig balance debited, tokens credited instantly.` } });
+      const { sendPushToUser } = require("../utils/push");
+      const { emitNotification } = require("../realtime");
+      sendPushToUser(prisma, req.user.id, { title: "Tokens credited", body: `${qty} token(s) bought with Gig wallet — ₦${(costKobo/100).toLocaleString()}`, url: "/pricing", tag: `gig-token-${ref}` }).catch(()=>{});
+      try { emitNotification(req.user.id, { type: "GIG_TO_TOKEN" }); } catch {}
+    } catch {}
+    const updated = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, tokenBalance: true } });
+    return res.json({ ok: true, quantity: qty, costKobo, gigBalance: updated.gigBalance, tokenBalance: updated.tokenBalance, reference: ref, message: `${qty} token(s) credited from Gig wallet — ₦${(costKobo/100).toLocaleString()} debited.` });
+  } catch (err) {
+    if (err.message === "BALANCE_RACE") return res.status(402).json({ error: "Balance changed, try again" });
+    console.error("buyWithGig error:", err.message);
+    return res.status(500).json({ error: "Could not buy with Gig balance" });
+  }
+};
+
+module.exports = { initPayment, verifyPayment, handleWebhook, buyWithGigBalance };

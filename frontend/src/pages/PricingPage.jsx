@@ -1,7 +1,7 @@
-// src/pages/PricingPage.jsx — Simple pricing
-import { useState } from "react";
+// src/pages/PricingPage.jsx — Simple pricing + pay with Gig balance (direct)
+import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { FiCreditCard } from "react-icons/fi";
+import { FiCreditCard, FiZap } from "react-icons/fi";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
@@ -15,7 +15,30 @@ const PACKAGES = [
 const PricingPage = () => {
   const { isAuthenticated, user } = useAuth();
   const [buying, setBuying] = useState(null);
+  const [buyingGig, setBuyingGig] = useState(null);
+  const [gigBalance, setGigBalance] = useState(null);
   const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    api.get("/gigs/account").then(r=> setGigBalance(r.data.gigBalance ?? 0)).catch(()=> setGigBalance(0));
+  }, [isAuthenticated]);
+
+  const handleBuyWithGig = async (qty) => {
+    if (!isAuthenticated) { window.location.href = "/login"; return; }
+    setBuyingGig(qty);
+    setErr("");
+    try {
+      const { data } = await api.post("/payments/buy-with-gig", { quantity: qty });
+      // refresh auth user tokenBalance/gigBalance
+      window.location.reload();
+      // toast handled, but reload will show new balance
+    } catch (e) {
+      setErr(e.response?.data?.error || "Could not buy with Gig balance.");
+    } finally {
+      setBuyingGig(null);
+    }
+  };
 
   const handleBuy = async (qty) => {
     if (!isAuthenticated) {
@@ -56,23 +79,39 @@ const PricingPage = () => {
       <section className="container-app py-10">
         <h2 className="text-gray-900 text-center">Buy tokens</h2>
         {err && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mt-4 text-sm text-center">{err}</div>}
+        {isAuthenticated && gigBalance !== null && (
+          <p className="text-sm text-center mt-4 text-gray-600">Gig wallet: <span className="font-bold text-indigo-700">₦{(gigBalance/100).toLocaleString()}</span> · 1 token = ₦200 — you can pay directly with Gig balance, no card.</p>
+        )}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mt-6">
-          {PACKAGES.map((p) => (
+          {PACKAGES.map((p) => {
+            const canGig = gigBalance !== null && gigBalance >= p.price*100;
+            return (
             <div key={p.qty} className={`card p-6 text-center relative ${p.popular ? "ring-2 ring-amber-400" : ""}`}>
               {p.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-900 text-xs font-bold px-3 py-1 rounded-full">Most popular</span>}
               <h3 className="font-bold text-gray-900">{p.label}</h3>
               <p className="text-2xl font-extrabold text-primary-600 mt-1">₦{p.price.toLocaleString()}</p>
               <button
                 onClick={() => handleBuy(p.qty)}
-                disabled={buying !== null}
+                disabled={buying !== null || buyingGig !== null}
                 className="mt-4 w-full font-bold px-4 py-3 rounded-2xl text-sm flex items-center justify-center gap-2 disabled:opacity-60"
                 style={{ background: p.popular ? "#F5C518" : "#0F1F3D", color: p.popular ? "#0F1F3D" : "white" }}
               >
                 <FiCreditCard className="w-4 h-4" />
-                {buying === p.qty ? "Please wait..." : "Buy now"}
+                {buying === p.qty ? "Please wait..." : "Pay with card"}
               </button>
+              {isAuthenticated && (
+                <button
+                  onClick={() => handleBuyWithGig(p.qty)}
+                  disabled={buying !== null || buyingGig !== null || !canGig}
+                  className={`mt-2 w-full font-bold px-4 py-2.5 rounded-2xl text-sm flex items-center justify-center gap-2 border disabled:opacity-60 ${canGig ? "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100" : "bg-gray-50 border-gray-200 text-gray-400"}`}
+                  title={canGig ? `Pay ₦${p.price.toLocaleString()} from Gig wallet` : `Need ₦${p.price.toLocaleString()} in Gig wallet — you have ₦${((gigBalance||0)/100).toLocaleString()}`}
+                >
+                  <FiZap className="w-4 h-4" />
+                  {buyingGig === p.qty ? "Buying..." : canGig ? `Pay with Gig` : `Need ₦${p.price.toLocaleString()} in Gig`}
+                </button>
+              )}
             </div>
-          ))}
+          );})}
         </div>
       </section>
 

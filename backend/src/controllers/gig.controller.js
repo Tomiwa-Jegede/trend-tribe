@@ -198,13 +198,15 @@ const disputeGig = async (req, res) => {
 };
 
 // POST /api/gigs/withdraw — withdraw Gig Naira to bank (requires PIN, 1% fee, admin approve → Flutterwave transfer)
-// Ledger-first: don't deduct until admin approves and Flutterwave confirms. Request just checks balance and creates PENDING.
+// Deduct immediately on request, then admin approves → Flutterwave transfer. Status shows "In review" (stored as PENDING).
 const withdrawGig = async (req, res) => {
   try {
     const { amount, bankCode, accountNumber, pin } = req.body;
     const amt = parseInt(amount, 10);
     if (!amt || amt < 1000) return res.status(400).json({ error: "Minimum withdraw ₦1000" });
-    if (!bankCode?.trim() || !accountNumber?.trim() || !/^\d{10}$/.test(accountNumber.trim())) return res.status(400).json({ error: "Valid bank code and 10-digit account number required" });
+    const cleanAcc = String(accountNumber || "").replace(/\D/g,"").slice(0,10);
+    const cleanBank = String(bankCode || "").trim();
+    if (!cleanBank || !/^\d{10}$/.test(cleanAcc)) return res.status(400).json({ error: "Valid bank code and 10-digit account number required" });
     if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "4-digit PIN required" });
     const kobo = amt * 100;
     let feeKobo = Math.round(kobo * 0.01); // 1%
@@ -213,8 +215,13 @@ const withdrawGig = async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, gigTransferPin: true } });
     if (!user.gigTransferPin) return res.status(400).json({ error: "Set your 4-digit transfer PIN first" });
-    const pinOk = await bcrypt.compare(pin, user.gigTransferPin);
-    if (!pinOk) return res.status(403).json({ error: "Incorrect PIN" });
+    const cleanPinW = String(pin || "").trim();
+    if (!/^\d{4}$/.test(cleanPinW)) return res.status(400).json({ error: "4-digit PIN required" });
+    const pinOk = await bcrypt.compare(cleanPinW, user.gigTransferPin);
+    if (!pinOk) {
+      console.warn(`[WITHDRAW PIN FAIL] user ${req.user.id}`);
+      return res.status(403).json({ error: "Incorrect PIN — if you forgot it, use Change PIN with OTP to reset" });
+    }
     if ((user.gigBalance || 0) < totalKobo) return res.status(402).json({ error: `Insufficient Gig balance. Need ₦${(totalKobo/100).toLocaleString()} (₦${amt.toLocaleString()} + ₦${(feeKobo/100).toFixed(2)} fee). You have ₦${((user.gigBalance||0)/100).toLocaleString()}.` });
 
     // Optional: resolve bank account name via Flutterwave for snapshot
@@ -223,18 +230,32 @@ const withdrawGig = async (req, res) => {
       const flwRes = await fetch("https://api.flutterwave.com/v3/accounts/resolve", {
         method: "POST",
         headers: { Authorization: `Bearer ${require("../config/env").flutterwave.secretKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ account_number: accountNumber.trim(), account_bank: bankCode.trim() }),
+        body: JSON.stringify({ account_number: cleanAcc, account_bank: cleanBank }),
       });
       const data = await flwRes.json();
-      if (data.status === "success" && data.data?.account_name) { accountName = data.data.account_name; bankName = data.data.account_bank || bankCode; }
+      if (data.status === "success" && data.data?.account_name) { accountName = data.data.account_name; bankName = data.data.account_bank || cleanBank; }
     } catch {}
 
     const reference = `gigw_${req.user.id}_${Date.now()}`;
-    const w = await prisma.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, fee: feeKobo, bankCode: bankCode.trim(), bankAccountNumber: accountNumber.trim(), bankName: bankName || bankCode, accountName, reference, status: "PENDING" } });
-    // save bank to user for next time (don't deduct yet)
-    await prisma.user.update({ where: { id: req.user.id }, data: { bankAccountNumber: accountNumber.trim(), bankCode: bankCode.trim(), bankName: bankName || bankCode } });
-    return res.status(201).json({ withdrawal: w, message: `Withdraw request ₦${amt.toLocaleString()} received — fee ₦${(feeKobo/100).toFixed(2)}.` });
+    // Deduct immediately from gig balance + save withdrawal as In review (PENDING)
+    const w = await prisma.$transaction(async (tx) => {
+      const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: totalKobo } }, data: { gigBalance: { decrement: totalKobo } } });
+      if (ok.count === 0) throw new Error("BALANCE_RACE");
+      await tx.user.update({ where: { id: req.user.id }, data: { bankAccountNumber: cleanAcc, bankCode: cleanBank, bankName: bankName || cleanBank } });
+      return tx.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, fee: feeKobo, bankCode: cleanBank, bankAccountNumber: cleanAcc, bankName: bankName || cleanBank, accountName, reference, status: "PENDING" } });
+    });
+    // inbox + push + notification for debit (red) — request received
+    try {
+      await prisma.notification.create({ data: { userId: req.user.id, type: "GIG_WITHDRAW_PENDING", listingId: null } });
+      await prisma.message.create({ data: { senderId: req.user.id, recipientId: req.user.id, subject: "Gig Withdrawal Requested — In review", body: `Withdrawal ₦${amt.toLocaleString()} (fee ₦${(feeKobo/100).toFixed(2)}) to ${bankName || cleanBank} • ${cleanAcc} — ref ${reference} — In review, awaiting admin approval. ₦${(totalKobo/100).toLocaleString()} debited from Gig wallet.` } });
+      const { sendPushToUser } = require("../utils/push");
+      const { emitNotification } = require("../realtime");
+      sendPushToUser(prisma, req.user.id, { title: "Gig Wallet — Withdrawal in review", body: `₦${amt.toLocaleString()} to ${bankName || cleanBank} — in review, ₦${(totalKobo/100).toLocaleString()} debited`, url: "/gigs/wallet", tag: `gig-wd-${reference}` }).catch(()=>{});
+      try { emitNotification(req.user.id, { type: "GIG_WITHDRAW_PENDING" }); } catch {}
+    } catch {}
+    return res.status(201).json({ withdrawal: w, message: `Withdraw request ₦${amt.toLocaleString()} received — ₦${(totalKobo/100).toLocaleString()} debited, now in review.` });
   } catch (err) {
+    if (err.message === "BALANCE_RACE") return res.status(402).json({ error: "Balance changed, try again" });
     console.error("[WITHDRAW GIG ERROR]", err);
     return res.status(500).json({ error: "Could not withdraw" });
   }
@@ -302,10 +323,7 @@ const approveGigWithdrawal = async (req, res) => {
     if (w.status !== "PENDING") return res.status(400).json({ error: `Already ${w.status}` });
 
     const totalKobo = w.amount + (w.fee || 0);
-    // Check ledger balance again (user may have spent since request)
-    const user = await prisma.user.findUnique({ where: { id: w.userId }, select: { gigBalance: true } });
-    if ((user?.gigBalance || 0) < totalKobo) return res.status(402).json({ error: `User no longer has enough Gig balance. Need ₦${(totalKobo/100).toLocaleString()}, has ₦${((user?.gigBalance||0)/100).toLocaleString()}.` });
-
+    // Already deducted on request — no need to check user balance again, just check Flutterwave cash
     // Check Flutterwave main account balance (T+1) before transfer
     const config = require("../config/env");
     try {
@@ -314,7 +332,7 @@ const approveGigWithdrawal = async (req, res) => {
       const ngnBal = balData.data?.find?.(b=>b.currency==="NGN") || balData.data?.[0];
       const availableKobo = ngnBal ? Math.round(parseFloat(ngnBal.available_balance || 0) * 100) : null;
       if (availableKobo !== null && availableKobo < w.amount) {
-        return res.status(402).json({ error: `Flutterwave main account has insufficient cash (T+1). Available ₦${(availableKobo/100).toLocaleString()}, need ₦${(w.amount/100).toLocaleString()}. Keep PENDING — will auto-retry after settlement.`, flutterwaveBalance: availableKobo });
+        return res.status(402).json({ error: `Flutterwave main account has insufficient cash (T+1). Available ₦${(availableKobo/100).toLocaleString()}, need ₦${(w.amount/100).toLocaleString()}. Keeps In review — will auto-retry after settlement.`, flutterwaveBalance: availableKobo });
       }
     } catch {}
 
@@ -333,16 +351,21 @@ const approveGigWithdrawal = async (req, res) => {
     });
     const data = await flwRes.json();
     if (data.status === "success") {
-      // Deduct only when Flutterwave confirms (ledger-first)
-      await prisma.$transaction(async (tx) => {
-        await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { decrement: totalKobo } } });
-        await tx.gigWithdrawal.update({ where: { id }, data: { status: "COMPLETED" } });
-      });
-      return res.json({ message: "Approved — Flutterwave transfer initiated, amount deducted from Gig wallet", flutterwave: data.data });
+      // Already debited on request — just mark completed
+      await prisma.gigWithdrawal.update({ where: { id }, data: { status: "COMPLETED" } });
+      try {
+        await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_COMPLETED", listingId: null } });
+        await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Completed", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} (fee ₦${(w.fee/100).toFixed(2)}) to ${w.bankName} • ${w.bankAccountNumber} — COMPLETED. ₦${(totalKobo/100).toLocaleString()} already debited on request — ref ${w.reference}.` } });
+        const { sendPushToUser } = require("../utils/push");
+        const { emitNotification } = require("../realtime");
+        sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal completed", body: `₦${(w.amount/100).toLocaleString()} sent to your bank`, url: "/gigs/wallet", tag: `gig-wd-c-${w.reference}` }).catch(()=>{});
+        try { emitNotification(w.userId, { type: "GIG_WITHDRAW_COMPLETED" }); } catch {}
+      } catch {}
+      return res.json({ message: "Approved — Flutterwave transfer initiated", flutterwave: data.data });
     }
-    // Insufficient funds on Flutterwave side — keep PENDING for retry, don't deduct
+    // Insufficient funds on Flutterwave side — keep In review for retry, already debited (refund only on reject)
     if (data.message?.toLowerCase().includes("insufficient") || data.message?.toLowerCase().includes("balance")) {
-      return res.status(402).json({ error: `Flutterwave has no cash to pay now (T+1). Kept PENDING — retry after next settlement.`, details: data });
+      return res.status(402).json({ error: `Flutterwave has no cash to pay now (T+1). Kept In review — retry after next settlement.`, details: data });
     }
     return res.status(502).json({ error: data.message || "Transfer failed", details: data });
   } catch (err) {
@@ -357,12 +380,54 @@ const rejectGigWithdrawal = async (req, res) => {
     const w = await prisma.gigWithdrawal.findUnique({ where: { id } });
     if (!w) return res.status(404).json({ error: "Withdrawal not found" });
     if (w.status !== "PENDING") return res.status(400).json({ error: `Already ${w.status}` });
-    // Since we didn't deduct on request (ledger-first), reject just marks REJECTED, no refund needed
-    await prisma.gigWithdrawal.update({ where: { id }, data: { status: "REJECTED" } });
-    return res.json({ message: `Rejected — no deduction was made, request closed.` });
+    // Already debited on request (amount + fee) — reject refunds exact amount back (principal), fee retained as charge
+    const totalKobo = w.amount + (w.fee || 0);
+    const feeKobo = w.fee || 0;
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { increment: w.amount } } });
+      await tx.gigWithdrawal.update({ where: { id }, data: { status: "REJECTED" } });
+    });
+    try {
+      await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_REJECTED", listingId: null } });
+      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Rejected — Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — REJECTED — ₦${(w.amount/100).toLocaleString()} refunded to Gig wallet (charges: principal ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited, fee retained) — ref ${w.reference}.` } });
+      const { sendPushToUser } = require("../utils/push");
+      const { emitNotification } = require("../realtime");
+      sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal rejected", body: `₦${(w.amount/100).toLocaleString()} rejected — ₦${(w.amount/100).toLocaleString()} refunded (fee ₦${(feeKobo/100).toFixed(2)} not refunded)`, url: "/gigs/wallet", tag: `gig-wd-r-${w.reference}` }).catch(()=>{});
+      try { emitNotification(w.userId, { type: "GIG_WITHDRAW_REJECTED" }); } catch {}
+    } catch {}
+    return res.json({ message: `Rejected — ₦${(w.amount/100).toLocaleString()} refunded (fee ₦${(feeKobo/100).toFixed(2)} retained).` });
   } catch (err) {
     console.error("[REJECT GIG WITHDRAWAL ERROR]", err);
     return res.status(500).json({ error: "Could not reject" });
+  }
+};
+
+// User cancels own pending withdrawal — refunds principal, fee retained
+const cancelGigWithdrawal = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const w = await prisma.gigWithdrawal.findUnique({ where: { id } });
+    if (!w) return res.status(404).json({ error: "Withdrawal not found" });
+    if (w.userId !== req.user.id) return res.status(403).json({ error: "Not your withdrawal" });
+    if (w.status !== "PENDING") return res.status(400).json({ error: `Already ${w.status === "PENDING" ? "In review" : w.status}` });
+    const feeKobo = w.fee || 0;
+    const totalKobo = w.amount + feeKobo;
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { increment: w.amount } } });
+      await tx.gigWithdrawal.update({ where: { id }, data: { status: "CANCELLED" } });
+    });
+    try {
+      await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_CANCELLED", listingId: null } });
+      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Cancelled — Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — CANCELLED — ₦${(w.amount/100).toLocaleString()} refunded to Gig wallet (charges: principal ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited, fee retained) — ref ${w.reference}.` } });
+      const { sendPushToUser } = require("../utils/push");
+      const { emitNotification } = require("../realtime");
+      sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal cancelled", body: `₦${(w.amount/100).toLocaleString()} cancelled — ₦${(w.amount/100).toLocaleString()} refunded`, url: "/gigs/wallet", tag: `gig-wd-cnl-${w.reference}` }).catch(()=>{});
+      try { emitNotification(w.userId, { type: "GIG_WITHDRAW_CANCELLED" }); } catch {}
+    } catch {}
+    return res.json({ message: `Cancelled — ₦${(w.amount/100).toLocaleString()} refunded (fee ₦${(feeKobo/100).toFixed(2)} retained).` });
+  } catch (err) {
+    console.error("[CANCEL GIG WITHDRAWAL ERROR]", err);
+    return res.status(500).json({ error: "Could not cancel" });
   }
 };
 
@@ -422,8 +487,13 @@ const transferGig = async (req, res) => {
 
     const sender = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, gigAccountNumber: true, gigTransferPin: true } });
     if (!sender.gigTransferPin) return res.status(400).json({ error: "Set your 4-digit transfer PIN first" });
-    const pinOk = await bcrypt.compare(pin, sender.gigTransferPin);
-    if (!pinOk) return res.status(403).json({ error: "Incorrect PIN" });
+    const cleanPin = String(pin || "").trim();
+    if (!/^\d{4}$/.test(cleanPin)) return res.status(400).json({ error: "4-digit PIN required" });
+    const pinOk = await bcrypt.compare(cleanPin, sender.gigTransferPin);
+    if (!pinOk) {
+      console.warn(`[TRANSFER PIN FAIL] user ${req.user.id} pin len ${cleanPin.length}`);
+      return res.status(403).json({ error: "Incorrect PIN — if you forgot it, use Change PIN with OTP to reset" });
+    }
     // ensure sender has accountNumber
     let senderAcc = sender.gigAccountNumber;
     if (!senderAcc) {
@@ -439,7 +509,23 @@ const transferGig = async (req, res) => {
       // fee stays with platform (not credited to anyone) — could log as platform revenue
       return tx.gigTransfer.create({ data: { fromUserId: req.user.id, toUserId: recipient.id, amount: amountKobo, fee: feeKobo, status: "SUCCESS" } });
     });
-
+    // notify both + push + inbox — debit red for sender, credit green for receiver
+    try {
+      const senderUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { username: true } });
+      await prisma.notification.createMany({ data: [
+        { userId: req.user.id, actorId: recipient.id, type: "GIG_TRANSFER_SENT", listingId: null },
+        { userId: recipient.id, actorId: req.user.id, type: "GIG_TRANSFER_RECEIVED", listingId: null },
+      ]});
+      const { sendPushToUser } = require("../utils/push");
+      const { emitNotification } = require("../realtime");
+      sendPushToUser(prisma, req.user.id, { title: "Gig Wallet — Debit", body: `Sent ₦${amt.toLocaleString()} to @${recipient.username} — fee ₦${(feeKobo/100).toFixed(2)}`, url: "/gigs/wallet", tag: `gig-sent-${transfer.id}` }).catch(()=>{});
+      sendPushToUser(prisma, recipient.id, { title: "Gig Wallet — Credit", body: `Received ₦${amt.toLocaleString()} from @${senderUser?.username}`, url: "/gigs/wallet", tag: `gig-recv-${transfer.id}` }).catch(()=>{});
+      try { emitNotification(req.user.id, { type: "GIG_TRANSFER_SENT" }); emitNotification(recipient.id, { type: "GIG_TRANSFER_RECEIVED" }); } catch {}
+      await prisma.message.createMany({ data: [
+        { senderId: req.user.id, recipientId: req.user.id, body: `Debit: You sent ₦${amt.toLocaleString()} to @${recipient.username} (fee ₦${(feeKobo/100).toFixed(2)}) — ref ${transfer.reference}`, subject: "Gig Transfer Sent — Debit" },
+        { senderId: req.user.id, recipientId: recipient.id, body: `Credit: You received ₦${amt.toLocaleString()} from @${senderUser?.username} — ref ${transfer.reference}`, subject: "Gig Transfer Received — Credit" },
+      ]});
+    } catch {}
     return res.json({ transfer, fee: feeKobo, amount: amountKobo, recipient, message: `Transferred ₦${amt.toLocaleString()} to ${recipient.fullName} @${recipient.username} — fee ₦${feeKobo/100}` });
   } catch (err) {
     if (err.message === "BALANCE_RACE") return res.status(402).json({ error: "Balance changed, try again" });
@@ -459,36 +545,68 @@ const listGigTransfers = async (req, res) => {
   }
 };
 
+const listMyGigWithdrawals = async (req, res) => {
+  try {
+    const withdrawals = await prisma.gigWithdrawal.findMany({ where: { userId: req.user.id }, orderBy: { createdAt: "desc" }, take: 20 });
+    return res.json({ withdrawals });
+  } catch (err) {
+    console.error("[LIST MY GIG WITHDRAWALS ERROR]", err);
+    return res.status(500).json({ error: "Could not load" });
+  }
+};
+
+const listMyGigPurchases = async (req, res) => {
+  try {
+    const purchases = await prisma.gigTokenPurchase.findMany({ where: { userId: req.user.id }, orderBy: { createdAt: "desc" }, take: 20 });
+    return res.json({ purchases });
+  } catch (err) {
+    console.error("[LIST MY GIG PURCHASES ERROR]", err);
+    return res.status(500).json({ error: "Could not load" });
+  }
+};
+
 const requestPinOtp = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { email: true, fullName: true } });
+    if (!user) return res.status(404).json({ error: "User not found" });
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await prisma.user.update({ where: { id: req.user.id }, data: { gigPinOtpCode: otp, gigPinOtpExpiresAt: expiresAt } });
-    const { sendOTPEmail } = require("../utils/email");
-    await sendOTPEmail(user.email, user.fullName, otp);
+    console.log(`[PIN OTP] user ${req.user.id} ${user.email} -> ${otp}`);
+    try {
+      const { sendOTPEmail } = require("../utils/email");
+      await sendOTPEmail(user.email, user.fullName, otp);
+    } catch (emailErr) {
+      console.error("[PIN OTP EMAIL FAILED]", emailErr.message);
+      // don't fail the request — OTP is still stored, allow dev to use it
+      const isDev = require("../config/env").isDev;
+      return res.json({ message: `OTP generated${isDev ? ` — code ${otp} (email delivery failed, use this code)` : ` — email delivery failed, code logged. Contact support if not received.`}`, ...(isDev ? { devOtp: otp } : {}) });
+    }
     return res.json({ message: `OTP sent to ${user.email} — valid for 10 minutes` });
   } catch (err) {
     console.error("[REQUEST PIN OTP ERROR]", err);
-    return res.status(500).json({ error: "Could not send OTP" });
+    return res.status(500).json({ error: "Could not generate OTP" });
   }
 };
 
 const setGigPin = async (req, res) => {
   try {
-    const { pin, otp } = req.body;
+    const pin = String(req.body.pin || "").trim();
+    const otp = String(req.body.otp || "").trim();
     if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "PIN must be 4 digits" });
     const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigTransferPin: true, gigPinOtpCode: true, gigPinOtpExpiresAt: true } });
     // If updating existing PIN, require OTP
     if (user.gigTransferPin) {
-      if (!otp || !/^\d{6}$/.test(otp)) return res.status(400).json({ error: "6-digit OTP required to update PIN" });
-      if (!user.gigPinOtpCode || !user.gigPinOtpExpiresAt || new Date() > new Date(user.gigPinOtpExpiresAt) || otp !== user.gigPinOtpCode) {
-        return res.status(400).json({ error: "Invalid or expired OTP" });
+      if (!otp || !/^\d{6}$/.test(otp)) return res.status(400).json({ error: "6-digit OTP required to update PIN — tap 'Change PIN' to get OTP first" });
+      const codeOk = user.gigPinOtpCode && String(user.gigPinOtpCode).trim() === otp && user.gigPinOtpExpiresAt && new Date() <= new Date(user.gigPinOtpExpiresAt);
+      if (!codeOk) {
+        return res.status(400).json({ error: "Invalid or expired OTP — request a fresh code" });
       }
     }
     const hash = await bcrypt.hash(pin, 10);
     await prisma.user.update({ where: { id: req.user.id }, data: { gigTransferPin: hash, gigPinOtpCode: null, gigPinOtpExpiresAt: null } });
-    return res.json({ message: user.gigTransferPin ? "Transfer PIN updated." : "Transfer PIN set. You will need it to confirm transfers." });
+    console.log(`[SET PIN] user ${req.user.id} -> OK`);
+    return res.json({ message: user.gigTransferPin ? "Transfer PIN updated." : "Transfer PIN set. You will need it to confirm transfers and withdrawals." });
   } catch (err) {
     console.error("[SET GIG PIN ERROR]", err);
     return res.status(500).json({ error: "Could not set PIN" });
@@ -566,4 +684,4 @@ const autoReleaseGigs = async () => {
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };
 
-module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, setGigPin, requestPinOtp, hasGigPin, setBank, resolveBank, getBanks, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, expireGigs, autoReleaseGigs };
+module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, listMyGigWithdrawals, listMyGigPurchases, setGigPin, requestPinOtp, hasGigPin, setBank, resolveBank, getBanks, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, cancelGigWithdrawal, expireGigs, autoReleaseGigs };

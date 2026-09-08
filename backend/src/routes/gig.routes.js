@@ -17,6 +17,9 @@ router.post("/pin/request-otp", protect, require("../controllers/gig.controller"
 router.get("/banks", protect, require("../controllers/gig.controller").getBanks);
 router.post("/bank", protect, require("../controllers/gig.controller").setBank);
 router.post("/bank/resolve", protect, require("../controllers/gig.controller").resolveBank);
+router.get("/withdrawals", protect, require("../controllers/gig.controller").listMyGigWithdrawals);
+router.post("/withdrawals/:id/cancel", protect, require("../controllers/gig.controller").cancelGigWithdrawal);
+router.get("/payments/history", protect, require("../controllers/gig.controller").listMyGigPurchases);
 router.post("/resolve", protect, gigResolveLimiter, require("../controllers/gig.controller").resolveGigAccount);
 router.post("/transfer", protect, gigTransferLimiter, require("../controllers/gig.controller").transferGig);
 router.get("/transfers", protect, require("../controllers/gig.controller").listGigTransfers);
