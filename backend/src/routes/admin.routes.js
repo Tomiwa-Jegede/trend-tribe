@@ -740,4 +740,56 @@ router.get("/gig-withdrawals", protect, requireAdmin, listGigWithdrawals);
 router.post("/gig-withdrawals/:id/approve", protect, requireAdmin, approveGigWithdrawal);
 router.post("/gig-withdrawals/:id/reject", protect, requireAdmin, rejectGigWithdrawal);
 
+// ─── Admin treasury + profit — personal profit from fees ──
+router.get("/treasury", protect, requireAdmin, async (req, res) => {
+  try {
+    const config = require("../config/env");
+    let flutterAvailableKobo = null;
+    try {
+      const balRes = await fetch("https://api.flutterwave.com/v3/balances", { headers: { Authorization: `Bearer ${config.flutterwave.secretKey}` } });
+      const balData = await balRes.json();
+      const ngnBal = balData.data?.find?.(b=>b.currency==="NGN") || balData.data?.[0];
+      flutterAvailableKobo = ngnBal ? Math.round(parseFloat(ngnBal.available_balance || 0) * 100) : null;
+    } catch {}
+    const pendingAgg = await prisma.gigWithdrawal.aggregate({ where: { status: "PENDING" }, _sum: { amount: true, fee: true }, _count: { _all: true } });
+    const pendingInReviewKobo = (pendingAgg._sum.amount || 0) + (pendingAgg._sum.fee || 0);
+    const pendingAmountKobo = pendingAgg._sum.amount || 0;
+    const liabilitiesAgg = await prisma.user.aggregate({ _sum: { gigBalance: true } });
+    const userLiabilitiesKobo = liabilitiesAgg._sum.gigBalance || 0;
+    const netLiquidityKobo = flutterAvailableKobo !== null ? flutterAvailableKobo - pendingInReviewKobo : null;
+    return res.json({ flutterAvailableKobo, pendingInReviewKobo, pendingAmountKobo, pendingFeeKobo: pendingAgg._sum.fee || 0, pendingCount: pendingAgg._count._all, userLiabilitiesKobo, netLiquidityKobo });
+  } catch (err) {
+    console.error("[TREASURY ERROR]", err.message);
+    return res.status(500).json({ error: "Could not load treasury" });
+  }
+});
+
+router.get("/profit-summary", protect, requireAdmin, async (req, res) => {
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now); startOfDay.setHours(0,0,0,0);
+    const d7 = new Date(now - 7*24*60*60*1000);
+    const d30 = new Date(now - 30*24*60*60*1000);
+    const bySource = await prisma.platformProfit.groupBy({ by: ["source"], _sum: { grossFee: true, netFee: true }, _count: { _all: true } });
+    const totalGross = bySource.reduce((a,c)=>a+(c._sum.grossFee||0),0);
+    const totalNet = bySource.reduce((a,c)=>a+(c._sum.netFee||0),0);
+    const todayAgg = await prisma.platformProfit.aggregate({ where: { createdAt: { gte: startOfDay } }, _sum: { grossFee: true, netFee: true }, _count: { _all: true } });
+    const sevenAgg = await prisma.platformProfit.aggregate({ where: { createdAt: { gte: d7 } }, _sum: { grossFee: true, netFee: true } });
+    const thirtyAgg = await prisma.platformProfit.aggregate({ where: { createdAt: { gte: d30 } }, _sum: { grossFee: true, netFee: true } });
+    const tokenAgg = await prisma.tokenPurchase.aggregate({ where: { status: "SUCCESS" }, _sum: { quantity: true, amount: true }, _count: { _all: true } });
+    const tokenViaGig = await prisma.platformProfit.aggregate({ where: { source: "TOKEN_SOLD", meta: { path: ["via"], equals: "GIG_BALANCE" } }, _sum: { grossFee: true }, _count: { _all: true } }).catch(()=>({ _sum:{ grossFee:0}, _count:{_all:0}}));
+    return res.json({
+      totalGrossKobo: totalGross, totalNetKobo: totalNet,
+      bySource: bySource.map(r=>({ source:r.source, grossKobo:r._sum.grossFee||0, netKobo:r._sum.netFee||0, count:r._count._all })),
+      today: { grossKobo: todayAgg._sum.grossFee||0, netKobo: todayAgg._sum.netFee||0, count: todayAgg._count._all },
+      last7d: { grossKobo: sevenAgg._sum.grossFee||0, netKobo: sevenAgg._sum.netFee||0 },
+      last30d: { grossKobo: thirtyAgg._sum.grossFee||0, netKobo: thirtyAgg._sum.netFee||0 },
+      tokenSold: { count: tokenAgg._count._all, quantity: tokenAgg._sum.quantity||0, grossKobo: (tokenAgg._sum.quantity||0)*200*100, viaGigCount: tokenViaGig._count._all, viaGigKobo: tokenViaGig._sum.grossFee||0 }
+    });
+  } catch (err) {
+    console.error("[PROFIT SUMMARY ERROR]", err.message);
+    return res.status(500).json({ error: "Could not load profit" });
+  }
+});
+
 module.exports = router;

@@ -71,7 +71,12 @@ const AdminDashboardPage = () => {
   const [heroLoading, setHeroLoading] = useState(!cachedHero);
   const [whatsappInput, setWhatsappInput] = useState(cachedHero?.data ? String(cachedHero.data.whatsappMembers) : "");
   const [whatsappSaving, setWhatsappSaving] = useState(false);
+  const [treasury, setTreasury] = useState(null);
+  const [treasuryError, setTreasuryError] = useState("");
+  const [profit, setProfit] = useState(null);
+  const [profitError, setProfitError] = useState("");
   const { toast } = useToast();
+  const formatNaira = (kobo) => `₦${(kobo/100).toLocaleString()}`;
 
   const pollWeeklyEmailStatus = () => {
     const interval = setInterval(async () => {
@@ -233,15 +238,22 @@ const AdminDashboardPage = () => {
     setHeroLoading(true);
     api.get("/stats").then((r) => { setHeroStats(r.data); setHeroUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.hero, r.data); setWhatsappInput(String(r.data.whatsappMembers)); }).catch(() => {}).finally(()=> setHeroLoading(false));
   }, []);
+  useEffect(() => {
+    api.get("/admin/treasury").then(r=> setTreasury(r.data)).catch(e=> setTreasuryError(e.response?.data?.error||"Could not load treasury"));
+    api.get("/admin/profit-summary").then(r=> setProfit(r.data)).catch(e=> setProfitError(e.response?.data?.error||"Could not load profit"));
+  }, []);
   // Real-time: admin dashboard refreshes instantly (only admin)
   const refreshStats = useCallback(async () => {
     try { const d = await getAdminStats(); setStats(d); setStatsUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.stats, d); } catch {}
     try { const r = await api.get("/pwa/stats"); setPwaStats(r.data); } catch {}
     try { const h = await api.get("/stats"); setHeroStats(h.data); setHeroUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.hero, h.data); } catch {}
+    try { const t = await api.get("/admin/treasury"); setTreasury(t.data); } catch {}
+    try { const p = await api.get("/admin/profit-summary"); setProfit(p.data); } catch {}
   }, []);
   useRealtime("admin:listing", refreshStats, { enabled: true });
   useRealtime("admin:favorite", refreshStats, { enabled: true });
   useRealtime("listing", refreshStats, { enabled: true });
+  useRealtime("notification", refreshStats, { enabled: true });
 
   const TABS = [
     { id: "overview", label: "Overview" },
@@ -280,6 +292,51 @@ const AdminDashboardPage = () => {
         <>
           {(statsLoading || heroLoading) && <p className="text-xs text-gray-400 mb-3 flex items-center gap-1.5"><MiniSpinner size={12} /> Updating from database — showing last values until fresh data arrives {statsUpdatedAt ? `· last update ${new Date(statsUpdatedAt).toLocaleTimeString()}` : ""}</p>}
           {!statsLoading && statsUpdatedAt && <p className="text-xs text-gray-400 mb-3">Live · updated {new Date(statsUpdatedAt).toLocaleTimeString()}</p>}
+
+          {/* Treasury — Flutter available vs pending */}
+          <div className="mb-6 bg-white border border-sage-100 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Treasury — Available bal</p>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${treasury?.netLiquidityKobo != null && treasury.netLiquidityKobo < 0 ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>{treasury ? (treasury.netLiquidityKobo != null ? `Net ${formatNaira(treasury.netLiquidityKobo)}` : "—") : treasuryError ? "Error" : "Loading..."}</span>
+            </div>
+            {treasury ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div><p className="text-xs text-gray-400">Flutter Available bal</p><p className="font-bold text-navy-900">{treasury.flutterAvailableKobo != null ? formatNaira(treasury.flutterAvailableKobo) : "—"}</p><p className="text-[11px] text-gray-400">GET /v3/balances NGN</p></div>
+                <div><p className="text-xs text-gray-400">Pending In review</p><p className="font-bold text-amber-600">{formatNaira(treasury.pendingInReviewKobo)} <span className="text-xs font-normal">({treasury.pendingCount})</span></p><p className="text-[11px] text-gray-400">{formatNaira(treasury.pendingAmountKobo)} + fee {formatNaira(treasury.pendingFeeKobo)}</p></div>
+                <div><p className="text-xs text-gray-400">User Liabilities (gigBalance)</p><p className="font-bold text-navy-900">{formatNaira(treasury.userLiabilitiesKobo)}</p><p className="text-[11px] text-gray-400">sum gigBalance</p></div>
+                <div><p className="text-xs text-gray-400">Push</p><p className="text-xs text-gray-600">Admin gets WebPush + bell on new PENDING</p><Link to="/admin/withdrawals" className="text-xs font-bold text-primary-600 hover:underline">View withdrawals →</Link></div>
+              </div>
+            ) : treasuryError ? <p className="text-sm text-red-500">{treasuryError}</p> : <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14}/> Loading treasury…</div>}
+          </div>
+
+          {/* Profit — personal profit from fees */}
+          <div className="mb-6 bg-white border border-sage-100 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Personal profit — fees</p>
+              <span className="text-xs font-bold px-2 py-1 rounded-full bg-indigo-50 text-indigo-700">{profit ? formatNaira(profit.totalGrossKobo) + " total" : profitError ? "Error" : "Loading..."}</span>
+            </div>
+            {profit ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+                  {profit.bySource.map(s=> (
+                    <div key={s.source} className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">{s.source.replaceAll("_"," ")}</p>
+                      <p className="font-bold text-navy-900">{formatNaira(s.grossKobo)}</p>
+                      <p className="text-xs text-gray-400">{s.count} ×</p>
+                    </div>
+                  ))}
+                  {profit.bySource.length===0 && <p className="text-sm text-gray-400 col-span-6">No profits yet — gig confirm/cancel/service/transfer/withdraw/token will appear here</p>}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mt-4 pt-4 border-t border-sage-100">
+                  <div><p className="text-xs text-gray-400">Token sold</p><p className="font-bold text-navy-900">{profit.tokenSold.quantity} tokens · {formatNaira(profit.tokenSold.grossKobo)}</p><p className="text-[11px] text-gray-400">{profit.tokenSold.count} purchases</p></div>
+                  <div><p className="text-xs text-gray-400">Today</p><p className="font-bold text-navy-900">{formatNaira(profit.today.grossKobo)}</p><p className="text-[11px] text-gray-400">{profit.today.count} events</p></div>
+                  <div><p className="text-xs text-gray-400">Last 7d</p><p className="font-bold text-navy-900">{formatNaira(profit.last7d.grossKobo)}</p></div>
+                  <div><p className="text-xs text-gray-400">Total combined</p><p className="font-bold text-indigo-700 text-base">{formatNaira(profit.totalGrossKobo)}</p><p className="text-[11px] text-gray-400">gig cancel + confirm + service + transfer + withdraw + token</p></div>
+                </div>
+              </>
+            ) : profitError ? <p className="text-sm text-red-500">{profitError}</p> : <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14}/> Loading profit…</div>}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {STAT_CONFIG.map(({ key, label, to }) => {
               const Card = (

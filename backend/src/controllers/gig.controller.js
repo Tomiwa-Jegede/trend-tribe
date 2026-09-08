@@ -115,11 +115,16 @@ const confirmGig = async (req, res) => {
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster can confirm" });
     if (!gig.claimerId) return res.status(400).json({ error: "No claimer" });
     const pay = payout(gig.escrowAmount);
-    const { count } = await prisma.gig.updateMany({ where: { id, status: "CLAIMED", posterId: req.user.id }, data: { status: "COMPLETED", completedAt: new Date() } });
-    if (count === 0) return res.status(409).json({ error: `Gig is no longer claimable (already ${gig.status})` });
-    await prisma.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
-    return res.json({ message: `Confirmed — ₦${(pay/100).toLocaleString()} sent to claimer, ₦${(fee(gig.escrowAmount)/100).toLocaleString()} fee retained.`, payout: pay, fee: fee(gig.escrowAmount) });
+    const gross = fee(gig.escrowAmount);
+    await prisma.$transaction(async (tx) => {
+      const { count } = await tx.gig.updateMany({ where: { id, status: "CLAIMED", posterId: req.user.id }, data: { status: "COMPLETED", completedAt: new Date() } });
+      if (count === 0) throw new Error("ALREADY");
+      await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
+      await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(id), meta: { gigId: id, posterId: gig.posterId, claimerId: gig.claimerId } } });
+    });
+    return res.json({ message: `Confirmed — ₦${(pay/100).toLocaleString()} sent to claimer, ₦${(gross/100).toLocaleString()} fee retained.`, payout: pay, fee: gross });
   } catch (err) {
+    if (err.message === "ALREADY") return res.status(409).json({ error: `Gig is no longer claimable` });
     console.error("[CONFIRM GIG ERROR]", err);
     return res.status(500).json({ error: "Could not confirm" });
   }
@@ -134,11 +139,15 @@ const cancelGig = async (req, res) => {
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster can cancel" });
     const cancelFee = Math.floor(gig.escrowAmount * 0.05);
     const refund = gig.escrowAmount - cancelFee;
-    const { count } = await prisma.gig.updateMany({ where: { id, status: "OPEN", posterId: req.user.id }, data: { status: "CANCELLED" } });
-    if (count === 0) return res.status(409).json({ error: `Cannot cancel ${gig.status} gig` });
-    await prisma.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: refund } } });
+    await prisma.$transaction(async (tx) => {
+      const { count } = await tx.gig.updateMany({ where: { id, status: "OPEN", posterId: req.user.id }, data: { status: "CANCELLED" } });
+      if (count === 0) throw new Error("ALREADY");
+      await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: refund } } });
+      await tx.platformProfit.create({ data: { source: "GIG_CANCEL_5", grossFee: cancelFee, netFee: cancelFee, refId: String(id), meta: { gigId: id } } });
+    });
     return res.json({ message: `Cancelled — 5% fee ₦${(cancelFee/100).toLocaleString()}, refund ₦${(refund/100).toLocaleString()} to Gig wallet.`, refund, fee: cancelFee });
   } catch (err) {
+    if (err.message === "ALREADY") return res.status(409).json({ error: `Cannot cancel` });
     console.error("[CANCEL GIG ERROR]", err);
     return res.status(500).json({ error: "Could not cancel" });
   }
@@ -237,14 +246,16 @@ const withdrawGig = async (req, res) => {
     } catch {}
 
     const reference = `gigw_${req.user.id}_${Date.now()}`;
-    // Deduct immediately from gig balance + save withdrawal as In review (PENDING)
+    // Deduct immediately from gig balance + save withdrawal as In review (PENDING) + profit 1%
     const w = await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: totalKobo } }, data: { gigBalance: { decrement: totalKobo } } });
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       await tx.user.update({ where: { id: req.user.id }, data: { bankAccountNumber: cleanAcc, bankCode: cleanBank, bankName: bankName || cleanBank } });
-      return tx.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, fee: feeKobo, bankCode: cleanBank, bankAccountNumber: cleanAcc, bankName: bankName || cleanBank, accountName, reference, status: "PENDING" } });
+      const wd = await tx.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, fee: feeKobo, bankCode: cleanBank, bankAccountNumber: cleanAcc, bankName: bankName || cleanBank, accountName, reference, status: "PENDING" } });
+      await tx.platformProfit.create({ data: { source: "GIG_WITHDRAW_1P", grossFee: feeKobo, netFee: feeKobo, refId: wd.reference, meta: { withdrawalId: wd.id, amount: kobo } } });
+      return wd;
     });
-    // inbox + push + notification for debit (red) — request received
+    // inbox + push + notification for debit (red) — request received + admin push for pending
     try {
       await prisma.notification.create({ data: { userId: req.user.id, type: "GIG_WITHDRAW_PENDING", listingId: null } });
       await prisma.message.create({ data: { senderId: req.user.id, recipientId: req.user.id, subject: "Gig Withdrawal Requested — In review", body: `Withdrawal ₦${amt.toLocaleString()} (fee ₦${(feeKobo/100).toFixed(2)}) to ${bankName || cleanBank} • ${cleanAcc} — ref ${reference} — In review, awaiting admin approval. ₦${(totalKobo/100).toLocaleString()} debited from Gig wallet.` } });
@@ -252,6 +263,15 @@ const withdrawGig = async (req, res) => {
       const { emitNotification } = require("../realtime");
       sendPushToUser(prisma, req.user.id, { title: "Gig Wallet — Withdrawal in review", body: `₦${amt.toLocaleString()} to ${bankName || cleanBank} — in review, ₦${(totalKobo/100).toLocaleString()} debited`, url: "/gigs/wallet", tag: `gig-wd-${reference}` }).catch(()=>{});
       try { emitNotification(req.user.id, { type: "GIG_WITHDRAW_PENDING" }); } catch {}
+      // admin push for pending approval
+      try {
+        const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+        for (const a of admins) {
+          sendPushToUser(prisma, a.id, { title: "New withdrawal to approve", body: `₦${amt.toLocaleString()} from @${(await prisma.user.findUnique({where:{id:req.user.id}, select:{username:true}}))?.username} — In review`, url: "/admin/withdrawals", tag: `admin-wd-${reference}` }).catch(()=>{});
+          await prisma.notification.create({ data: { userId: a.id, type: "ADMIN_WITHDRAW_PENDING", listingId: null } }).catch(()=>{});
+          try { emitNotification(a.id, { type: "ADMIN_WITHDRAW_PENDING" }); } catch {}
+        }
+      } catch {}
     } catch {}
     return res.status(201).json({ withdrawal: w, message: `Withdraw request ₦${amt.toLocaleString()} received — ₦${(totalKobo/100).toLocaleString()} debited, now in review.` });
   } catch (err) {
@@ -506,8 +526,9 @@ const transferGig = async (req, res) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: totalKobo } }, data: { gigBalance: { decrement: totalKobo } } });
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       await tx.user.update({ where: { id: recipient.id }, data: { gigBalance: { increment: amountKobo } } });
-      // fee stays with platform (not credited to anyone) — could log as platform revenue
-      return tx.gigTransfer.create({ data: { fromUserId: req.user.id, toUserId: recipient.id, amount: amountKobo, fee: feeKobo, status: "SUCCESS" } });
+      const tr = await tx.gigTransfer.create({ data: { fromUserId: req.user.id, toUserId: recipient.id, amount: amountKobo, fee: feeKobo, status: "SUCCESS" } });
+      await tx.platformProfit.create({ data: { source: "GIG_TRANSFER_1P", grossFee: feeKobo, netFee: feeKobo, refId: tr.reference, meta: { transferId: tr.id, from: req.user.id, to: recipient.id } } });
+      return tr;
     });
     // notify both + push + inbox — debit red for sender, credit green for receiver
     try {
@@ -675,11 +696,13 @@ const autoReleaseGigs = async () => {
     const gigs = await prisma.gig.findMany({ where: { status: "CLAIMED", claimedAt: { lte: cutoff } } });
     for (const g of gigs) {
       const pay = payout(g.escrowAmount);
+      const gross = fee(g.escrowAmount);
       await prisma.$transaction(async (tx) => {
         await tx.user.update({ where: { id: g.claimerId }, data: { gigBalance: { increment: pay } } });
         await tx.gig.update({ where: { id: g.id }, data: { status: "COMPLETED", completedAt: new Date() } });
+        await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(g.id), meta: { gigId: g.id, autoReleased: true } } });
       });
-      console.log(`[GIGS] Auto-released gig ${g.id} → ₦${pay/100} to ${g.claimerId}`);
+      console.log(`[GIGS] Auto-released gig ${g.id} → ₦${pay/100} to ${g.claimerId} fee ₦${gross/100}`);
     }
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };

@@ -187,6 +187,8 @@ async function creditPurchase(purchase, flutterwaveTransactionId) {
       where: { id: purchase.userId },
       data: { tokenBalance: { increment: purchase.quantity } },
     });
+    const gross = purchase.quantity * TOKEN_PRICE_NAIRA * 100;
+    try { await prisma.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: gross, netFee: gross, refId: purchase.reference, meta: { tokenPurchaseId: purchase.reference, quantity: purchase.quantity } } }); } catch {}
   }
 }
 
@@ -204,6 +206,7 @@ const buyWithGigBalance = async (req, res) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: costKobo } }, data: { gigBalance: { decrement: costKobo }, tokenBalance: { increment: qty } } });
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       await tx.tokenPurchase.create({ data: { userId: req.user.id, reference: ref, quantity: qty, amount: qty * TOKEN_PRICE_NAIRA, status: "SUCCESS", flutterwaveTransactionId: ref } });
+      await tx.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: costKobo, netFee: costKobo, refId: ref, meta: { tokenPurchaseId: ref, quantity: qty, via: "GIG_BALANCE" } } });
     });
     // inbox + push + notification
     try {

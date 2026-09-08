@@ -387,6 +387,20 @@ model ServiceBooking {
   @@map("service_bookings")
 }
 
+model PlatformProfit {
+  id        Int      @id @default(autoincrement())
+  source    String   // GIG_CONFIRM_20 | GIG_CANCEL_5 | SERVICE_CONFIRM_20 | GIG_TRANSFER_1P | GIG_WITHDRAW_1P | TOKEN_SOLD
+  grossFee  Int      // kobo gross
+  netFee    Int      // kobo net (gross - flutter fee if known else gross)
+  refId     String?  // gigId/withdrawalId/transferId/tokenPurchaseId
+  meta      Json?    // { gigId, withdrawalId, etc }
+  createdAt DateTime @default(now())
+
+  @@index([source, createdAt])
+  @@index([createdAt])
+  @@map("platform_profits")
+}
+
 enum Role {
   USER
   ADMIN

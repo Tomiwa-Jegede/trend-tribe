@@ -67,6 +67,7 @@ const confirmServiceBooking = async (req, res) => {
       if (ok.count === 0) throw new Error("FEE_RACE");
       await tx.user.update({ where: { id: booking.bookerId }, data: { tokenBalance: { increment: bookerRefundTokens } } });
       await tx.serviceBooking.update({ where: { id }, data: { status: "CONFIRMED" } });
+      await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
     });
 
     // Notify booker with provider whatsapp
