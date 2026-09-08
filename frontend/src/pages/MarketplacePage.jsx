@@ -52,6 +52,15 @@ const MarketplacePage = () => {
   const boostedListings = listings.filter(isBoosted);
   const normalListings = listings.filter((l) => !isBoosted(l));
 
+    const [filters, setFilters] = useState({
+      search: searchParams.get("search") || "",
+      category: searchParams.get("category") || "",
+      subcategory: searchParams.get("subcategory") || "",
+      condition: searchParams.get("condition") || "",
+      minPrice: searchParams.get("minPrice") || "",
+      maxPrice: searchParams.get("maxPrice") || "",
+    });
+
   const [picks, setPicks] = useState([]);
   const [picksLoading, setPicksLoading] = useState(false);
   useEffect(() => {
@@ -67,15 +76,6 @@ const MarketplacePage = () => {
     })();
     return () => { cancelled = true; };
   }, [filters.category]);
-
-    const [filters, setFilters] = useState({
-      search: searchParams.get("search") || "",
-      category: searchParams.get("category") || "",
-      subcategory: searchParams.get("subcategory") || "",
-      condition: searchParams.get("condition") || "",
-      minPrice: searchParams.get("minPrice") || "",
-      maxPrice: searchParams.get("maxPrice") || "",
-    });
 
   // ── Category / Discover view toggle (URL-synced) ─────────
   const view = searchParams.get("view") === "discover" ? "discover" : "category";

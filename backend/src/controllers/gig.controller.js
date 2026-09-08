@@ -1,5 +1,6 @@
 // src/controllers/gig.controller.js — Gigs escrow (Naira, 80/20, 5% cancel, 72h auto-release)
 const prisma = require("../db");
+const bcrypt = require("bcryptjs");
 
 const fee = (amount) => Math.floor(amount * 0.2);
 const payout = (amount) => amount - fee(amount);
@@ -242,10 +243,11 @@ const resolveGigAccount = async (req, res) => {
 
 const transferGig = async (req, res) => {
   try {
-    const { toAccountNumber, amount } = req.body;
+    const { toAccountNumber, amount, pin } = req.body;
     if (!toAccountNumber || !/^\d{10}$/.test(toAccountNumber.trim())) return res.status(400).json({ error: "Recipient account must be 10 digits" });
     const amt = parseInt(amount, 10);
     if (!amt || amt < 1) return res.status(400).json({ error: "Amount must be at least ₦1" });
+    if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "4-digit transfer PIN required" });
     const amountKobo = amt * 100;
     let feeKobo = Math.round(amountKobo * 0.0001); // 0.01%
     if (feeKobo === 0 && amountKobo > 0) feeKobo = 1; // min 1 kobo
@@ -255,7 +257,10 @@ const transferGig = async (req, res) => {
     if (!recipient) return res.status(404).json({ error: "Recipient account not found" });
     if (recipient.id === req.user.id) return res.status(400).json({ error: "Cannot transfer to yourself" });
 
-    const sender = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, gigAccountNumber: true } });
+    const sender = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, gigAccountNumber: true, gigTransferPin: true } });
+    if (!sender.gigTransferPin) return res.status(400).json({ error: "Set your 4-digit transfer PIN first" });
+    const pinOk = await bcrypt.compare(pin, sender.gigTransferPin);
+    if (!pinOk) return res.status(403).json({ error: "Incorrect PIN" });
     // ensure sender has accountNumber
     let senderAcc = sender.gigAccountNumber;
     if (!senderAcc) {
@@ -291,6 +296,28 @@ const listGigTransfers = async (req, res) => {
   }
 };
 
+const setGigPin = async (req, res) => {
+  try {
+    const { pin } = req.body;
+    if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "PIN must be 4 digits" });
+    const hash = await bcrypt.hash(pin, 10);
+    await prisma.user.update({ where: { id: req.user.id }, data: { gigTransferPin: hash } });
+    return res.json({ message: "Transfer PIN set. You will need it to confirm transfers." });
+  } catch (err) {
+    console.error("[SET GIG PIN ERROR]", err);
+    return res.status(500).json({ error: "Could not set PIN" });
+  }
+};
+
+const hasGigPin = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigTransferPin: true, gigAccountNumber: true, gigBalance: true } });
+    return res.json({ hasPin: !!user.gigTransferPin, accountNumber: user.gigAccountNumber, gigBalance: user.gigBalance });
+  } catch (err) {
+    return res.status(500).json({ error: "Could not check" });
+  }
+};
+
 // Cron helpers
 const expireGigs = async () => {
   try {
@@ -315,4 +342,4 @@ const autoReleaseGigs = async () => {
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };
 
-module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, expireGigs, autoReleaseGigs };
+module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, setGigPin, hasGigPin, expireGigs, autoReleaseGigs };

@@ -34,6 +34,7 @@ model User {
   tokenBalance         Float           @default(5)
   gigBalance           Int             @default(0) // kobo, separate from marketplace tokenBalance, buyable, Naira display
   gigAccountNumber     String?         @unique // 10 digits like 8091234567
+  gigTransferPin       String?         // bcrypt hash of 4-digit PIN
   firstServiceAt       DateTime?
   serviceTrialEndsAt   DateTime?
   marketingOptIn       Boolean         @default(true)

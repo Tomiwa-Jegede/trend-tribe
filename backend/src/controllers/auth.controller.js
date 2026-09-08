@@ -10,6 +10,17 @@ const { sendOTPEmail, sendPasswordResetEmail } = require("../utils/email");
 const config = require("../config/env");
 const { normalizeWhatsapp } = require("../utils/phone");
 const { generateUniqueUserSlug } = require("../utils/slug");
+// ─── Helper: generate unique 10-digit gig account number (809...) ──
+const generateGigAccountNumber = async () => {
+  for (let i = 0; i < 10; i++) {
+    const num = "80" + Math.floor(10000000 + Math.random() * 90000000).toString() + Math.floor(10 + Math.random() * 90).toString();
+    const acc = num.slice(0, 10);
+    const exists = await prisma.user.findUnique({ where: { gigAccountNumber: acc } });
+    if (!exists) return acc;
+  }
+  return "80" + Date.now().toString().slice(-8);
+};
+
 // ─── Helper: strip sensitive fields from user object ──────────
 const sanitizeUser = (user) => {
   const {
@@ -18,6 +29,7 @@ const sanitizeUser = (user) => {
     otpExpiresAt,
     resetToken,
     resetTokenExpiresAt,
+    gigTransferPin,
     ...safeUser
   } = user;
   return safeUser;
@@ -213,6 +225,7 @@ const verifyRegistration = async (req, res) => {
     }
 
     const slug = await generateUniqueUserSlug(prisma, pending.username);
+    const gigAccountNumber = await generateGigAccountNumber();
     const newUser = await prisma.user.create({
       data: {
         slug,
@@ -226,6 +239,7 @@ const verifyRegistration = async (req, res) => {
         bio: pending.bio,
         role: pending.role,
         isVerified: true,
+        gigAccountNumber,
       },
     });
 

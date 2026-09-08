@@ -8,8 +8,10 @@ const router = express.Router();
 
 // Public feed
 router.get("/", listGigs);
-// Wallet account + transfer (protected, before :id)
+// Wallet account + transfer + PIN (protected, before :id)
 router.get("/account", protect, require("../controllers/gig.controller").getGigAccount);
+router.get("/pin", protect, require("../controllers/gig.controller").hasGigPin);
+router.post("/pin", protect, require("../controllers/gig.controller").setGigPin);
 router.post("/resolve", protect, require("../controllers/gig.controller").resolveGigAccount);
 router.post("/transfer", protect, require("../controllers/gig.controller").transferGig);
 router.get("/transfers", protect, require("../controllers/gig.controller").listGigTransfers);

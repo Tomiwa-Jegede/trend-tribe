@@ -49,8 +49,8 @@ export const resolveGigAccount = async (accountNumber) => {
   const { data } = await api.post("/gigs/resolve", { accountNumber });
   return data;
 };
-export const transferGig = async ({ toAccountNumber, amount }) => {
-  const { data } = await api.post("/gigs/transfer", { toAccountNumber, amount });
+export const transferGig = async ({ toAccountNumber, amount, pin }) => {
+  const { data } = await api.post("/gigs/transfer", { toAccountNumber, amount, pin });
   return data;
 };
 export const getGigTransfers = async () => {

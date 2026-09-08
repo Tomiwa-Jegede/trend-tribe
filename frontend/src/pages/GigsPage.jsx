@@ -22,23 +22,28 @@ export default function GigsPage() {
   const [topupAmount, setTopupAmount] = useState("");
   const [account, setAccount] = useState(null);
   const [transfers, setTransfers] = useState(null);
-  const [transferForm, setTransferForm] = useState({ toAccount: "", amount: "" });
+  const [transferForm, setTransferForm] = useState({ toAccount: "", amount: "", pin: "" });
   const [resolved, setResolved] = useState(null);
   const [transferring, setTransferring] = useState(false);
+  const [hasPin, setHasPin] = useState(null);
+  const [newPin, setNewPin] = useState("");
+  const [pinSaving, setPinSaving] = useState(false);
 
   const fetch = async () => {
     setLoading(true);
     try {
-      const [feed, mine, acc, tr] = await Promise.all([
+      const [feed, mine, acc, tr, pinCheck] = await Promise.all([
         getGigs({ limit: 24 }),
         getMyGigs().catch(()=>({posted:[],claimed:[],gigBalance:0})),
         getGigAccount().catch(()=>null),
         getGigTransfers().catch(()=>({sent:[],received:[]})),
+        api.get("/gigs/pin").then(r=>r.data).catch(()=>({hasPin: false})),
       ]);
       setGigs(feed.gigs || []);
       setMy(mine);
       if (acc) setAccount(acc);
       if (tr) setTransfers(tr);
+      setHasPin(pinCheck.hasPin);
     } catch (e) { toast.error(e.response?.data?.error || "Failed to load gigs"); }
     finally { setLoading(false); }
   };
@@ -85,16 +90,23 @@ export default function GigsPage() {
     if (!resolved) return toast.error("Resolve account first");
     const amt = parseInt(transferForm.amount,10);
     if (!amt || amt < 1) return toast.error("Enter amount");
+    if (!/^\d{4}$/.test(transferForm.pin)) return toast.error("Enter 4-digit PIN");
     if (!confirm(`Confirm transfer of ₦${amt.toLocaleString()} to ${resolved.fullName} @${resolved.username}? Fee: ₦${(amt*0.0001).toFixed(2)} (0.01%)`)) return;
     setTransferring(true);
     try {
-      const r = await transferGig({ toAccountNumber: transferForm.toAccount.trim(), amount: amt });
+      const r = await transferGig({ toAccountNumber: transferForm.toAccount.trim(), amount: amt, pin: transferForm.pin });
       toast.success(r.message);
-      setTransferForm({ toAccount: "", amount: "" });
+      setTransferForm({ toAccount: "", amount: "", pin: "" });
       setResolved(null);
       fetch();
     } catch (e) { toast.error(e.response?.data?.error || "Transfer failed"); }
     finally { setTransferring(false); }
+  };
+  const handleSetPin = async () => {
+    if (!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits");
+    setPinSaving(true);
+    try { await api.post("/gigs/pin", { pin: newPin }); toast.success("PIN set — you will need it to confirm transfers"); setHasPin(true); setNewPin(""); } catch(e){ toast.error(e.response?.data?.error || "Could not set PIN"); }
+    finally { setPinSaving(false); }
   };
 
   return (
@@ -109,41 +121,81 @@ export default function GigsPage() {
         <button onClick={()=>setShowPost(v=>!v)} className="btn-primary px-6 py-3 rounded-2xl text-sm font-bold">Post Gig</button>
       </div>
 
-      <div className="card p-4 mb-6 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3 items-end">
-          <div className="flex-1">
-            <label className="text-xs font-semibold text-gray-500">Gig account number (10 digits, unique)</label>
-            <div className="flex gap-2 mt-1">
-              <input value={account?.accountNumber || ""} readOnly placeholder="Loading..." className="input-field flex-1 bg-gray-50" />
-              <button onClick={async()=>{ if(!account?.accountNumber) return; await navigator.clipboard.writeText(account.accountNumber); toast.success("Account number copied"); }} className="btn-secondary px-3 py-2 text-sm flex items-center gap-1"><FiCopy className="w-4 h-4"/> Copy</button>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Share this 10-digit number to receive Gig transfers. Each account has its own.</p>
+      {/* ── OPay-style Wallet Home ── */}
+      <div className="mb-6">
+        <div className="rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0F1F3D 0%, #1340B8 60%, #2D5BFF 100%)" }}>
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-xl" />
+          <p className="text-xs font-semibold tracking-widest uppercase opacity-70">Gig Wallet Balance</p>
+          <p className="text-4xl sm:text-5xl font-extrabold mt-2 tracking-tight">{account ? formatNaira(account.gigBalance ?? my?.gigBalance ?? 0) : "—"}</p>
+          <div className="mt-5 flex items-center gap-2">
+            <p className="text-xs opacity-70">Account</p>
+            <p className="font-mono text-lg tracking-widest font-bold">{account?.accountNumber || "••••••••••"}</p>
+            <button onClick={async()=>{ if(!account?.accountNumber) return; await navigator.clipboard.writeText(account.accountNumber); toast.success("Account number copied"); }} className="ml-2 w-8 h-8 rounded-full bg-white/15 flex items-center justify-center hover:bg-white/25 transition-colors"><FiCopy className="w-4 h-4" /></button>
           </div>
-          <div className="flex-1">
-            <label className="text-xs font-semibold text-gray-500">Top up Gig wallet (Naira, buyable)</label>
-            <div className="flex gap-2 mt-1">
-              <input type="number" min="100" value={topupAmount} onChange={e=>setTopupAmount(e.target.value)} placeholder="500" className="input-field flex-1" />
-              <button onClick={handleTopup} className="btn-primary px-4 py-2 text-sm">Top up</button>
-            </div>
+          <button onClick={()=>document.getElementById("transfer-screen")?.scrollIntoView({behavior:"smooth"})} className="mt-6 bg-white text-navy-900 font-bold px-8 py-3 rounded-full text-sm shadow-lg hover:bg-gray-50 transition-colors inline-flex items-center gap-2"><FiSend className="w-4 h-4"/> Transfer</button>
+        </div>
+        <div className="mt-4 grid grid-cols-2 sm:flex gap-3">
+          <div className="flex-1 card p-3 flex items-center gap-3">
+            <div className="flex-1"><label className="text-xs font-semibold text-gray-500">Top up</label><div className="flex gap-2 mt-1"><input type="number" min="100" value={topupAmount} onChange={e=>setTopupAmount(e.target.value)} placeholder="500" className="input-field flex-1 text-sm" /><button onClick={handleTopup} className="btn-primary px-3 py-2 text-xs">Top up</button></div></div>
           </div>
-          <form onSubmit={handleWithdraw} className="flex gap-2 items-end flex-wrap">
-            <div><label className="text-xs font-semibold text-gray-500">Withdraw Naira</label><input type="number" min="1000" value={withdrawForm.amount} onChange={e=>setWithdrawForm(f=>({...f, amount:e.target.value}))} placeholder="1000" className="input-field mt-1 w-24" /></div>
-            <div><label className="text-xs font-semibold text-gray-500">WhatsApp for payout</label><input value={withdrawForm.whatsapp} onChange={e=>setWithdrawForm(f=>({...f, whatsapp:e.target.value}))} placeholder="080..." className="input-field mt-1 w-32" /></div>
-            <button type="submit" className="btn-secondary px-4 py-2 text-sm">Withdraw</button>
+          <form onSubmit={handleWithdraw} className="flex-1 card p-3 flex gap-2 items-end">
+            <div className="flex-1"><label className="text-xs font-semibold text-gray-500">Withdraw</label><div className="flex gap-2 mt-1"><input type="number" min="1000" value={withdrawForm.amount} onChange={e=>setWithdrawForm(f=>({...f, amount:e.target.value}))} placeholder="1000" className="input-field flex-1 text-sm" /><input value={withdrawForm.whatsapp} onChange={e=>setWithdrawForm(f=>({...f, whatsapp:e.target.value}))} placeholder="080..." className="input-field flex-1 text-sm" /><button type="submit" className="btn-secondary px-3 py-2 text-xs">Withdraw</button></div></div>
           </form>
         </div>
-
-          <div className="border-t border-gray-100 pt-4">
-          <p className="text-xs font-bold tracking-widest uppercase text-gray-500 mb-2">Transfer Gig Naira to another account</p>
-          <div className="flex flex-col sm:flex-row gap-2 items-end">
-            <div className="flex-1"><label className="text-xs font-semibold text-gray-500">Recipient 10-digit account</label><div className="flex gap-2 mt-1"><input value={transferForm.toAccount} onChange={e=>setTransferForm(f=>({...f, toAccount:e.target.value}))} placeholder="8091234567" maxLength={10} className="input-field flex-1" /><button type="button" onClick={handleResolve} className="btn-secondary px-3 py-2 text-sm">Resolve</button></div>{resolved && <p className="text-xs text-green-600 mt-1">→ {resolved.fullName} @{resolved.username}</p>}</div>
-            <div><label className="text-xs font-semibold text-gray-500">Amount ₦</label><input type="number" min="1" value={transferForm.amount} onChange={e=>setTransferForm(f=>({...f, amount:e.target.value}))} placeholder="500" className="input-field mt-1 w-28" /><p className="text-[10px] text-gray-400 mt-1">Fee 0.01% · {transferForm.amount ? `₦${(parseInt(transferForm.amount,10)*0.0001).toFixed(2)}` : "—"}</p></div>
-            <button disabled={transferring || !resolved} onClick={handleTransfer} className="btn-primary px-4 py-2 text-sm flex items-center gap-1 disabled:opacity-60"><FiSend className="w-4 h-4"/> {transferring?"Sending...":"Send"}</button>
+        {(hasPin===false || hasPin===true) && (
+          <div className="mt-3">
+            {hasPin===false ? (
+              <div className="flex gap-2 items-end p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="flex-1"><label className="text-xs font-semibold text-amber-800">Set 4-digit transfer PIN first</label><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="1234" className="input-field mt-1" /></div>
+                <button onClick={handleSetPin} disabled={pinSaving} className="btn-primary px-4 py-2 text-sm disabled:opacity-60">{pinSaving?"Saving...":"Set PIN"}</button>
+              </div>
+            ) : (
+              <div className="flex gap-2 items-end">
+                <div><label className="text-xs font-semibold text-gray-500">Change PIN</label><div className="flex gap-2 mt-1"><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="New 4-digit" className="input-field w-28 text-sm" /><button onClick={handleSetPin} disabled={pinSaving} className="btn-secondary px-3 py-2 text-sm disabled:opacity-60">Update</button></div></div>
+              </div>
+            )}
           </div>
+        )}
+      </div>
+
+      {/* ── Transfer Screen — OPay style: account on top, auto name, amount, single confirm ── */}
+      <div id="transfer-screen" className="card p-5 sm:p-6 mb-6">
+        <h3 className="font-bold text-gray-900 mb-1">Transfer</h3>
+        <p className="text-xs text-gray-500 mb-4">Enter 10-digit account, recipient shows automatically, then amount and PIN to send — 0.01% fee.</p>
+        <div className="max-w-md mx-auto space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Account number</label>
+            <input
+              value={transferForm.toAccount}
+              onChange={async (e)=>{
+                const v = e.target.value.replace(/\D/g,"").slice(0,10);
+                setTransferForm(f=>({...f, toAccount: v}));
+                if (/^\d{10}$/.test(v)) {
+                  try { const r = await resolveGigAccount(v); setResolved(r.user); } catch { setResolved(null); }
+                } else setResolved(null);
+              }}
+              placeholder="8091234567"
+              maxLength={10}
+              inputMode="numeric"
+              className="input-field mt-1 text-lg tracking-widest font-mono"
+            />
+            {resolved ? <p className="text-sm text-green-600 mt-2 font-medium">→ {resolved.fullName} <span className="text-gray-500">@{resolved.username}</span></p> : transferForm.toAccount.length===10 ? <p className="text-xs text-red-500 mt-1">Account not found</p> : <p className="text-xs text-gray-400 mt-1">Enter 10 digits to see name</p>}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Amount ₦</label>
+            <input type="number" min="1" value={transferForm.amount} onChange={e=>setTransferForm(f=>({...f, amount:e.target.value}))} placeholder="500" className="input-field mt-1 text-lg" />
+            <p className="text-xs text-gray-500 mt-1">Fee 0.01% · {transferForm.amount ? `₦${(parseInt(transferForm.amount,10)*0.0001).toFixed(2)}` : "—"} · Total ₦{transferForm.amount ? (parseInt(transferForm.amount,10) + parseInt(transferForm.amount,10)*0.0001).toFixed(2) : "—"}</p>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700">PIN</label>
+            <input type="password" maxLength={4} inputMode="numeric" value={transferForm.pin} onChange={e=>setTransferForm(f=>({...f, pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="••••" className="input-field mt-1 tracking-widest text-lg" />
+          </div>
+          <button disabled={transferring || !resolved || !transferForm.amount} onClick={handleTransfer} className="w-full btn-primary py-3 text-base font-bold rounded-full flex items-center justify-center gap-2 disabled:opacity-60"><FiSend className="w-5 h-5"/> {transferring?"Sending...":"Confirm & Send"}</button>
           {transfers && (transfers.sent?.length>0 || transfers.received?.length>0) && (
-            <div className="mt-4 grid sm:grid-cols-2 gap-4 text-xs">
-              <div><p className="font-semibold text-gray-700 mb-1">Sent</p>{transfers.sent?.length===0?<p className="text-gray-400">No sent yet</p>:transfers.sent.slice(0,5).map(t=> <div key={t.id} className="flex justify-between border-b border-gray-50 py-1"><span>→ {t.toUser?.username} ₦{(t.amount/100).toLocaleString()} fee ₦{(t.fee/100)}</span><span className="text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</span></div>)}</div>
-              <div><p className="font-semibold text-gray-700 mb-1">Received</p>{transfers.received?.length===0?<p className="text-gray-400">No received yet</p>:transfers.received.slice(0,5).map(t=> <div key={t.id} className="flex justify-between border-b border-gray-50 py-1"><span>← {t.fromUser?.username} ₦{(t.amount/100).toLocaleString()}</span><span className="text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</span></div>)}</div>
+            <div className="pt-4 border-t border-gray-100 grid sm:grid-cols-2 gap-4 text-xs">
+              <div><p className="font-semibold text-gray-700 mb-1">Sent</p>{transfers.sent?.length===0?<p className="text-gray-400">No sent yet</p>:transfers.sent.slice(0,5).map(t=> <div key={t.id} className="flex justify-between border-b border-gray-50 py-1.5"><span>→ {t.toUser?.username} ₦{(t.amount/100).toLocaleString()}<span className="text-gray-400"> fee ₦{(t.fee/100).toFixed(2)}</span></span><span className="text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</span></div>)}</div>
+              <div><p className="font-semibold text-gray-700 mb-1">Received</p>{transfers.received?.length===0?<p className="text-gray-400">No received yet</p>:transfers.received.slice(0,5).map(t=> <div key={t.id} className="flex justify-between border-b border-gray-50 py-1.5"><span>← {t.fromUser?.username} ₦{(t.amount/100).toLocaleString()}</span><span className="text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</span></div>)}</div>
             </div>
           )}
         </div>
