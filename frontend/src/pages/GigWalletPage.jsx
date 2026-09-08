@@ -18,9 +18,11 @@ export default function GigWalletPage() {
   const [loading, setLoading] = useState(true);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const withdrawRef = useRef(null);
-  const [withdrawForm, setWithdrawForm] = useState({ amount: "", bankCode: "044", accountNumber: "", pin: "" });
+  const [withdrawForm, setWithdrawForm] = useState({ amount: "", bankCode: "", accountNumber: "", pin: "", bankName: "" });
   const [withdrawing, setWithdrawing] = useState(false);
   const [banks, setBanks] = useState([]);
+  const [bankQuery, setBankQuery] = useState("");
+  const [showBankList, setShowBankList] = useState(false);
   const [showTopup, setShowTopup] = useState(false);
   const [topupAmount, setTopupAmount] = useState("");
   const [showTransfer, setShowTransfer] = useState(false);
@@ -194,7 +196,7 @@ export default function GigWalletPage() {
             <input type="number" min="1000" value={withdrawForm.amount} onChange={(e) => setWithdrawForm((f) => ({ ...f, amount: e.target.value }))} placeholder="1000" className="input-field mt-1" required />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div><label className="text-xs font-semibold text-gray-500">Bank</label><select value={withdrawForm.bankCode} onChange={e=>setWithdrawForm(f=>({...f, bankCode:e.target.value}))} className="input-field mt-1"><option value="">Select bank</option>{banks.map((b,i)=> <option key={`${b.code}-${i}`} value={b.code}>{b.name}</option>)}</select></div>
+            <div className="relative"><label className="text-xs font-semibold text-gray-500">Bank — search</label><input value={withdrawForm.bankCode ? (banks.find(b=>b.code===withdrawForm.bankCode)?.name || bankQuery) : bankQuery} onChange={e=>{ const q=e.target.value; setBankQuery(q); setShowBankList(true); if(!q) setWithdrawForm(f=>({...f, bankCode:"", bankName:""})); }} onFocus={()=>setShowBankList(true)} onBlur={()=>setTimeout(()=>setShowBankList(false),150)} placeholder="Search OPay, Kuda..." className="input-field mt-1" />{showBankList && <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">{banks.filter(b=> !bankQuery || b.name.toLowerCase().includes(bankQuery.toLowerCase()) || b.code.includes(bankQuery)).slice(0,20).map(b=> <button key={`${b.code}-${b.name}`} type="button" onClick={()=>{ setWithdrawForm(f=>({...f, bankCode:b.code, bankName:b.name})); setBankQuery(b.name); setShowBankList(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex justify-between"><span>{b.name}</span><span className="text-xs text-gray-400">{b.code}</span></button>)} </div>}</div>
             <div><label className="text-xs font-semibold text-gray-500">Account number</label><input value={withdrawForm.accountNumber} onChange={e=>setWithdrawForm(f=>({...f, accountNumber:e.target.value.replace(/\D/g,"").slice(0,10)}))} placeholder="809..." maxLength={10} className="input-field mt-1 font-mono" required /></div>
           </div>
           <div><label className="text-xs font-semibold text-gray-500">PIN</label><input type="password" maxLength={4} inputMode="numeric" value={withdrawForm.pin || ""} onChange={e=>setWithdrawForm(f=>({...f, pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="••••" className="input-field mt-1 w-24" required /></div>
