@@ -511,6 +511,44 @@ const hasGigPin = async (req, res) => {
   }
 };
 
+const getBanks = async (req, res) => {
+  try {
+    const config = require("../config/env");
+    const flwRes = await fetch("https://api.flutterwave.com/v3/banks/NG", { headers: { Authorization: `Bearer ${config.flutterwave.secretKey}` } });
+    const data = await flwRes.json();
+    if (data.status === "success" && Array.isArray(data.data)) {
+      // Ensure major fintechs are included (Opay, Kuda, Moniepoint, PalmPay) — Flutterwave list already has them but ensure
+      return res.json({ banks: data.data });
+    }
+    // fallback major banks
+    return res.json({ banks: [
+      { code: "044", name: "Access Bank" },
+      { code: "058", name: "GTBank" },
+      { code: "011", name: "First Bank" },
+      { code: "033", name: "UBA" },
+      { code: "057", name: "Zenith Bank" },
+      { code: "999992", name: "OPay" },
+      { code: "50211", name: "Kuda Bank" },
+      { code: "50515", name: "Moniepoint" },
+      { code: "999991", name: "PalmPay" },
+      { code: "035", name: "Wema Bank" },
+    ]});
+  } catch (err) {
+    console.error("[GET BANKS ERROR]", err);
+    return res.json({ banks: [
+      { code: "044", name: "Access Bank" },
+      { code: "058", name: "GTBank" },
+      { code: "011", name: "First Bank" },
+      { code: "033", name: "UBA" },
+      { code: "057", name: "Zenith Bank" },
+      { code: "999992", name: "OPay" },
+      { code: "50211", name: "Kuda Bank" },
+      { code: "50515", name: "Moniepoint" },
+      { code: "999991", name: "PalmPay" },
+    ]});
+  }
+};
+
 // Cron helpers
 const expireGigs = async () => {
   try {
@@ -535,4 +573,4 @@ const autoReleaseGigs = async () => {
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };
 
-module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, setGigPin, requestPinOtp, hasGigPin, setBank, resolveBank, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, expireGigs, autoReleaseGigs };
+module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, setGigPin, requestPinOtp, hasGigPin, setBank, resolveBank, getBanks, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, expireGigs, autoReleaseGigs };

@@ -82,10 +82,10 @@ export default function GigsPage() {
     }
   }, [searchParams]);
   useEffect(() => {
-    // fetch banks for withdraw
-    fetch("https://api.flutterwave.com/v3/banks/NG", { headers: { Authorization: `Bearer ${import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY || ""}` } }).catch(()=>{}).then(r=>r?.json?.()).then(d=>{ if(d?.data) setBanks(d.data.slice(0,30)); }).catch(()=>{});
-    // fallback static banks
-    if (banks.length===0) setBanks([{code:"044", name:"Access Bank"}, {code:"058", name:"GTBank"}, {code:"011", name:"First Bank"}, {code:"033", name:"UBA"}, {code:"057", name:"Zenith"}]);
+    // fetch banks via backend so all banks including OPay, Kuda, Moniepoint show
+    api.get("/gigs/banks").then(r=>{ if(r.data?.banks) setBanks(r.data.banks); }).catch(()=>{
+      setBanks([{code:"044", name:"Access Bank"}, {code:"058", name:"GTBank"}, {code:"011", name:"First Bank"}, {code:"033", name:"UBA"}, {code:"057", name:"Zenith Bank"}, {code:"999992", name:"OPay"}, {code:"50211", name:"Kuda Bank"}, {code:"50515", name:"Moniepoint"}, {code:"999991", name:"PalmPay"}]);
+    });
   }, []);
 
   const handleCreate = async (e) => {
@@ -202,9 +202,20 @@ export default function GigsPage() {
             <button onClick={async()=>{ if(!account?.accountNumber) return; await navigator.clipboard.writeText(account.accountNumber); toast.success("Account number copied"); }} className="ml-2 w-8 h-8 rounded-full bg-white/15 flex items-center justify-center hover:bg-white/25 transition-colors"><FiCopy className="w-4 h-4" /></button>
           </div>
           <div className="mt-6 flex gap-3">
-            <button onClick={()=>{ setShowTransfer(true); setTransferStep(1); setTransferResult(null); }} className="flex-1 bg-white text-navy-900 font-bold px-6 py-3 rounded-full text-sm shadow-lg hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2"><FiSend className="w-4 h-4"/> Transfer</button>
-            <button onClick={()=>setShowHistory(v=>!v)} className="flex-1 bg-white/15 text-white font-bold px-6 py-3 rounded-full text-sm border border-white/20 hover:bg-white/25 transition-colors">{showHistory?"Hide History":"Transfer History"}</button>
+            <button onClick={()=>{ setShowTransfer(true); setTransferStep(1); setTransferResult(null); setShowHistory(false); }} className="flex-1 bg-white text-navy-900 font-bold px-6 py-3 rounded-full text-sm shadow-lg hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2"><FiSend className="w-4 h-4"/> Transfer</button>
+            <button onClick={()=>{ setShowHistory(v=>!v); setShowTransfer(false); }} className="flex-1 bg-white/15 text-white font-bold px-6 py-3 rounded-full text-sm border border-white/20 hover:bg-white/25 transition-colors">{showHistory?"Hide History":"Transfer History"}</button>
           </div>
+          {showHistory && (
+            <div className="mt-6 pt-5 border-t border-white/15">
+              <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-white text-sm">Transfer History</h3><button onClick={()=>setShowHistory(false)} className="text-xs text-white/70 hover:text-white">Close</button></div>
+              {transfers ? (
+                <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                  <div><p className="font-semibold text-white/90 mb-2 text-xs">Sent</p>{transfers.sent?.length===0?<p className="text-white/50 text-xs">No sent yet</p>:transfers.sent.slice(0,5).map(t=> <div key={t.id} className="flex justify-between border-b border-white/10 py-2 text-white/90"><span>→ {t.toUser?.username} <b>₦{(t.amount/100).toLocaleString()}</b><span className="text-white/50"> fee ₦{(t.fee/100).toFixed(2)}</span></span><span className="text-white/50 text-xs">{new Date(t.createdAt).toLocaleDateString()}</span></div>)}</div>
+                  <div><p className="font-semibold text-white/90 mb-2 text-xs">Received</p>{transfers.received?.length===0?<p className="text-white/50 text-xs">No received yet</p>:transfers.received.map(t=> <div key={t.id} className="flex justify-between border-b border-white/10 py-2 text-white/90"><span>← {t.fromUser?.username} <b>₦{(t.amount/100).toLocaleString()}</b></span><span className="text-white/50 text-xs">{new Date(t.createdAt).toLocaleDateString()}</span></div>)}</div>
+                </div>
+              ) : <p className="text-sm text-white/70">Loading...</p>}
+            </div>
+          )}
         </div>
         <div className="mt-4 grid grid-cols-1 sm:flex gap-3">
           <div className="flex-1 card p-3"><label className="text-xs font-semibold text-gray-500">Top up</label><div className="flex gap-2 mt-1"><input type="number" min="100" value={topupAmount} onChange={e=>setTopupAmount(e.target.value)} placeholder="500" className="input-field flex-1 text-sm" /><button onClick={handleTopup} className="btn-primary px-3 py-2 text-xs">Top up</button></div></div>
@@ -275,18 +286,7 @@ export default function GigsPage() {
         )}
       </div>
 
-      {/* ── Transfer History — separate view ── */}
-      {showHistory && (
-        <div className="card p-5 mb-6">
-          <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-gray-900">Transfer History</h3><button onClick={()=>setShowHistory(false)} className="text-sm text-gray-500">Close</button></div>
-          {transfers ? (
-            <div className="grid sm:grid-cols-2 gap-6 text-sm">
-              <div><p className="font-semibold text-gray-700 mb-2">Sent</p>{transfers.sent?.length===0?<p className="text-gray-400 text-xs">No sent yet</p>:transfers.sent.map(t=> <div key={t.id} className="flex justify-between border-b border-gray-50 py-2"><span>→ {t.toUser?.username} <b>₦{(t.amount/100).toLocaleString()}</b><span className="text-gray-400"> fee ₦{(t.fee/100).toFixed(2)}</span></span><span className="text-gray-400 text-xs">{new Date(t.createdAt).toLocaleDateString()}</span></div>)}</div>
-              <div><p className="font-semibold text-gray-700 mb-2">Received</p>{transfers.received?.length===0?<p className="text-gray-400 text-xs">No received yet</p>:transfers.received.map(t=> <div key={t.id} className="flex justify-between border-b border-gray-50 py-2"><span>← {t.fromUser?.username} <b>₦{(t.amount/100).toLocaleString()}</b></span><span className="text-gray-400 text-xs">{new Date(t.createdAt).toLocaleDateString()}</span></div>)}</div>
-            </div>
-          ) : <p className="text-sm text-gray-400">Loading...</p>}
-        </div>
-      )}
+
 
       {/* ── Transfer Screen — 3 steps + result ── */}
       {showTransfer && (
