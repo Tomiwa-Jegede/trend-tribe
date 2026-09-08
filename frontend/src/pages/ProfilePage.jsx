@@ -2,6 +2,7 @@
 import { ProfileSkeleton } from "../components/ui/LoadingSpinner";
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "../context/AuthContext";
 import ListingCard from "../components/listings/ListingCard";
 import { getListingsByUser } from "../services/listingService";
@@ -19,7 +20,9 @@ const ProfilePage = () => {
   const { toast } = useToast();
   const handleCopyProfileLink = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const slugWithHash = seller?.slug || id;
+      const shareUrl = `${window.location.origin}/profile/${slugWithHash}`;
+      await navigator.clipboard.writeText(shareUrl);
       toast.success("Profile link copied to clipboard!");
     } catch {
       toast.error("Failed to copy link.");
@@ -144,8 +147,27 @@ const ProfilePage = () => {
     );
   }
 
+  const ogImage = seller?.avatar || "https://trendtribe.app/icon-512.png";
+  const ogUrl = seller?.slug ? `https://trendtribe.app/profile/${seller.slug}` : typeof window !== "undefined" ? window.location.href : "";
+  const ogTitle = seller ? `${seller.fullName} (@${seller.username}) — Trend Tribe` : "Trend Tribe — Student Marketplace";
+  const ogDescription = seller?.bio || seller?.school ? `${seller?.bio || ""} ${seller?.school ? `· ${seller.school}` : ""}`.trim() : "Student marketplace for campus communities";
+
   return (
     <div className="container-app py-6 sm:py-10">
+      <Helmet>
+        <title>{ogTitle}</title>
+        <meta property="og:title" content={ogTitle} />
+        <meta property="og:description" content={ogDescription} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:image:width" content="512" />
+        <meta property="og:image:height" content="512" />
+        <meta property="og:url" content={ogUrl} />
+        <meta property="og:type" content="profile" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content={ogTitle} />
+        <meta name="twitter:description" content={ogDescription} />
+        <meta name="twitter:image" content={ogImage} />
+      </Helmet>
       {isOwnProfile && seller.role === "SELLER" && !seller.whatsapp && (
         <Alert
           type="info"
