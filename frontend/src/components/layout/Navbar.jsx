@@ -24,6 +24,7 @@ import PWAInstallButton from "../pwa/PWAInstallButton";
 import TokenIcon from "../ui/TokenIcon";
 import api from "../../api/axios";
 import useRealtime from "../../hooks/useRealtime";
+import { getGigs } from "../../services/gigService";
 
 // ── Reduced-motion helper ──────────────────────────────────────
 const useReducedMotion = () => {
@@ -78,6 +79,18 @@ const Navbar = () => {
   const moreRef = useRef(null);
   const [showMoreMobile, setShowMoreMobile] = useState(false);
   const moreMobileRef = useRef(null);
+  const [showGigsMenu, setShowGigsMenu] = useState(false);
+  const gigsMenuRef = useRef(null);
+  const [showGigsMenuMobile, setShowGigsMenuMobile] = useState(false);
+  const gigsMenuMobileRef = useRef(null);
+  const [availableGigsCount, setAvailableGigsCount] = useState(0);
+  const [showBookingsMenu, setShowBookingsMenu] = useState(false);
+  const bookingsMenuRef = useRef(null);
+  const [showBookingsMenuMobile, setShowBookingsMenuMobile] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const accountMenuRef = useRef(null);
+  const bookingsMenuMobileRef = useRef(null);
+  const [hasActiveService, setHasActiveService] = useState(false);
 
   const fetchInbox = useCallback(async () => {
     if (!isAuthenticated || !token) { setInboxUnread(0); return; }
@@ -103,17 +116,55 @@ const Navbar = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+  useEffect(() => {
+    let cancelled = false;
+    getGigs({ limit: 50 })
+      .then((data) => {
+        if (cancelled) return;
+        const openCount = (data.gigs || []).filter((g) => g.status === "OPEN").length;
+        setAvailableGigsCount(openCount);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableGigsCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Hide "As Provider" unless user has at least one active SERVICES listing
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) { setHasActiveService(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get("/listings/me", { params: { limit: 50 } });
+        const has = (data.listings || []).some((l) => l.category === "SERVICES" && l.isAvailable);
+        if (!cancelled) setHasActiveService(has);
+      } catch { if (!cancelled) setHasActiveService(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, user?.id, location.pathname]);
 
   useEffect(() => {
     setMenuOpen(false);
     setShowMore(false);
     setShowMoreMobile(false);
+    setShowGigsMenu(false);
+    setShowGigsMenuMobile(false);
+    setShowBookingsMenu(false);
+    setShowBookingsMenuMobile(false);
   }, [location.pathname]);
 
   useEffect(() => {
     const h = (e) => {
       if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false);
       if (moreMobileRef.current && !moreMobileRef.current.contains(e.target)) setShowMoreMobile(false);
+      if (gigsMenuRef.current && !gigsMenuRef.current.contains(e.target)) setShowGigsMenu(false);
+      if (gigsMenuMobileRef.current && !gigsMenuMobileRef.current.contains(e.target)) setShowGigsMenuMobile(false);
+      if (bookingsMenuRef.current && !bookingsMenuRef.current.contains(e.target)) setShowBookingsMenu(false);
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) setShowAccountMenu(false);
+      if (bookingsMenuMobileRef.current && !bookingsMenuMobileRef.current.contains(e.target)) setShowBookingsMenuMobile(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -238,8 +289,79 @@ const Navbar = () => {
             <div className="hidden md:flex items-center gap-6">
               <NavLink path="/" label="Home" />
               <NavLink path="/marketplace" label="Marketplace" />
-              <NavLink path="/gigs" label="Gigs" />
-              <NavLink path="/bookings" label="Bookings" />
+              <div className="relative" ref={gigsMenuRef}>
+                <button
+                  onClick={() => setShowGigsMenu((v) => !v)}
+                  className={`flex items-center gap-1 text-sm font-medium pb-1 ${
+                    location.pathname.startsWith("/gigs") ? "text-primary-600" : "text-gray-600 hover:text-primary-600"
+                  }`}
+                >
+                  Gigs
+                  {availableGigsCount > 0 && (
+                    <span className="ml-0.5 bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                      {availableGigsCount > 99 ? "99+" : availableGigsCount}
+                    </span>
+                  )}
+                  <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showGigsMenu ? "rotate-180" : ""}`} />
+                </button>
+                <AnimatePresence>
+                  {showGigsMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute top-8 left-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-52 z-50"
+                    >
+                      <Link to="/gigs?view=post" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                        Post Gig
+                      </Link>
+                      <Link to="/gigs/available" onClick={() => setShowGigsMenu(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                        <span>Available Gigs</span>
+                        {availableGigsCount > 0 && (
+                          <span className="bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                            {availableGigsCount > 99 ? "99+" : availableGigsCount}
+                          </span>
+                        )}
+                      </Link>
+                      <Link to="/gigs/wallet" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                        Wallet
+                      </Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <div className="relative" ref={bookingsMenuRef}>
+                <button
+                  onClick={() => setShowBookingsMenu((v) => !v)}
+                  className={`flex items-center gap-1 text-sm font-medium pb-1 ${
+                    location.pathname.startsWith("/bookings") ? "text-primary-600" : "text-gray-600 hover:text-primary-600"
+                  }`}
+                >
+                  Bookings
+                  <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showBookingsMenu ? "rotate-180" : ""}`} />
+                </button>
+                <AnimatePresence>
+                  {showBookingsMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute top-8 left-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-48 z-50"
+                    >
+                      {hasActiveService && (
+                        <Link to="/bookings/provider" onClick={() => setShowBookingsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                          As Provider
+                        </Link>
+                      )}
+                      <Link to="/bookings/mine" onClick={() => setShowBookingsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                        My Bookings
+                      </Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               <div className="relative" ref={moreRef}>
                 <button
                   onClick={() => setShowMore((v) => !v)}
@@ -273,90 +395,13 @@ const Navbar = () => {
 
             {/* ── Desktop Auth Buttons ──────────────────────── */}
             <div className="hidden md:flex items-center gap-3">
-              <PWAInstallButton variant="outline" size="small" />
               {isAuthenticated ? (
                 <>
-                  {user?.role !== "BUYER" && (
-                    <motion.div
-                      whileHover={reducedMotion ? {} : { scale: 1.03 }}
-                      whileTap={reducedMotion ? {} : { scale: 0.97 }}
-                    >
-                      <Link
-                        to="/create-listing"
 
-                        className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
-                      >
-                        <FiPlus className="w-4 h-4" />
-                        Sell Item
-                      </Link>
-                    </motion.div>
-                  )}
-
-                                   <div className="flex items-center gap-2 pl-3 border-l border-sage-100">
-                    <Link
-
-                      to={`/profile/${user?.slug || user?.id}`}
-
-                      className="flex items-center gap-2 text-sm text-gray-700
-
-                                 hover:text-primary-600 transition-colors"
-
-                    >
-
-                      <motion.div
-
-                        className="w-8 h-8 bg-sage-100 rounded-full overflow-hidden flex items-center justify-center"
-
-                        whileHover={reducedMotion ? {} : { scale: 1.1 }}
-
-                        transition={{
-
-                          type: "spring",
-
-                          stiffness: 400,
-
-                          damping: 20,
-
-                        }}
-
-                      >
-
-                        {user?.avatar ? (
-
-                          <img
-
-                            src={user.avatar}
-
-                            alt={user.username}
-
-                            className="w-full h-full object-cover"
-
-                          />
-
-                        ) : (
-
-                          <FiUser className="w-4 h-4 text-primary-600" />
-
-                        )}
-
-                      </motion.div>
-
-                      <span className="font-medium">{user?.username}</span>
-
+                  <div className="flex items-center gap-1 pl-3 border-l border-sage-100">
+                    <Link to="/saved" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Favorites">
+                      <FiHeart className={`w-5 h-5 ${location.pathname === "/saved" ? "text-primary-600 fill-primary-600" : "text-gray-600"}`} />
                     </Link>
-
-                    {user?.role !== "ADMIN" && typeof user?.tokenBalance === "number" && (
-                      <span className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-full px-2.5 py-1">
-                        <TokenIcon size={14} /> {user.tokenBalance}
-                      </span>
-                    )}
-
-                    {isAuthenticated && (
-                      <Link to="/saved" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Favorites">
-                        <FiHeart className={`w-5 h-5 ${location.pathname === "/saved" ? "text-primary-600 fill-primary-600" : "text-gray-600"}`} />
-                      </Link>
-                    )}
-
                     <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Inbox">
                       <FiMail className={`w-5 h-5 ${location.pathname === "/inbox" ? "text-primary-600" : "text-gray-600"}`} />
                       {inboxUnread > 0 && (
@@ -365,24 +410,50 @@ const Navbar = () => {
                         </span>
                       )}
                     </Link>
-
                     <NotificationBell />
-
-                    <motion.button
-                      onClick={handleLogout}
-                      className="p-2 text-gray-400 hover:text-red-500
-                                 transition-colors rounded-lg hover:bg-accent-50"
-                      title="Logout"
-                      whileHover={reducedMotion ? {} : { scale: 1.1 }}
-                      whileTap={reducedMotion ? {} : { scale: 0.9 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 20,
-                      }}
-                    >
-                      <FiLogOut className="w-4 h-4" />
-                    </motion.button>
+                    <div className="relative" ref={accountMenuRef}>
+                      <button
+                        onClick={() => setShowAccountMenu((v) => !v)}
+                        className="flex items-center gap-2 text-sm text-gray-700 hover:text-primary-600 transition-colors pl-1"
+                      >
+                        <motion.div
+                          className="w-8 h-8 bg-sage-100 rounded-full overflow-hidden flex items-center justify-center"
+                          whileHover={reducedMotion ? {} : { scale: 1.1 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                        >
+                          {user?.avatar ? (
+                            <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                          ) : (
+                            <FiUser className="w-4 h-4 text-primary-600" />
+                          )}
+                        </motion.div>
+                        <span className="font-medium">{user?.username}</span>
+                        <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showAccountMenu ? "rotate-180" : ""}`} />
+                      </button>
+                      {showAccountMenu && (
+                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                          <Link to={`/profile/${user?.slug || user?.id}`} onClick={() => setShowAccountMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            My Profile
+                          </Link>
+                          {user?.role !== "ADMIN" && typeof user?.tokenBalance === "number" && (
+                            <div className="flex items-center gap-1.5 px-4 py-2 text-sm text-primary-700">
+                              <TokenIcon size={14} /> {user.tokenBalance} tokens
+                            </div>
+                          )}
+                          {user?.role === "ADMIN" && (
+                            <Link to="/admin" onClick={() => setShowAccountMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                              Admin
+                            </Link>
+                          )}
+                          <button
+                            onClick={handleLogout}
+                            className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50 border-t border-gray-100 mt-1 pt-2"
+                          >
+                            <FiLogOut className="w-4 h-4" /> Logout
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               ) : (
@@ -461,8 +532,62 @@ const Navbar = () => {
             >
               <MobileNavLink path="/" label="Home" index={0} />
               <MobileNavLink path="/marketplace" label="Marketplace" index={1} />
-              <MobileNavLink path="/gigs" label="Gigs" index={1} />
-              <MobileNavLink path="/bookings" label="Bookings" index={1} />
+              <div ref={gigsMenuMobileRef}>
+                <motion.div custom={1} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
+                  <button
+                    onClick={() => setShowGigsMenuMobile((v) => !v)}
+                    className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      Gigs
+                      {availableGigsCount > 0 && (
+                        <span className="bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                          {availableGigsCount > 99 ? "99+" : availableGigsCount}
+                        </span>
+                      )}
+                    </span>
+                    <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showGigsMenuMobile ? "rotate-180" : ""}`} />
+                  </button>
+                </motion.div>
+                <AnimatePresence>
+                  {showGigsMenuMobile && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
+                    >
+                      <MobileNavLink path="/gigs?view=post" label="Post Gig" index={2} />
+                      <MobileNavLink path="/gigs/available" label="Available Gigs" index={2} />
+                      <MobileNavLink path="/gigs/wallet" label="Wallet" index={2} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <div ref={bookingsMenuMobileRef}>
+                <motion.div custom={1} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
+                  <button
+                    onClick={() => setShowBookingsMenuMobile((v) => !v)}
+                    className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
+                  >
+                    <span>Bookings</span>
+                    <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showBookingsMenuMobile ? "rotate-180" : ""}`} />
+                  </button>
+                </motion.div>
+                <AnimatePresence>
+                  {showBookingsMenuMobile && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
+                    >
+                      {hasActiveService && <MobileNavLink path="/bookings/provider" label="As Provider" index={2} />}
+                      <MobileNavLink path="/bookings/mine" label="My Bookings" index={2} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               <div ref={moreMobileRef}>
                 <motion.div custom={2} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
                   <button

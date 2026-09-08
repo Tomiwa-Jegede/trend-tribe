@@ -281,7 +281,14 @@ const ProfilePage = () => {
                 className="btn-primary flex items-center gap-2 whitespace-nowrap flex-1 sm:flex-none justify-center text-sm"
               >
                 <FiPlus className="w-4 h-4" />
-                New Listing
+                Sell Item
+              </Link>
+              <Link
+                to="/create-listing?category=SERVICES"
+                className="btn-secondary flex items-center gap-2 whitespace-nowrap flex-1 sm:flex-none justify-center text-sm border-primary-200"
+              >
+                <FiPlus className="w-4 h-4" />
+                Sell Service
               </Link>
             </div>
           )}

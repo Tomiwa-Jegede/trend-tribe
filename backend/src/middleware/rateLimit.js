@@ -41,4 +41,20 @@ const jegedeLimiter = rateLimit({
   message: { error: "Too many Jegede updates, please try again shortly" },
 });
 
-module.exports = { authLimiter, otpLimiter, paymentLimiter, frederickLimiter, jegedeLimiter };
+const gigTransferLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many transfer attempts, try again in 15 minutes" },
+});
+
+const gigResolveLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many resolve attempts, slow down" },
+});
+
+module.exports = { authLimiter, otpLimiter, paymentLimiter, frederickLimiter, jegedeLimiter, gigTransferLimiter, gigResolveLimiter };

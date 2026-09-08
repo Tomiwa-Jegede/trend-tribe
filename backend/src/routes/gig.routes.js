@@ -3,17 +3,20 @@ const express = require("express");
 const { protect } = require("../middleware/auth.middleware");
 const { initGigPayment, verifyGigPayment } = require("../controllers/gigPayment.controller");
 const { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig } = require("../controllers/gig.controller");
+const { gigTransferLimiter, gigResolveLimiter } = require("../middleware/rateLimit");
 
 const router = express.Router();
 
 // Public feed
 router.get("/", listGigs);
-// Wallet account + transfer + PIN (protected, before :id)
+// Wallet account + transfer + PIN + bank (protected, before :id)
 router.get("/account", protect, require("../controllers/gig.controller").getGigAccount);
 router.get("/pin", protect, require("../controllers/gig.controller").hasGigPin);
 router.post("/pin", protect, require("../controllers/gig.controller").setGigPin);
-router.post("/resolve", protect, require("../controllers/gig.controller").resolveGigAccount);
-router.post("/transfer", protect, require("../controllers/gig.controller").transferGig);
+router.post("/bank", protect, require("../controllers/gig.controller").setBank);
+router.post("/bank/resolve", protect, require("../controllers/gig.controller").resolveBank);
+router.post("/resolve", protect, gigResolveLimiter, require("../controllers/gig.controller").resolveGigAccount);
+router.post("/transfer", protect, gigTransferLimiter, require("../controllers/gig.controller").transferGig);
 router.get("/transfers", protect, require("../controllers/gig.controller").listGigTransfers);
 // Payments (protected)
 router.post("/payments/init", protect, initGigPayment);

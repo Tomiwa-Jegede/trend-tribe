@@ -35,6 +35,9 @@ model User {
   gigBalance           Int             @default(0) // kobo, separate from marketplace tokenBalance, buyable, Naira display
   gigAccountNumber     String?         @unique // 10 digits like 8091234567
   gigTransferPin       String?         // bcrypt hash of 4-digit PIN
+  bankAccountNumber    String?
+  bankCode             String?
+  bankName             String?
   firstServiceAt       DateTime?
   serviceTrialEndsAt   DateTime?
   marketingOptIn       Boolean         @default(true)
@@ -330,8 +333,14 @@ model GigWithdrawal {
   id        Int      @id @default(autoincrement())
   userId    Int
   amount    Int      // kobo
-  whatsapp  String
-  status    String   @default("PENDING") // PENDING | COMPLETED | FAILED
+  whatsapp  String?  // legacy, kept for admin view
+  bankCode  String?
+  bankAccountNumber String?
+  bankName  String?
+  accountName String?
+  fee       Int      @default(0) // 1% fee, kobo
+  reference String?  @unique
+  status    String   @default("PENDING") // PENDING | COMPLETED | FAILED | REJECTED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -12,6 +12,7 @@ const bookService = async (req, res) => {
     if (listing.category !== "SERVICES") return res.status(400).json({ error: "Only SERVICES can be booked" });
     if (!listing.isAvailable) return res.status(400).json({ error: "Service not available" });
     if (listing.sellerId === req.user.id) return res.status(400).json({ error: "You cannot book your own service" });
+    if (parseFloat(listing.price) > 50000) return res.status(400).json({ error: "Service price must be ≤ ₦50,000" });
 
     const amountKobo = Math.round(parseFloat(listing.price) * 100);
     const expiresAt = new Date(Date.now() + BOOKING_EXPIRE_HOURS * 60 * 60 * 1000);
@@ -60,8 +61,11 @@ const confirmServiceBooking = async (req, res) => {
     const provider = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tokenBalance: true } });
     if ((provider?.tokenBalance || 0) < feeTokens) return res.status(402).json({ error: `Need ${feeTokens} tokens for 20% fee (₦${(feeKobo/100).toLocaleString()}). You have ${provider?.tokenBalance||0}.`, feeTokens });
 
+    const bookerRefundTokens = Math.ceil(booking.amount / 20000);
     await prisma.$transaction(async (tx) => {
-      await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: feeTokens } }, data: { tokenBalance: { decrement: feeTokens } } });
+      const ok = await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: feeTokens } }, data: { tokenBalance: { decrement: feeTokens } } });
+      if (ok.count === 0) throw new Error("FEE_RACE");
+      await tx.user.update({ where: { id: booking.bookerId }, data: { tokenBalance: { increment: bookerRefundTokens } } });
       await tx.serviceBooking.update({ where: { id }, data: { status: "CONFIRMED" } });
     });
 

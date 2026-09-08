@@ -1,7 +1,7 @@
 // src/pages/CreateListingPage.jsx — Live API Version
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ListingForm from "../components/listings/ListingForm";
 import { createListing } from "../services/listingService";
@@ -9,7 +9,9 @@ import Alert from "../components/ui/Alert";
 import BuyTokens from "../components/ui/BuyTokens";
 const CreateListingPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, refreshUser } = useAuth();
+  const initialCategory = searchParams.get("category")?.toUpperCase() || "";
 const [pendingListing, setPendingListing] = useState(null); // { formData, tokenBalance } | null
   const [confirming, setConfirming] = useState(false);
   const [buyTokensOpen, setBuyTokensOpen] = useState(false);
@@ -82,19 +84,21 @@ const [pendingListing, setPendingListing] = useState(null); // { formData, token
     }
   };
 
+  const isService = initialCategory === "SERVICES";
   return (
     <div className="container-app py-10 max-w-2xl">
       <div className="mb-8">
-        <h1 className="text-gray-900">Create a Listing</h1>
+        <h1 className="text-gray-900">{isService ? "Sell a Service" : "Create a Listing"}</h1>
         <p className="text-gray-500 mt-2">
-          Fill in the details below to list your item on the marketplace.
+          {isService ? "Describe your service, set your price, and add photos — same flow as a product, 3 images free, 0.5 token per extra." : "Fill in the details below to list your item on the marketplace."}
         </p>
       </div>
 
       <div className="card p-8">
         <ListingForm
+          initialData={initialCategory ? { category: initialCategory } : undefined}
           onSubmit={handleSubmit}
-          submitLabel="Post Listing"
+          submitLabel={isService ? "Post Service" : "Post Listing"}
           loadingLabel="Posting..."
         />
         {pendingListing && (

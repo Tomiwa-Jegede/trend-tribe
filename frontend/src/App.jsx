@@ -40,7 +40,13 @@ const MyListingsPage = lazy(() => import("./pages/MyListingsPage"));
 const InboxPage = lazy(() => import("./pages/InboxPage"));
 const AdminAnalyticsPage = lazy(() => import("./pages/AdminAnalyticsPage"));
 const GigsPage = lazy(() => import("./pages/GigsPage"));
+const GigWalletPage = lazy(() => import("./pages/GigWalletPage"));
+const GigAvailablePage = lazy(() => import("./pages/GigAvailablePage"));
+const GigTransferPage = lazy(() => import("./pages/GigTransferPage"));
+const GigTransactionHistoryPage = lazy(() => import("./pages/GigTransactionHistoryPage"));
 const ServiceBookingsPage = lazy(() => import("./pages/ServiceBookingsPage"));
+const BookingProviderPage = lazy(() => import("./pages/BookingProviderPage"));
+const BookingMinePage = lazy(() => import("./pages/BookingMinePage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -228,7 +234,13 @@ const App = () => {
             />
             <Route path="/gigs" element={<GigsPage />} />
             <Route path="/gigs/callback" element={<GigsPage />} />
+            <Route path="/gigs/available" element={<GigAvailablePage />} />
+            <Route path="/gigs/wallet" element={<ProtectedRoute><GigWalletPage /></ProtectedRoute>} />
+            <Route path="/gigs/wallet/transfer" element={<ProtectedRoute><GigTransferPage /></ProtectedRoute>} />
+            <Route path="/gigs/wallet/history" element={<ProtectedRoute><GigTransactionHistoryPage /></ProtectedRoute>} />
             <Route path="/bookings" element={<ProtectedRoute><ServiceBookingsPage /></ProtectedRoute>} />
+            <Route path="/bookings/provider" element={<ProtectedRoute><BookingProviderPage /></ProtectedRoute>} />
+            <Route path="/bookings/mine" element={<ProtectedRoute><BookingMinePage /></ProtectedRoute>} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />

@@ -158,7 +158,7 @@ const ListingForm = ({
     ) {
       newErrors.subcategory = "Please select a subcategory";
     }
-    if (!formData.condition) newErrors.condition = "Please select a condition";
+    if (formData.category !== "SERVICES" && !formData.condition) newErrors.condition = "Please select a condition";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -296,28 +296,30 @@ const ListingForm = ({
             </div>
           )}
 
-          <div>
-            <label htmlFor="condition" className="input-label">
-            Condition <span className="text-red-500 ml-0.5">*</span>
-          </label>
-          <select
-            id="condition"
-            name="condition"
-            value={formData.condition}
-            onChange={handleChange}
-            className={`input-field ${errors.condition ? "border-red-400" : ""}`}
-          >
-            <option value="">Select condition</option>
-            {CONDITIONS.map((c) => (
-              <option key={c} value={c}>
-                {c.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-                     {errors.condition && (
-              <p className="input-error">{errors.condition}</p>
-            )}
-          </div>
+          {formData.category !== "SERVICES" && (
+            <div>
+              <label htmlFor="condition" className="input-label">
+              Condition <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <select
+              id="condition"
+              name="condition"
+              value={formData.condition}
+              onChange={handleChange}
+              className={`input-field ${errors.condition ? "border-red-400" : ""}`}
+            >
+              <option value="">Select condition</option>
+              {CONDITIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c.replace("_", " ")}
+                </option>
+              ))}
+            </select>
+                       {errors.condition && (
+                <p className="input-error">{errors.condition}</p>
+              )}
+            </div>
+          )}
       </div>
 
       {/* ── Photo upload grid ────────────────────────────────── */}

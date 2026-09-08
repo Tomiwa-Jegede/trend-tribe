@@ -734,4 +734,10 @@ router.post("/send-weekly-email", async (req, res) => {
   }
 });
 
+// ─── Gig withdrawals — admin approve → Flutterwave transfer ──
+const { listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal } = require("../controllers/gig.controller");
+router.get("/gig-withdrawals", protect, requireAdmin, listGigWithdrawals);
+router.post("/gig-withdrawals/:id/approve", protect, requireAdmin, approveGigWithdrawal);
+router.post("/gig-withdrawals/:id/reject", protect, requireAdmin, rejectGigWithdrawal);
+
 module.exports = router;

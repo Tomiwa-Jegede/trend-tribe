@@ -26,6 +26,28 @@ const createGig = async (req, res) => {
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       return tx.gig.create({ data: { description: description.trim(), whatsapp: whatsapp.trim(), amount: amountKobo, escrowAmount: amountKobo, timerHours: hours, status: "OPEN", posterId: req.user.id, expiresAt } });
     });
+    // realtime badge + push to all users when gig goes live
+    try {
+      const { emitGig } = require("../realtime");
+      if (emitGig) emitGig("created", gig);
+      // push notification to all subscribed users
+      const { sendPushToUser } = require("../utils/push");
+      const subs = await prisma.pushSubscription.findMany({ select: { userId: true } });
+      const userIds = [...new Set(subs.map(s=>s.userId).filter(Boolean))];
+      for (const uid of userIds) {
+        if (uid === req.user.id) continue;
+        sendPushToUser(prisma, uid, {
+          title: "Trend Tribe — New gig posted",
+          body: `${gig.description.slice(0,60)} · ₦${(gig.amount/100).toLocaleString()}`,
+          url: "/gigs?view=feed",
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          tag: `gig-${gig.id}`,
+        }).catch(()=>{});
+      }
+      // also emit via generic push trigger if available
+      try { const { trigger } = require("../utils/push"); trigger("gig", "gig:created", { id: gig.id }); } catch {}
+    } catch {}
     return res.status(201).json({ gig });
   } catch (err) {
     if (err.message === "BALANCE_RACE") return res.status(402).json({ error: "Balance changed, try again" });
@@ -182,24 +204,172 @@ const disputeGig = async (req, res) => {
   }
 };
 
-// POST /api/gigs/withdraw — claimer withdraws gigBalance to WhatsApp money
+// POST /api/gigs/withdraw — withdraw Gig Naira to bank (requires PIN, 1% fee, admin approve → Flutterwave transfer)
+// Ledger-first: don't deduct until admin approves and Flutterwave confirms. Request just checks balance and creates PENDING.
 const withdrawGig = async (req, res) => {
   try {
-    const { amount, whatsapp } = req.body;
+    const { amount, bankCode, accountNumber, pin } = req.body;
     const amt = parseInt(amount, 10);
     if (!amt || amt < 1000) return res.status(400).json({ error: "Minimum withdraw ₦1000" });
+    if (!bankCode?.trim() || !accountNumber?.trim() || !/^\d{10}$/.test(accountNumber.trim())) return res.status(400).json({ error: "Valid bank code and 10-digit account number required" });
+    if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "4-digit PIN required" });
     const kobo = amt * 100;
-    if (!whatsapp?.trim() || !/^(\+234|0)[789][01]\d{8}$/.test(whatsapp.trim())) return res.status(400).json({ error: "Valid WhatsApp required" });
-    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true } });
-    if (!user || user.gigBalance < kobo) return res.status(402).json({ error: `Insufficient Gig balance ₦${((user?.gigBalance||0)/100).toLocaleString()}` });
-    const w = await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: req.user.id }, data: { gigBalance: { decrement: kobo } } });
-      return tx.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, whatsapp: whatsapp.trim(), status: "PENDING" } });
-    });
-    return res.status(201).json({ withdrawal: w, message: "Withdraw request created — admin will pay to your WhatsApp number." });
+    let feeKobo = Math.round(kobo * 0.01); // 1%
+    if (feeKobo === 0 && kobo > 0) feeKobo = 1;
+    const totalKobo = kobo + feeKobo;
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, gigTransferPin: true } });
+    if (!user.gigTransferPin) return res.status(400).json({ error: "Set your 4-digit transfer PIN first" });
+    const pinOk = await bcrypt.compare(pin, user.gigTransferPin);
+    if (!pinOk) return res.status(403).json({ error: "Incorrect PIN" });
+    if ((user.gigBalance || 0) < totalKobo) return res.status(402).json({ error: `Insufficient Gig balance. Need ₦${(totalKobo/100).toLocaleString()} (₦${amt.toLocaleString()} + ₦${(feeKobo/100).toFixed(2)} fee). You have ₦${((user.gigBalance||0)/100).toLocaleString()}.` });
+
+    // Optional: resolve bank account name via Flutterwave for snapshot
+    let accountName = null, bankName = null;
+    try {
+      const flwRes = await fetch("https://api.flutterwave.com/v3/accounts/resolve", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${require("../config/env").flutterwave.secretKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ account_number: accountNumber.trim(), account_bank: bankCode.trim() }),
+      });
+      const data = await flwRes.json();
+      if (data.status === "success" && data.data?.account_name) { accountName = data.data.account_name; bankName = data.data.account_bank || bankCode; }
+    } catch {}
+
+    const reference = `gigw_${req.user.id}_${Date.now()}`;
+    const w = await prisma.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, fee: feeKobo, bankCode: bankCode.trim(), bankAccountNumber: accountNumber.trim(), bankName: bankName || bankCode, accountName, reference, status: "PENDING" } });
+    // save bank to user for next time (don't deduct yet)
+    await prisma.user.update({ where: { id: req.user.id }, data: { bankAccountNumber: accountNumber.trim(), bankCode: bankCode.trim(), bankName: bankName || bankCode } });
+    return res.status(201).json({ withdrawal: w, message: `Withdraw request ₦${amt.toLocaleString()} queued — admin will approve (fee ₦${(feeKobo/100).toFixed(2)}). Money leaves Gig wallet only when Flutterwave confirms. If Flutterwave has no cash (T+1), it stays queued for next settlement.` });
   } catch (err) {
     console.error("[WITHDRAW GIG ERROR]", err);
     return res.status(500).json({ error: "Could not withdraw" });
+  }
+};
+
+const setBank = async (req, res) => {
+  try {
+    const { accountNumber, bankCode } = req.body;
+    if (!accountNumber || !/^\d{10}$/.test(accountNumber.trim())) return res.status(400).json({ error: "10-digit account number required" });
+    if (!bankCode?.trim()) return res.status(400).json({ error: "Bank code required" });
+    let accountName = null, bankName = bankCode;
+    try {
+      const flwRes = await fetch("https://api.flutterwave.com/v3/accounts/resolve", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${require("../config/env").flutterwave.secretKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ account_number: accountNumber.trim(), account_bank: bankCode.trim() }),
+      });
+      const data = await flwRes.json();
+      if (data.status === "success" && data.data?.account_name) { accountName = data.data.account_name; bankName = data.data.account_bank || bankCode; }
+    } catch {}
+    await prisma.user.update({ where: { id: req.user.id }, data: { bankAccountNumber: accountNumber.trim(), bankCode: bankCode.trim(), bankName } });
+    return res.json({ bankAccountNumber: accountNumber.trim(), bankCode: bankCode.trim(), bankName, accountName, message: accountName ? `Verified — ${accountName}` : "Bank saved" });
+  } catch (err) {
+    console.error("[SET BANK ERROR]", err);
+    return res.status(500).json({ error: "Could not save bank" });
+  }
+};
+
+const resolveBank = async (req, res) => {
+  try {
+    const { accountNumber, bankCode } = req.body;
+    if (!accountNumber || !bankCode) return res.status(400).json({ error: "Account number and bank code required" });
+    const flwRes = await fetch("https://api.flutterwave.com/v3/accounts/resolve", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${require("../config/env").flutterwave.secretKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ account_number: accountNumber.trim(), account_bank: bankCode.trim() }),
+    });
+    const data = await flwRes.json();
+    if (data.status === "success" && data.data?.account_name) return res.json({ accountName: data.data.account_name, bankName: data.data.account_bank });
+    return res.status(404).json({ error: data.message || "Could not resolve account" });
+  } catch (err) {
+    console.error("[RESOLVE BANK ERROR]", err);
+    return res.status(500).json({ error: "Could not resolve" });
+  }
+};
+
+// ─── Admin: list/approve/reject withdrawals ─────────
+const listGigWithdrawals = async (req, res) => {
+  try {
+    const { status = "PENDING" } = req.query;
+    const where = status === "ALL" ? {} : { status: status.toUpperCase() };
+    const withdrawals = await prisma.gigWithdrawal.findMany({ where, orderBy: { createdAt: "desc" }, take: 50, include: { user: { select: { id: true, username: true, fullName: true, gigAccountNumber: true } } } });
+    return res.json({ withdrawals });
+  } catch (err) {
+    console.error("[LIST GIG WITHDRAWALS ERROR]", err);
+    return res.status(500).json({ error: "Could not load" });
+  }
+};
+
+const approveGigWithdrawal = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const w = await prisma.gigWithdrawal.findUnique({ where: { id } });
+    if (!w) return res.status(404).json({ error: "Withdrawal not found" });
+    if (w.status !== "PENDING") return res.status(400).json({ error: `Already ${w.status}` });
+
+    const totalKobo = w.amount + (w.fee || 0);
+    // Check ledger balance again (user may have spent since request)
+    const user = await prisma.user.findUnique({ where: { id: w.userId }, select: { gigBalance: true } });
+    if ((user?.gigBalance || 0) < totalKobo) return res.status(402).json({ error: `User no longer has enough Gig balance. Need ₦${(totalKobo/100).toLocaleString()}, has ₦${((user?.gigBalance||0)/100).toLocaleString()}.` });
+
+    // Check Flutterwave main account balance (T+1) before transfer
+    const config = require("../config/env");
+    try {
+      const balRes = await fetch("https://api.flutterwave.com/v3/balances", { headers: { Authorization: `Bearer ${config.flutterwave.secretKey}` } });
+      const balData = await balRes.json();
+      const ngnBal = balData.data?.find?.(b=>b.currency==="NGN") || balData.data?.[0];
+      const availableKobo = ngnBal ? Math.round(parseFloat(ngnBal.available_balance || 0) * 100) : null;
+      if (availableKobo !== null && availableKobo < w.amount) {
+        return res.status(402).json({ error: `Flutterwave main account has insufficient cash (T+1). Available ₦${(availableKobo/100).toLocaleString()}, need ₦${(w.amount/100).toLocaleString()}. Keep PENDING — will auto-retry after settlement.`, flutterwaveBalance: availableKobo });
+      }
+    } catch {}
+
+    // Call Flutterwave transfer
+    const flwRes = await fetch("https://api.flutterwave.com/v3/transfers", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.flutterwave.secretKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        account_bank: w.bankCode,
+        account_number: w.bankAccountNumber,
+        amount: w.amount / 100,
+        currency: "NGN",
+        reference: w.reference || `gigw_${w.id}_${Date.now()}`,
+        narration: `Trend Tribe Gig payout ${w.reference}`,
+      }),
+    });
+    const data = await flwRes.json();
+    if (data.status === "success") {
+      // Deduct only when Flutterwave confirms (ledger-first)
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { decrement: totalKobo } } });
+        await tx.gigWithdrawal.update({ where: { id }, data: { status: "COMPLETED" } });
+      });
+      return res.json({ message: "Approved — Flutterwave transfer initiated, amount deducted from Gig wallet", flutterwave: data.data });
+    }
+    // Insufficient funds on Flutterwave side — keep PENDING for retry, don't deduct
+    if (data.message?.toLowerCase().includes("insufficient") || data.message?.toLowerCase().includes("balance")) {
+      return res.status(402).json({ error: `Flutterwave has no cash to pay now (T+1). Kept PENDING — retry after next settlement.`, details: data });
+    }
+    return res.status(502).json({ error: data.message || "Transfer failed", details: data });
+  } catch (err) {
+    console.error("[APPROVE GIG WITHDRAWAL ERROR]", err);
+    return res.status(500).json({ error: "Could not approve" });
+  }
+};
+
+const rejectGigWithdrawal = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const w = await prisma.gigWithdrawal.findUnique({ where: { id } });
+    if (!w) return res.status(404).json({ error: "Withdrawal not found" });
+    if (w.status !== "PENDING") return res.status(400).json({ error: `Already ${w.status}` });
+    // Since we didn't deduct on request (ledger-first), reject just marks REJECTED, no refund needed
+    await prisma.gigWithdrawal.update({ where: { id }, data: { status: "REJECTED" } });
+    return res.json({ message: `Rejected — no deduction was made, request closed.` });
+  } catch (err) {
+    console.error("[REJECT GIG WITHDRAWAL ERROR]", err);
+    return res.status(500).json({ error: "Could not reject" });
   }
 };
 
@@ -249,7 +419,7 @@ const transferGig = async (req, res) => {
     if (!amt || amt < 1) return res.status(400).json({ error: "Amount must be at least ₦1" });
     if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "4-digit transfer PIN required" });
     const amountKobo = amt * 100;
-    let feeKobo = Math.round(amountKobo * 0.0001); // 0.01%
+    let feeKobo = Math.round(amountKobo * 0.01); // 1%
     if (feeKobo === 0 && amountKobo > 0) feeKobo = 1; // min 1 kobo
     const totalKobo = amountKobo + feeKobo;
 
@@ -342,4 +512,4 @@ const autoReleaseGigs = async () => {
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };
 
-module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, setGigPin, hasGigPin, expireGigs, autoReleaseGigs };
+module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, setGigPin, hasGigPin, setBank, resolveBank, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, expireGigs, autoReleaseGigs };
