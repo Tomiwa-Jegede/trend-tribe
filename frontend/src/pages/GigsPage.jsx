@@ -31,6 +31,8 @@ export default function GigsPage() {
   const [pinOtp, setPinOtp] = useState("");
   const [pinOtpSent, setPinOtpSent] = useState(false);
   const [pinOtpSending, setPinOtpSending] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [pendingNewPin, setPendingNewPin] = useState("");
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferStep, setTransferStep] = useState(1);
   const [transferResult, setTransferResult] = useState(null);
@@ -62,6 +64,23 @@ export default function GigsPage() {
   useEffect(() => { fetch(); }, []);
   useEffect(() => { if (user?.whatsapp) setForm(f=>({...f, whatsapp: user.whatsapp})); }, [user]);
   useEffect(() => { if (viewParam === "post") setShowPost(true); if (viewParam === "feed") setTimeout(()=>document.querySelector("[data-gigs-feed]")?.scrollIntoView({behavior:"smooth"}), 300); }, [viewParam]);
+  // Handle Flutterwave callback for gig wallet top-up: ?reference=gt_...&transaction_id=... or ?status=successful
+  useEffect(() => {
+    const ref = searchParams.get("reference") || searchParams.get("tx_ref");
+    const txId = searchParams.get("transaction_id") || searchParams.get("transactionId");
+    if (ref && ref.startsWith("gt_")) {
+      (async () => {
+        try {
+          const r = await verifyGigPayment(ref, txId || ref);
+          if (r.status === "SUCCESS") { toast.success(`Top-up successful — ₦${(r.amount/100).toLocaleString()} added to Gig wallet`); fetch(); }
+          else if (r.status === "PENDING") toast.info("Top-up pending — will reflect after Flutterwave confirms");
+          else toast.error("Top-up not completed");
+        } catch (e) { toast.error(e.response?.data?.error || "Could not verify top-up"); }
+        // clean URL
+        window.history.replaceState({}, "", "/gigs");
+      })();
+    }
+  }, [searchParams]);
   useEffect(() => {
     // fetch banks for withdraw
     fetch("https://api.flutterwave.com/v3/banks/NG", { headers: { Authorization: `Bearer ${import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY || ""}` } }).catch(()=>{}).then(r=>r?.json?.()).then(d=>{ if(d?.data) setBanks(d.data.slice(0,30)); }).catch(()=>{});
@@ -213,21 +232,45 @@ export default function GigsPage() {
             ) : (
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
                 <p className="text-xs font-semibold text-gray-700 mb-2">Change PIN — OTP required</p>
-                {!pinOtpSent ? (
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1"><label className="text-xs text-gray-500">New PIN</label><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="New 4-digit" className="input-field mt-1 w-28 text-sm" /></div>
-                    <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("Enter new 4-digit PIN first"); setPinOtpSending(true); try{ await api.post("/gigs/pin/request-otp"); toast.success("OTP sent to your registered email"); setPinOtpSent(true); }catch(e){ toast.error(e.response?.data?.error||"Could not send OTP"); } finally{ setPinOtpSending(false); } }} disabled={pinOtpSending} className="btn-secondary px-3 py-2 text-sm disabled:opacity-60">{pinOtpSending?"Sending...":"Send OTP"}</button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2 items-end">
-                    <div><label className="text-xs text-gray-500">OTP (6-digit)</label><input value={pinOtp} onChange={e=>setPinOtp(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="123456" maxLength={6} className="input-field mt-1 w-32 text-sm tracking-widest" /></div>
-                    <div><label className="text-xs text-gray-500">New PIN</label><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="••••" className="input-field mt-1 w-24 text-sm" /></div>
-                    <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits"); if(!/^\d{6}$/.test(pinOtp)) return toast.error("Enter 6-digit OTP"); setPinSaving(true); try{ await api.post("/gigs/pin", {pin:newPin, otp:pinOtp}); toast.success("PIN updated"); setNewPin(""); setPinOtp(""); setPinOtpSent(false); }catch(e){ toast.error(e.response?.data?.error||"Could not update PIN"); } finally{ setPinSaving(false); } }} disabled={pinSaving} className="btn-primary px-4 py-2 text-sm disabled:opacity-60">{pinSaving?"Updating...":"Confirm Update"}</button>
-                    <button onClick={()=>{ setPinOtpSent(false); setPinOtp(""); }} className="btn-secondary px-3 py-2 text-sm">Back</button>
-                  </div>
-                )}
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1"><label className="text-xs text-gray-500">New PIN (4-digit)</label><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="••••" className="input-field mt-1 w-28 text-sm" disabled={pinOtpSent} /></div>
+                  <button
+                    onClick={async()=>{
+                      if(!/^\d{4}$/.test(newPin)) return toast.error("Enter new 4-digit PIN first");
+                      setPinOtpSending(true);
+                      try{ await api.post("/gigs/pin/request-otp"); toast.success("OTP sent to your registered email"); setPendingNewPin(newPin); setShowOtpModal(true); }catch(e){ toast.error(e.response?.data?.error||"Could not send OTP"); } finally{ setPinOtpSending(false); }
+                    }}
+                    disabled={pinOtpSending || pinOtpSent}
+                    className="btn-primary px-4 py-2 text-sm disabled:opacity-60"
+                  >{pinOtpSending?"Sending...": pinOtpSent?"OTP Sent":"Change PIN"}</button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">You must confirm OTP before PIN can be updated. PIN input is locked until OTP is verified.</p>
               </div>
             )}
+          </div>
+        )}
+        {/* OTP Modal for PIN update */}
+        {showOtpModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={()=>setShowOtpModal(false)}>
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl border border-gray-100" onClick={e=>e.stopPropagation()}>
+              <h3 className="font-bold text-gray-900 mb-1">Confirm OTP</h3>
+              <p className="text-sm text-gray-500 mb-3">Enter the 6-digit code sent to your registered email to confirm PIN change.</p>
+              <input value={pinOtp} onChange={e=>setPinOtp(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="123456" maxLength={6} className="input-field text-center tracking-widest text-lg" autoFocus />
+              <div className="flex gap-2 mt-4">
+                <button onClick={()=>setShowOtpModal(false)} className="flex-1 btn-secondary py-2 text-sm">Cancel</button>
+                <button
+                  onClick={async()=>{
+                    if(!/^\d{6}$/.test(pinOtp)) return toast.error("Enter 6-digit OTP");
+                    if(!/^\d{4}$/.test(pendingNewPin)) return toast.error("Invalid PIN");
+                    setPinSaving(true);
+                    try{ await api.post("/gigs/pin", {pin:pendingNewPin, otp:pinOtp}); toast.success("PIN updated"); setNewPin(""); setPinOtp(""); setPendingNewPin(""); setPinOtpSent(false); setShowOtpModal(false); }catch(e){ toast.error(e.response?.data?.error||"Could not update PIN"); } finally{ setPinSaving(false); }
+                  }}
+                  disabled={pinSaving}
+                  className="flex-1 btn-primary py-2 text-sm disabled:opacity-60"
+                >{pinSaving?"Verifying...":"Confirm Update"}</button>
+              </div>
+              <button onClick={async()=>{ setPinOtpSending(true); try{ await api.post("/gigs/pin/request-otp"); toast.success("OTP resent"); }catch(e){ toast.error(e.response?.data?.error||"Could not resend"); } finally{ setPinOtpSending(false); } }} disabled={pinOtpSending} className="mt-3 text-xs text-primary-600 hover:underline w-full text-center">{pinOtpSending?"Resending...":"Resend OTP"}</button>
+            </div>
           </div>
         )}
       </div>
