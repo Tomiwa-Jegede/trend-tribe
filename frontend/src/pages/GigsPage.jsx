@@ -28,6 +28,9 @@ export default function GigsPage() {
   const [hasPin, setHasPin] = useState(null);
   const [newPin, setNewPin] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
+  const [pinOtp, setPinOtp] = useState("");
+  const [pinOtpSent, setPinOtpSent] = useState(false);
+  const [pinOtpSending, setPinOtpSending] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferStep, setTransferStep] = useState(1);
   const [transferResult, setTransferResult] = useState(null);
@@ -205,10 +208,25 @@ export default function GigsPage() {
             {hasPin===false ? (
               <div className="flex gap-2 items-end p-3 bg-amber-50 border border-amber-200 rounded-xl">
                 <div className="flex-1"><label className="text-xs font-semibold text-amber-800">Set 4-digit transfer PIN first</label><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="1234" className="input-field mt-1" /></div>
-                <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits"); setPinSaving(true); try{ await api.post("/gigs/pin", {pin:newPin}); toast.success("PIN set"); setHasPin(true); setNewPin(""); }catch(e){ toast.error(e.response?.data?.error||"Could not set PIN"); } finally{ setPinSaving(false); } }} disabled={pinSaving} className="btn-primary px-4 py-2 text-sm disabled:opacity-60">{pinSaving?"Saving...":"Set PIN"}</button>
+                <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits"); setPinSaving(true); try{ await api.post("/gigs/pin", {pin:newPin}); toast.success("PIN set — you will need it to confirm transfers"); setHasPin(true); setNewPin(""); }catch(e){ toast.error(e.response?.data?.error||"Could not set PIN"); } finally{ setPinSaving(false); } }} disabled={pinSaving} className="btn-primary px-4 py-2 text-sm disabled:opacity-60">{pinSaving?"Saving...":"Set PIN"}</button>
               </div>
             ) : (
-              <div className="flex gap-2 items-end"><div><label className="text-xs font-semibold text-gray-500">Change PIN</label><div className="flex gap-2 mt-1"><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="New 4-digit" className="input-field w-28 text-sm" /><button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits"); setPinSaving(true); try{ await api.post("/gigs/pin", {pin:newPin}); toast.success("PIN updated"); setNewPin(""); }catch(e){ toast.error(e.response?.data?.error||"Could not set"); } finally{ setPinSaving(false); } }} disabled={pinSaving} className="btn-secondary px-3 py-2 text-sm disabled:opacity-60">Update</button></div></div></div>
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Change PIN — OTP required</p>
+                {!pinOtpSent ? (
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1"><label className="text-xs text-gray-500">New PIN</label><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="New 4-digit" className="input-field mt-1 w-28 text-sm" /></div>
+                    <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("Enter new 4-digit PIN first"); setPinOtpSending(true); try{ await api.post("/gigs/pin/request-otp"); toast.success("OTP sent to your registered email"); setPinOtpSent(true); }catch(e){ toast.error(e.response?.data?.error||"Could not send OTP"); } finally{ setPinOtpSending(false); } }} disabled={pinOtpSending} className="btn-secondary px-3 py-2 text-sm disabled:opacity-60">{pinOtpSending?"Sending...":"Send OTP"}</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 items-end">
+                    <div><label className="text-xs text-gray-500">OTP (6-digit)</label><input value={pinOtp} onChange={e=>setPinOtp(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="123456" maxLength={6} className="input-field mt-1 w-32 text-sm tracking-widest" /></div>
+                    <div><label className="text-xs text-gray-500">New PIN</label><input type="password" maxLength={4} inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="••••" className="input-field mt-1 w-24 text-sm" /></div>
+                    <button onClick={async()=>{ if(!/^\d{4}$/.test(newPin)) return toast.error("PIN must be 4 digits"); if(!/^\d{6}$/.test(pinOtp)) return toast.error("Enter 6-digit OTP"); setPinSaving(true); try{ await api.post("/gigs/pin", {pin:newPin, otp:pinOtp}); toast.success("PIN updated"); setNewPin(""); setPinOtp(""); setPinOtpSent(false); }catch(e){ toast.error(e.response?.data?.error||"Could not update PIN"); } finally{ setPinSaving(false); } }} disabled={pinSaving} className="btn-primary px-4 py-2 text-sm disabled:opacity-60">{pinSaving?"Updating...":"Confirm Update"}</button>
+                    <button onClick={()=>{ setPinOtpSent(false); setPinOtp(""); }} className="btn-secondary px-3 py-2 text-sm">Back</button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

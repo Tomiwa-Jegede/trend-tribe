@@ -13,6 +13,7 @@ router.get("/", listGigs);
 router.get("/account", protect, require("../controllers/gig.controller").getGigAccount);
 router.get("/pin", protect, require("../controllers/gig.controller").hasGigPin);
 router.post("/pin", protect, require("../controllers/gig.controller").setGigPin);
+router.post("/pin/request-otp", protect, require("../controllers/gig.controller").requestPinOtp);
 router.post("/bank", protect, require("../controllers/gig.controller").setBank);
 router.post("/bank/resolve", protect, require("../controllers/gig.controller").resolveBank);
 router.post("/resolve", protect, gigResolveLimiter, require("../controllers/gig.controller").resolveGigAccount);

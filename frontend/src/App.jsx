@@ -47,6 +47,7 @@ const GigTransactionHistoryPage = lazy(() => import("./pages/GigTransactionHisto
 const ServiceBookingsPage = lazy(() => import("./pages/ServiceBookingsPage"));
 const BookingProviderPage = lazy(() => import("./pages/BookingProviderPage"));
 const BookingMinePage = lazy(() => import("./pages/BookingMinePage"));
+const AdminWithdrawalsPage = lazy(() => import("./pages/AdminWithdrawalsPage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -229,6 +230,14 @@ const App = () => {
               element={
                 <AdminRoute>
                   <AdminAnalyticsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/withdrawals"
+              element={
+                <AdminRoute>
+                  <AdminWithdrawalsPage />
                 </AdminRoute>
               }
             />

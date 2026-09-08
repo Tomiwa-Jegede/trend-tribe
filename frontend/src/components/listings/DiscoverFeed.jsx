@@ -20,28 +20,36 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
   const thumbnail = listing.images?.[0] || null;
 
   return (
-    <div className="relative w-full h-full snap-start snap-always flex-shrink-0 bg-black md:flex md:items-center md:justify-center md:overflow-hidden">
+    <div className="relative w-full h-full snap-start snap-always flex-shrink-0 bg-black flex items-center justify-center overflow-hidden">
       {/* Blurred backdrop fill — desktop only; mobile card is already full-bleed */}
       {thumbnail && (
         <img
           src={thumbnail}
           alt=""
           aria-hidden="true"
-          className="hidden md:block absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-60"
+          className="block absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-60"
         />
       )}
 
       {/* Card — aspect-locked on all breakpoints to preserve ratio, centered */}
-      <div className="relative w-full h-full max-w-[430px] aspect-[9/16] h-auto max-h-[85vh] mx-auto rounded-2xl overflow-hidden shadow-2xl">
+      <div className="relative w-full h-full max-w-[430px] aspect-[9/16] max-h-[85vh] mx-auto rounded-2xl overflow-hidden shadow-2xl">
       <div className="absolute inset-0 block">
         {thumbnail ? (
-          <img
-            src={thumbnail}
-            alt={listing.title}
-            className="w-full h-full object-cover object-center"
-            loading="lazy"
-            decoding="async"
-          />
+          <>
+            <img
+              src={thumbnail}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-60"
+            />
+            <img
+              src={thumbnail}
+              alt={listing.title}
+              className="relative w-full h-full object-contain object-center"
+              loading="lazy"
+              decoding="async"
+            />
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-900 to-primary-700">
             <span className="text-6xl opacity-40">🛍️</span>

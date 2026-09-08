@@ -236,9 +236,7 @@ const FeaturesPage = () => {
               variants={reduced ? {} : fadeSlideUp}
               className="text-lg text-white/70 leading-relaxed mb-10 max-w-xl"
             >
-              TrendTribe is a peer-to-peer marketplace built exclusively for
-              university students. List an item, find a buyer, meet on campus —
-              no fees, no middlemen, no drama.
+              Trend Tribe is for students. Post an item. Find a buyer. Meet on campus. No fees. No stress.
             </motion.p>
 
             <motion.div

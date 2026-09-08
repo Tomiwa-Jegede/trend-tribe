@@ -290,12 +290,11 @@ const HomePage = () => {
                 </motion.span>
               </motion.h1>
 
-              {/* Subheading — same fadeIn, tighter to fit vh */}
               <motion.p
                 variants={reduced ? {} : fadeIn}
                 className="text-base lg:text-lg text-white/75 leading-relaxed mb-5"
               >
-                Buy and sell fashion, beauty, gadgets and more with students on your campus. 3 listings free. Extra listings, Featured boost and more days cost 1 token. No shipping — meet on campus.
+                Buy and sell with students on your campus. 3 items free. Need more? 1 token. Meet on campus. No delivery.
               </motion.p>
 
               {/* Live stats — same fadeIn + ping like Now open */}

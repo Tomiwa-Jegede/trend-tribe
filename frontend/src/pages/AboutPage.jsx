@@ -196,9 +196,7 @@ const AboutPage = () => {
             variants={reduced ? {} : fadeUp}
             className="text-white/60 text-base md:text-lg leading-relaxed"
           >
-            TrendTribe is a student-focused marketplace where students shop for
-            trendy, useful products — and vendors connect with a vibrant campus
-            audience. Built for students, by a student.
+            Trend Tribe is a market for students. Students buy. Students sell. We are students too.
           </motion.p>
         </motion.div>
       </div>

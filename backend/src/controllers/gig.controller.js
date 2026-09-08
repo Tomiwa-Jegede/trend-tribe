@@ -466,13 +466,36 @@ const listGigTransfers = async (req, res) => {
   }
 };
 
+const requestPinOtp = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { email: true, fullName: true } });
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await prisma.user.update({ where: { id: req.user.id }, data: { gigPinOtpCode: otp, gigPinOtpExpiresAt: expiresAt } });
+    const { sendOTPEmail } = require("../utils/email");
+    await sendOTPEmail(user.email, user.fullName, otp);
+    return res.json({ message: `OTP sent to ${user.email} — valid for 10 minutes` });
+  } catch (err) {
+    console.error("[REQUEST PIN OTP ERROR]", err);
+    return res.status(500).json({ error: "Could not send OTP" });
+  }
+};
+
 const setGigPin = async (req, res) => {
   try {
-    const { pin } = req.body;
+    const { pin, otp } = req.body;
     if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "PIN must be 4 digits" });
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigTransferPin: true, gigPinOtpCode: true, gigPinOtpExpiresAt: true } });
+    // If updating existing PIN, require OTP
+    if (user.gigTransferPin) {
+      if (!otp || !/^\d{6}$/.test(otp)) return res.status(400).json({ error: "6-digit OTP required to update PIN" });
+      if (!user.gigPinOtpCode || !user.gigPinOtpExpiresAt || new Date() > new Date(user.gigPinOtpExpiresAt) || otp !== user.gigPinOtpCode) {
+        return res.status(400).json({ error: "Invalid or expired OTP" });
+      }
+    }
     const hash = await bcrypt.hash(pin, 10);
-    await prisma.user.update({ where: { id: req.user.id }, data: { gigTransferPin: hash } });
-    return res.json({ message: "Transfer PIN set. You will need it to confirm transfers." });
+    await prisma.user.update({ where: { id: req.user.id }, data: { gigTransferPin: hash, gigPinOtpCode: null, gigPinOtpExpiresAt: null } });
+    return res.json({ message: user.gigTransferPin ? "Transfer PIN updated." : "Transfer PIN set. You will need it to confirm transfers." });
   } catch (err) {
     console.error("[SET GIG PIN ERROR]", err);
     return res.status(500).json({ error: "Could not set PIN" });
@@ -512,4 +535,4 @@ const autoReleaseGigs = async () => {
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };
 
-module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, setGigPin, hasGigPin, setBank, resolveBank, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, expireGigs, autoReleaseGigs };
+module.exports = { createGig, listGigs, myGigs, claimGig, confirmGig, cancelGig, renewGig, refundExpired, disputeGig, withdrawGig, getGigAccount, resolveGigAccount, transferGig, listGigTransfers, setGigPin, requestPinOtp, hasGigPin, setBank, resolveBank, listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal, expireGigs, autoReleaseGigs };

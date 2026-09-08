@@ -14,6 +14,7 @@ import {
   FiMenu,
   FiX,
   FiBarChart2,
+  FiDollarSign,
 } from "react-icons/fi";
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { label: "Listings", path: "/admin/listings", icon: FiShoppingBag },
   { label: "Reports", path: "/admin/reports", icon: FiFlag },
   { label: "Favorites", path: "/admin/favorites", icon: FiHeart },
+  { label: "Withdrawals", path: "/admin/withdrawals", icon: FiDollarSign },
 ];
 
 const SidebarContent = ({ location, onNavigate }) => (

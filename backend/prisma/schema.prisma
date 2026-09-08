@@ -35,6 +35,8 @@ model User {
   gigBalance           Int             @default(0) // kobo, separate from marketplace tokenBalance, buyable, Naira display
   gigAccountNumber     String?         @unique // 10 digits like 8091234567
   gigTransferPin       String?         // bcrypt hash of 4-digit PIN
+  gigPinOtpCode        String?
+  gigPinOtpExpiresAt   DateTime?
   bankAccountNumber    String?
   bankCode             String?
   bankName             String?
