@@ -374,6 +374,10 @@ model ServiceBooking {
   providerId  Int
   amount      Int      // kobo, service price at booking time
   status      String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED | EXPIRED | COMPLETED | DISPUTED
+  bookerCompletedAt DateTime?
+  providerCompletedAt DateTime?
+  disputeReason String?
+  disputeDescription String?
   expiresAt   DateTime // 1h from booking
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -90,22 +90,47 @@ const completeServiceBooking = async (req, res) => {
     if (booking.status !== "CONFIRMED") return res.status(400).json({ error: `Only CONFIRMED bookings can be completed (now ${booking.status})` });
     if (booking.bookerId !== req.user.id && booking.providerId !== req.user.id) return res.status(403).json({ error: "Not your booking" });
 
+    const isBooker = req.user.id === booking.bookerId;
+    const field = isBooker ? "bookerCompletedAt" : "providerCompletedAt";
+    const otherField = isBooker ? "providerCompletedAt" : "bookerCompletedAt";
+    if (booking[field]) return res.status(400).json({ error: "You already marked as completed" });
+
+    const otherCompleted = !!booking[otherField];
+
+    if (!otherCompleted) {
+      // First party marks — wait for the other
+      await prisma.serviceBooking.update({ where: { id }, data: { [field]: new Date() } });
+      try {
+        const otherId = isBooker ? booking.providerId : booking.bookerId;
+        await prisma.notification.create({ data: { userId: otherId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_COMPLETED_PENDING" } });
+        const { emitNotification } = require("../realtime");
+        const { sendPushToUser } = require("../utils/push");
+        emitNotification(otherId, { type: "SERVICE_COMPLETED_PENDING", listingId: booking.listingId });
+        sendPushToUser(prisma, otherId, { title: "Service marked completed", body: `${isBooker ? "Booker" : "Provider"} marked service #${id} as done — tap to confirm and release escrow`, url: "/bookings", tag: `complete-pending-${id}` }).catch(()=>{});
+      } catch {}
+      return res.json({ message: `Marked as completed — waiting for ${isBooker ? "provider" : "booker"} to confirm to release escrow.` });
+    }
+
+    // Both have now marked — release escrow to provider
     await prisma.$transaction(async (tx) => {
-      // Release escrow to provider
       await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
-      await tx.serviceBooking.update({ where: { id }, data: { status: "COMPLETED" } });
+      await tx.serviceBooking.update({ where: { id }, data: { status: "COMPLETED", [field]: new Date() } });
     });
 
     try {
-      const otherId = req.user.id === booking.bookerId ? booking.providerId : booking.bookerId;
-      await prisma.notification.create({ data: { userId: otherId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_COMPLETED" } });
-      await prisma.notification.create({ data: { userId: req.user.id, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_COMPLETED" } });
+      await prisma.notification.createMany({ data: [
+        { userId: booking.bookerId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_COMPLETED" },
+        { userId: booking.providerId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_COMPLETED" },
+      ]});
       const { emitNotification } = require("../realtime");
+      const { sendPushToUser } = require("../utils/push");
       emitNotification(booking.bookerId, { type: "SERVICE_COMPLETED", listingId: booking.listingId });
       emitNotification(booking.providerId, { type: "SERVICE_COMPLETED", listingId: booking.listingId });
+      sendPushToUser(prisma, booking.bookerId, { title: "Service completed", body: `Escrow ₦${(booking.amount/100).toLocaleString()} released to provider`, url: "/bookings", tag: `completed-${id}` }).catch(()=>{});
+      sendPushToUser(prisma, booking.providerId, { title: "Service completed", body: `You received escrow ₦${(booking.amount/100).toLocaleString()}`, url: "/bookings", tag: `completed-${id}` }).catch(()=>{});
     } catch {}
 
-    return res.json({ message: `Service completed — escrow ₦${(booking.amount/100).toLocaleString()} released to provider.` });
+    return res.json({ message: `Both confirmed — escrow ₦${(booking.amount/100).toLocaleString()} released to provider.` });
   } catch (err) {
     console.error("[COMPLETE SERVICE BOOKING ERROR]", err);
     return res.status(500).json({ error: "Could not complete service" });
