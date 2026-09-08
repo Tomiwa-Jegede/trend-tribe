@@ -25,6 +25,9 @@ export default function BookingProviderPage() {
   useEffect(() => { fetch(); }, []);
 
   const handleConfirm = async (id) => {
+    const b = bookings.find(x=>x.id===id);
+    const fee = b ? Math.floor(b.amount*0.2) : 0;
+    if (!confirm(`Confirm booking "${b?.listing?.title||id}"?\n\n20% fee ₦${(fee/100).toLocaleString()} will be charged from your Gig wallet\nBooker gets your WhatsApp\n\nContinue?`)) return;
     try {
       const r = await confirmServiceBooking(id);
       toast.success(r.message);

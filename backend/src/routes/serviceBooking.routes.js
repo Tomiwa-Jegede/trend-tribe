@@ -9,6 +9,7 @@ router.get("/bookings", protect, getServiceBookings);
 router.post("/listings/:id/book", protect, bookService);
 router.post("/bookings/:id/confirm", protect, confirmServiceBooking);
 router.post("/bookings/:id/complete", protect, completeServiceBooking);
+router.post("/bookings/:id/dispute", protect, require("../controllers/serviceBooking.controller").disputeServiceBooking);
 router.post("/bookings/:id/cancel", protect, cancelServiceBooking);
 
 module.exports = router;

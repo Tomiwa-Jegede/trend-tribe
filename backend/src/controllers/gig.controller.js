@@ -194,12 +194,29 @@ const refundExpired = async (req, res) => {
 const disputeGig = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    const { reason, description } = req.body;
     const gig = await prisma.gig.findUnique({ where: { id } });
     if (!gig) return res.status(404).json({ error: "Gig not found" });
-    if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster can dispute" });
+    if (gig.posterId !== req.user.id && gig.claimerId !== req.user.id) return res.status(403).json({ error: "Only poster or claimer can dispute" });
     if (gig.status !== "CLAIMED") return res.status(400).json({ error: "Only claimed can be disputed" });
     const updated = await prisma.gig.update({ where: { id }, data: { status: "DISPUTED" } });
-    return res.json({ gig: updated, message: "Disputed — admin will review, auto-release paused." });
+    try {
+      const otherId = req.user.id === gig.posterId ? gig.claimerId : gig.posterId;
+      if (otherId) {
+        await prisma.notification.create({ data: { userId: otherId, actorId: req.user.id, type: "GIG_DISPUTED", listingId: null } });
+        const { emitNotification } = require("../realtime");
+        emitNotification(otherId, { type: "GIG_DISPUTED" });
+      }
+      const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+      for (const a of admins) {
+        await prisma.notification.create({ data: { userId: a.id, actorId: req.user.id, type: "GIG_DISPUTED_ADMIN", listingId: null } }).catch(()=>{});
+        const { sendPushToUser } = require("../utils/push");
+        const { emitNotification } = require("../realtime");
+        sendPushToUser(prisma, a.id, { title: "New gig dispute", body: `Gig #${id} — ${reason || "disputed"}`, url: "/admin/disputes", tag: `gig-dispute-${id}` }).catch(()=>{});
+        try { emitNotification(a.id, { type: "GIG_DISPUTED_ADMIN" }); } catch {}
+      }
+    } catch {}
+    return res.json({ gig: updated, message: "Disputed — admin will review, auto-release paused. Provide reason and proof in admin chat." });
   } catch (err) {
     console.error("[DISPUTE GIG ERROR]", err);
     return res.status(500).json({ error: "Could not dispute" });

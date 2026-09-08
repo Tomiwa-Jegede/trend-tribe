@@ -57,8 +57,20 @@ export default function GigsPage() {
   const handleClaim = async (id) => {
     try { const res = await claimGig(id); toast.success("Claimed — WhatsApp: " + res.whatsapp); if (res.whatsapp) window.open(`https://wa.me/${res.whatsapp.replace(/\D/g,"")}`, "_blank"); fetch(); } catch (e) { toast.error(e.response?.data?.error || "Claim failed"); }
   };
-  const handleConfirm = async (id) => { try { const r=await confirmGig(id); toast.success(r.message); fetch(); } catch(e){ toast.error(e.response?.data?.error||"Confirm failed"); } };
-  const handleCancel = async (id) => { if(!confirm("Cancel gig? 5% fee, 95% refund to Gig wallet.")) return; try{ const r=await cancelGig(id); toast.success(r.message); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Cancel failed"); } };
+  const handleConfirm = async (id) => {
+    const g = gigs.find(x=>x.id===id) || my?.posted?.find(x=>x.id===id);
+    const fee = g ? Math.floor(g.amount*0.2) : 0;
+    const pay = g ? g.amount - fee : 0;
+    if (!confirm(`Confirm gig "${g?.description?.slice(0,40)||id}"?\n\n80% ₦${(pay/100).toLocaleString()} will be sent to claimer\n20% fee ₦${(fee/100).toLocaleString()} retained by platform\n\nContinue?`)) return;
+    try { const r=await confirmGig(id); toast.success(r.message); fetch(); } catch(e){ toast.error(e.response?.data?.error||"Confirm failed"); }
+  };
+  const handleCancel = async (id) => {
+    const g = gigs.find(x=>x.id===id) || my?.posted?.find(x=>x.id===id);
+    const fee = g ? Math.floor(g.amount*0.05) : 0;
+    const refund = g ? g.amount - fee : 0;
+    if(!confirm(`Cancel gig "${g?.description?.slice(0,40)||id}"?\n\n5% fee ₦${(fee/100).toLocaleString()} will be kept\n95% refund ₦${(refund/100).toLocaleString()} to your Gig wallet\n\nContinue?`)) return;
+    try{ const r=await cancelGig(id); toast.success(r.message); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Cancel failed"); }
+  };
   const handleRenew = async (id) => { try{ await renewGig(id); toast.success("Renewed"); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Renew failed"); } };
   const handleRefund = async (id) => { try{ const r=await refundExpiredGig(id); toast.success(r.message); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Refund failed"); } };
   const handleDispute = async (id) => { try{ await disputeGig(id); toast.success("Disputed — admin will review"); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Dispute failed"); } };

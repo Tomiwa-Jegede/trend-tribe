@@ -126,6 +126,9 @@ export default function GigWalletPage() {
       else if (/^\d+$/.test(bankQuery.trim())) bankCode = bankQuery.trim(); // typed code directly
     }
     if (!bankCode) return toast.error("Select a bank — search and tap from list");
+    const feePreview = Math.max(1, Math.round(amt*100*0.01));
+    const totalPreview = amt*100 + feePreview;
+    if (!confirm(`Withdraw ₦${amt.toLocaleString()} to ${bankName || bankCode} • ${cleanAcc}?\n\nAmount: ₦${amt.toLocaleString()}\nFee (1%): ₦${(feePreview/100).toFixed(2)}\nTotal debited: ₦${(totalPreview/100).toLocaleString()}\n\nContinue?`)) return;
     setWithdrawing(true);
     try {
       const r = await withdrawGig({ amount: amt, bankCode, accountNumber: cleanAcc, pin: withdrawForm.pin });
@@ -364,7 +367,9 @@ export default function GigWalletPage() {
           <button disabled={buyingTokens || !tokenQty} onClick={async()=>{
             const qty = parseInt(tokenQty,10);
             if (!qty || qty<1) return toast.error("Enter quantity ≥1");
-            if (qty*200*100 > balance) return toast.error(`Need ₦${(qty*200).toLocaleString()} in Gig wallet — you have ${formatNaira(balance)}`);
+            const cost = qty*200;
+            if (qty*200*100 > balance) return toast.error(`Need ₦${cost.toLocaleString()} in Gig wallet — you have ${formatNaira(balance)}`);
+            if (!confirm(`Buy ${qty} token${qty!==1?"s":""} for ₦${cost.toLocaleString()}?\n\n₦${cost.toLocaleString()} will be debited from your Gig wallet and ${qty} token${qty!==1?"s":""} credited instantly.\n\nContinue?`)) return;
             setBuyingTokens(true);
             try { const { data } = await api.post("/payments/buy-with-gig", { quantity: qty }); toast.success(data.message || `${qty} token(s) credited`); setTokenQty(""); fetchAll(); } catch(e){ toast.error(e.response?.data?.error || "Could not buy tokens"); } finally { setBuyingTokens(false); }
           }} className="btn-primary px-5 py-2 text-sm disabled:opacity-60 whitespace-nowrap">

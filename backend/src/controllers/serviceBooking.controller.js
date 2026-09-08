@@ -112,6 +112,43 @@ const completeServiceBooking = async (req, res) => {
   }
 };
 
+const disputeServiceBooking = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { reason, description } = req.body;
+    const booking = await prisma.serviceBooking.findUnique({ where: { id } });
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+    if (booking.status !== "CONFIRMED") return res.status(400).json({ error: `Only CONFIRMED bookings can be disputed (now ${booking.status})` });
+    if (booking.bookerId !== req.user.id && booking.providerId !== req.user.id) return res.status(403).json({ error: "Not your booking" });
+
+    const updated = await prisma.serviceBooking.update({ where: { id }, data: { status: "DISPUTED" } });
+    try {
+      const otherId = req.user.id === booking.bookerId ? booking.providerId : booking.bookerId;
+      await prisma.notification.createMany({ data: [
+        { userId: otherId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_DISPUTED" },
+        { userId: booking.bookerId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_DISPUTED" },
+        { userId: booking.providerId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_DISPUTED" },
+      ]});
+      // admin notify
+      const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+      for (const a of admins) {
+        await prisma.notification.create({ data: { userId: a.id, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_DISPUTED_ADMIN" } }).catch(()=>{});
+        const { sendPushToUser } = require("../utils/push");
+        const { emitNotification } = require("../realtime");
+        sendPushToUser(prisma, a.id, { title: "New service dispute", body: `Booking #${id} — ${reason || "disputed"}`, url: "/admin/disputes", tag: `dispute-${id}` }).catch(()=>{});
+        try { emitNotification(a.id, { type: "SERVICE_DISPUTED_ADMIN" }); } catch {}
+      }
+      const { emitNotification } = require("../realtime");
+      emitNotification(booking.bookerId, { type: "SERVICE_DISPUTED", listingId: booking.listingId });
+      emitNotification(booking.providerId, { type: "SERVICE_DISPUTED", listingId: booking.listingId });
+    } catch {}
+    return res.json({ booking: updated, message: "Disputed — admin will review, escrow held, completion paused." });
+  } catch (err) {
+    console.error("[DISPUTE SERVICE BOOKING ERROR]", err);
+    return res.status(500).json({ error: "Could not dispute" });
+  }
+};
+
 const cancelServiceBooking = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -156,4 +193,4 @@ const getServiceBookings = async (req, res) => {
   }
 };
 
-module.exports = { bookService, confirmServiceBooking, completeServiceBooking, cancelServiceBooking, expireServiceBookings, getServiceBookings };
+module.exports = { bookService, confirmServiceBooking, completeServiceBooking, disputeServiceBooking, cancelServiceBooking, expireServiceBookings, getServiceBookings };

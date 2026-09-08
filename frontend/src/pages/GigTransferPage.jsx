@@ -36,6 +36,9 @@ export default function GigTransferPage() {
     const amt = parseInt(form.amount, 10);
     if (!amt || amt < 1) return toast.error("Enter amount");
     if (!/^\d{4}$/.test(form.pin)) return toast.error("Enter 4-digit PIN");
+    const fee = Math.max(1, Math.round(amt*100*0.01))/100;
+    const total = amt + fee;
+    if (!confirm(`Transfer ₦${amt.toLocaleString()} to ${resolved.fullName} @${resolved.username}?\n\nAmount: ₦${amt.toLocaleString()}\nFee (1%): ₦${fee.toFixed(2)}\nTotal debited: ₦${total.toFixed(2)}\n\nContinue?`)) return;
 
     setTransferring(true);
     try {
