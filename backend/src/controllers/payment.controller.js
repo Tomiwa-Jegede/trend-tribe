@@ -145,15 +145,23 @@ const handleWebhook = async (req, res) => {
 
     if (event.event === "charge.completed" && event.data?.status === "successful") {
       const { tx_ref, amount, currency, id: transactionId } = event.data;
-      const purchase = await prisma.tokenPurchase.findUnique({ where: { reference: tx_ref } });
-
-      if (
-        purchase &&
-        purchase.status === "PENDING" &&
-        purchase.amount === amount &&
-        currency === "NGN"
-      ) {
-        await creditPurchase(purchase, String(transactionId));
+      // Gig wallet (gt_ prefix, amount stored as kobo)
+      if (tx_ref && tx_ref.startsWith("gt_")) {
+        const gigPurchase = await prisma.gigTokenPurchase.findUnique({ where: { reference: tx_ref } });
+        if (gigPurchase && gigPurchase.status === "PENDING" && gigPurchase.amount === amount * 100 && currency === "NGN") {
+          const { creditGigPurchase } = require("./gigPayment.controller");
+          await creditGigPurchase(gigPurchase, String(transactionId));
+        }
+      } else {
+        const purchase = await prisma.tokenPurchase.findUnique({ where: { reference: tx_ref } });
+        if (
+          purchase &&
+          purchase.status === "PENDING" &&
+          purchase.amount === amount &&
+          currency === "NGN"
+        ) {
+          await creditPurchase(purchase, String(transactionId));
+        }
       }
     }
 
