@@ -400,22 +400,24 @@ const rejectGigWithdrawal = async (req, res) => {
     const w = await prisma.gigWithdrawal.findUnique({ where: { id } });
     if (!w) return res.status(404).json({ error: "Withdrawal not found" });
     if (w.status !== "PENDING") return res.status(400).json({ error: `Already ${w.status}` });
-    // Already debited on request (amount + fee) — reject refunds exact amount back (principal), fee retained as charge
+    // Already debited on request (amount + fee) — reject refunds all deducted (principal + fee)
     const totalKobo = w.amount + (w.fee || 0);
     const feeKobo = w.fee || 0;
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { increment: w.amount } } });
+      await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { increment: totalKobo } } });
       await tx.gigWithdrawal.update({ where: { id }, data: { status: "REJECTED" } });
+      // reverse platform profit (fee) since all sent back
+      await tx.platformProfit.deleteMany({ where: { refId: w.reference, source: "GIG_WITHDRAW_1P" } }).catch(()=>{});
     });
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_REJECTED", listingId: null } });
-      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Rejected — Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — REJECTED — ₦${(w.amount/100).toLocaleString()} refunded to Gig wallet (charges: principal ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited, fee retained) — ref ${w.reference}.` } });
+      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Rejected — Fully Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — REJECTED — ₦${(totalKobo/100).toLocaleString()} fully refunded to Gig wallet (was ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited) — ref ${w.reference}.` } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
-      sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal rejected", body: `₦${(w.amount/100).toLocaleString()} rejected — ₦${(w.amount/100).toLocaleString()} refunded (fee ₦${(feeKobo/100).toFixed(2)} not refunded)`, url: "/gigs/wallet", tag: `gig-wd-r-${w.reference}` }).catch(()=>{});
+      sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal rejected", body: `₦${(w.amount/100).toLocaleString()} rejected — ₦${(totalKobo/100).toLocaleString()} fully refunded`, url: "/gigs/wallet", tag: `gig-wd-r-${w.reference}` }).catch(()=>{});
       try { emitNotification(w.userId, { type: "GIG_WITHDRAW_REJECTED" }); } catch {}
     } catch {}
-    return res.json({ message: `Rejected — ₦${(w.amount/100).toLocaleString()} refunded (fee ₦${(feeKobo/100).toFixed(2)} retained).` });
+    return res.json({ message: `Rejected — ₦${(totalKobo/100).toLocaleString()} fully refunded.` });
   } catch (err) {
     console.error("[REJECT GIG WITHDRAWAL ERROR]", err);
     return res.status(500).json({ error: "Could not reject" });
@@ -433,18 +435,19 @@ const cancelGigWithdrawal = async (req, res) => {
     const feeKobo = w.fee || 0;
     const totalKobo = w.amount + feeKobo;
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { increment: w.amount } } });
+      await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { increment: totalKobo } } });
       await tx.gigWithdrawal.update({ where: { id }, data: { status: "CANCELLED" } });
+      await tx.platformProfit.deleteMany({ where: { refId: w.reference, source: "GIG_WITHDRAW_1P" } }).catch(()=>{});
     });
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_CANCELLED", listingId: null } });
-      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Cancelled — Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — CANCELLED — ₦${(w.amount/100).toLocaleString()} refunded to Gig wallet (charges: principal ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited, fee retained) — ref ${w.reference}.` } });
+      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Cancelled — Fully Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — CANCELLED — ₦${(totalKobo/100).toLocaleString()} fully refunded to Gig wallet (was ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited) — ref ${w.reference}.` } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
-      sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal cancelled", body: `₦${(w.amount/100).toLocaleString()} cancelled — ₦${(w.amount/100).toLocaleString()} refunded`, url: "/gigs/wallet", tag: `gig-wd-cnl-${w.reference}` }).catch(()=>{});
+      sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal cancelled", body: `₦${(w.amount/100).toLocaleString()} cancelled — ₦${(totalKobo/100).toLocaleString()} fully refunded`, url: "/gigs/wallet", tag: `gig-wd-cnl-${w.reference}` }).catch(()=>{});
       try { emitNotification(w.userId, { type: "GIG_WITHDRAW_CANCELLED" }); } catch {}
     } catch {}
-    return res.json({ message: `Cancelled — ₦${(w.amount/100).toLocaleString()} refunded (fee ₦${(feeKobo/100).toFixed(2)} retained).` });
+    return res.json({ message: `Cancelled — ₦${(totalKobo/100).toLocaleString()} fully refunded.` });
   } catch (err) {
     console.error("[CANCEL GIG WITHDRAWAL ERROR]", err);
     return res.status(500).json({ error: "Could not cancel" });

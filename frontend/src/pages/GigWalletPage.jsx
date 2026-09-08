@@ -76,8 +76,8 @@ export default function GigWalletPage() {
       const wds = (withdrawals.withdrawals || []).flatMap(w=> {
         const total = w.amount + (w.fee || 0);
         if (w.status === "REJECTED" || w.status === "CANCELLED") {
-          // refunded exact amount back (principal), fee retained — show as credit green with breakdown
-          return [{ id: `wd-refund-${w.id}`, direction: "received", type: "refund", amount: w.amount, fee: w.fee, total, createdAt: w.updatedAt || w.createdAt, status: w.status === "CANCELLED" ? "Cancelled" : "Refunded", reference: w.reference, bankName: w.bankName }];
+          // all deducted fully refunded (principal + fee) — show as credit green
+          return [{ id: `wd-refund-${w.id}`, direction: "received", type: "refund", amount: total, fee: w.fee, total, createdAt: w.updatedAt || w.createdAt, status: w.status === "CANCELLED" ? "Cancelled" : "Refunded", reference: w.reference, bankName: w.bankName }];
         }
         return [{ id: `wd-${w.id}`, direction: "sent", type: "withdrawal", amount: w.amount, fee: w.fee, total, createdAt: w.createdAt, status: w.status, reference: w.reference, bankName: w.bankName }];
       });
@@ -391,7 +391,7 @@ export default function GigWalletPage() {
                     {t.type === "topup" ? "↑ Top up" : t.type === "refund" ? "↩ Withdrawal refunded" : t.type === "withdrawal" ? "↓ Withdrawal" : t.direction === "sent" ? `→ ${t.toUser?.username || "Unknown"}` : `← ${t.fromUser?.username || "Unknown"}`}
                     {t.status && t.status !== "SUCCESS" && t.status !== "COMPLETED" ? ` · ${t.status === "PENDING" ? "In review" : t.status}` : t.type === "refund" ? ` · Refunded — ${formatNaira(t.amount)} back` : ""}
                   </p>
-                  <p className="text-xs text-gray-400">{new Date(t.createdAt).toLocaleDateString()} · {t.type === "topup" ? "Top up" : t.type === "refund" ? `Refund — ${formatNaira(t.amount)} back (fee ${formatNaira(t.fee)} retained, debited ${formatNaira(t.total)})` : t.type === "withdrawal" ? `Withdrawal — ${formatNaira(t.amount)} + fee ${formatNaira(t.fee)} = ${formatNaira(t.total)}` : t.direction === "sent" ? "Debit" : "Credit"}{t.status === "PENDING" ? " · In review" : ""}</p>
+                  <p className="text-xs text-gray-400">{new Date(t.createdAt).toLocaleDateString()} · {t.type === "topup" ? "Top up" : t.type === "refund" ? `Refund — ${formatNaira(t.amount)} fully refunded (was ${formatNaira(t.total)} debited)` : t.type === "withdrawal" ? `Withdrawal — ${formatNaira(t.amount)} + fee ${formatNaira(t.fee)} = ${formatNaira(t.total)}` : t.direction === "sent" ? "Debit" : "Credit"}{t.status === "PENDING" ? " · In review" : ""}</p>
                 </div>
                 <p className={`font-bold ${t.direction === "sent" || t.type === "withdrawal" ? "text-red-600" : "text-green-600"}`}>{t.direction === "sent" || t.type === "withdrawal" ? "-" : "+"}{formatNaira(t.amount)}</p>
               </div>
