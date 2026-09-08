@@ -1,7 +1,7 @@
 // src/pages/BookingMinePage.jsx — Booker view: your bookings, confirmed or not
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { getServiceBookings, cancelServiceBooking } from "../services/serviceBookingService";
+import { getServiceBookings, cancelServiceBooking, completeServiceBooking } from "../services/serviceBookingService";
 import { useToast } from "../context/ToastContext";
 import InfoModal from "../components/ui/InfoModal";
 
@@ -32,6 +32,17 @@ export default function BookingMinePage() {
       fetch();
     } catch (e) {
       toast.error(e.response?.data?.error || "Cancel failed");
+    }
+  };
+
+  const handleComplete = async (id) => {
+    if (!confirm("Mark service as completed? Escrow will be released to provider.")) return;
+    try {
+      const r = await completeServiceBooking(id);
+      toast.success(r.message);
+      fetch();
+    } catch (e) {
+      toast.error(e.response?.data?.error || "Complete failed");
     }
   };
 
@@ -89,15 +100,23 @@ export default function BookingMinePage() {
                   Cancel booking
                 </button>
               )}
-              {b.status === "CONFIRMED" && b.provider?.whatsapp && (
-                <a
-                  href={`https://wa.me/${b.provider.whatsapp.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-primary px-4 py-1.5 text-xs mt-2 inline-block"
-                >
-                  Chat Provider
-                </a>
+              {b.status === "CONFIRMED" && (
+                <div className="flex flex-col gap-2 mt-2">
+                  {b.provider?.whatsapp && (
+                    <a
+                      href={`https://wa.me/${b.provider.whatsapp.replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-primary px-4 py-1.5 text-xs inline-block text-center"
+                    >
+                      Chat Provider
+                    </a>
+                  )}
+                  <button onClick={() => handleComplete(b.id)} className="btn-secondary px-4 py-1.5 text-xs border-green-200 text-green-700 hover:bg-green-50">
+                    Mark as completed — release escrow
+                  </button>
+                  <p className="text-[11px] text-gray-400">Tap when service is done — funds go to provider</p>
+                </div>
               )}
             </div>
           ))}

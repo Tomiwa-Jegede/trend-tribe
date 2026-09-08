@@ -62,12 +62,12 @@ const confirmServiceBooking = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: feeKobo } }, data: { gigBalance: { decrement: feeKobo } } });
       if (ok.count === 0) throw new Error("FEE_RACE");
-      await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
+      // Keep escrow held — do NOT refund booker yet. Booker paid at booking time, funds stay in escrow until service completed.
       await tx.serviceBooking.update({ where: { id }, data: { status: "CONFIRMED" } });
       await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
     });
 
-    // Notify booker with provider whatsapp
+    // Notify booker with provider whatsapp — escrow still held
     const providerUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { whatsapp: true } });
     try {
       await prisma.notification.create({ data: { userId: booking.bookerId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_CONFIRMED" } });
@@ -75,10 +75,40 @@ const confirmServiceBooking = async (req, res) => {
       emitNotification(booking.bookerId, { type: "SERVICE_CONFIRMED", listingId: booking.listingId });
     } catch {}
 
-    return res.json({ message: `Confirmed — booking completed. Booker gets your WhatsApp.`, whatsapp: providerUser?.whatsapp, feeKobo });
+    return res.json({ message: `Confirmed — escrow still held (₦${(booking.amount/100).toLocaleString()}), booker gets your WhatsApp. Mark as completed after service to release funds.`, whatsapp: providerUser?.whatsapp, feeKobo });
   } catch (err) {
     console.error("[CONFIRM SERVICE BOOKING ERROR]", err);
     return res.status(500).json({ error: "Could not confirm" });
+  }
+};
+
+const completeServiceBooking = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const booking = await prisma.serviceBooking.findUnique({ where: { id } });
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+    if (booking.status !== "CONFIRMED") return res.status(400).json({ error: `Only CONFIRMED bookings can be completed (now ${booking.status})` });
+    if (booking.bookerId !== req.user.id && booking.providerId !== req.user.id) return res.status(403).json({ error: "Not your booking" });
+
+    await prisma.$transaction(async (tx) => {
+      // Release escrow to provider
+      await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
+      await tx.serviceBooking.update({ where: { id }, data: { status: "COMPLETED" } });
+    });
+
+    try {
+      const otherId = req.user.id === booking.bookerId ? booking.providerId : booking.bookerId;
+      await prisma.notification.create({ data: { userId: otherId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_COMPLETED" } });
+      await prisma.notification.create({ data: { userId: req.user.id, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_COMPLETED" } });
+      const { emitNotification } = require("../realtime");
+      emitNotification(booking.bookerId, { type: "SERVICE_COMPLETED", listingId: booking.listingId });
+      emitNotification(booking.providerId, { type: "SERVICE_COMPLETED", listingId: booking.listingId });
+    } catch {}
+
+    return res.json({ message: `Service completed — escrow ₦${(booking.amount/100).toLocaleString()} released to provider.` });
+  } catch (err) {
+    console.error("[COMPLETE SERVICE BOOKING ERROR]", err);
+    return res.status(500).json({ error: "Could not complete service" });
   }
 };
 
@@ -126,4 +156,4 @@ const getServiceBookings = async (req, res) => {
   }
 };
 
-module.exports = { bookService, confirmServiceBooking, cancelServiceBooking, expireServiceBookings, getServiceBookings };
+module.exports = { bookService, confirmServiceBooking, completeServiceBooking, cancelServiceBooking, expireServiceBookings, getServiceBookings };

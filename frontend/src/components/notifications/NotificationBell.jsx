@@ -237,7 +237,13 @@ const NotificationBell = () => {
             ) : (
               items.map((n) => {
                 const isMessage = n.type === "MESSAGE";
-                const to = isMessage ? "/inbox" : n.type === "NEW_USER" ? "/admin/users" : n.listing ? `/listings/${n.listing.slug || n.listing.id}` : "/my-listings";
+                let to = "/my-listings";
+                if (isMessage) to = "/inbox";
+                else if (n.type === "SERVICE_BOOKING") to = "/bookings/provider";
+                else if (n.type === "SERVICE_CONFIRMED") to = "/bookings/mine";
+                else if (n.type === "SERVICE_COMPLETED" || n.type === "SERVICE_CANCELLED" || n.type === "SERVICE_EXPIRED") to = "/bookings";
+                else if (n.type === "NEW_USER") to = "/admin/users";
+                else if (n.listing) to = `/listings/${n.listing.slug || n.listing.id}`;
                 const isSelected = selected.has(n.id);
                 return (
                   <div key={n.id} className={`flex items-start gap-2 px-2 py-1 hover:bg-gray-50 border-b border-gray-50 last:border-0 ${!n.read ? "bg-primary-50/50" : ""}`}>
@@ -282,7 +288,22 @@ const NotificationBell = () => {
                             <span className="block text-xs text-gray-500 mt-1 truncate">{n.listing?.title ? `📦 ${n.listing.title}` : "Tap to open inbox"}</span>
                           </>
                         )}
-                        {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE"].includes(n.type) && <>{n.type}</>}
+                        {n.type === "SERVICE_BOOKING" && (
+                          <>
+                            <span className="font-semibold">New booking</span> — {n.listing?.title || "Service"} by @{n.actor?.username || "someone"} <span className="block text-xs text-gray-500 mt-1">Tap to confirm/cancel (1h)</span>
+                          </>
+                        )}
+                        {n.type === "SERVICE_CONFIRMED" && (
+                          <>
+                            <span className="font-semibold">Booking confirmed</span> — {n.listing?.title || "Service"} <span className="block text-xs text-gray-500 mt-1">Tap to chat on WhatsApp</span>
+                          </>
+                        )}
+                        {n.type === "SERVICE_COMPLETED" && (
+                          <>
+                            <span className="font-semibold">Service completed</span> — {n.listing?.title || "Service"} <span className="block text-xs text-gray-500 mt-1">Escrow released — tap to view</span>
+                          </>
+                        )}
+                        {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE", "SERVICE_BOOKING", "SERVICE_CONFIRMED", "SERVICE_COMPLETED"].includes(n.type) && <>{n.type}</>}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                     </Link>

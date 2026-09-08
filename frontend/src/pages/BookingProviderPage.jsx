@@ -1,7 +1,7 @@
 // src/pages/BookingProviderPage.jsx — Provider view: confirm/cancel bookings made on your services
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { getServiceBookings, confirmServiceBooking, cancelServiceBooking } from "../services/serviceBookingService";
+import { getServiceBookings, confirmServiceBooking, completeServiceBooking, cancelServiceBooking } from "../services/serviceBookingService";
 import { useToast } from "../context/ToastContext";
 import { FiClock, FiCheck, FiX } from "react-icons/fi";
 import InfoModal from "../components/ui/InfoModal";
@@ -41,6 +41,17 @@ export default function BookingProviderPage() {
       fetch();
     } catch (e) {
       toast.error(e.response?.data?.error || "Cancel failed");
+    }
+  };
+
+  const handleComplete = async (id) => {
+    if (!confirm("Mark service as completed? Escrow will be released to you.")) return;
+    try {
+      const r = await completeServiceBooking(id);
+      toast.success(r.message);
+      fetch();
+    } catch (e) {
+      toast.error(e.response?.data?.error || "Complete failed");
     }
   };
 
@@ -84,11 +95,19 @@ export default function BookingProviderPage() {
               {b.status === "PENDING" && (
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => handleConfirm(b.id)} className="btn-primary px-4 py-1.5 text-xs">
-                    <FiCheck className="inline w-3 h-3" /> Confirm (pay 20%)
+                    <FiCheck className="inline w-3 h-3" /> Confirm
                   </button>
                   <button onClick={() => handleCancel(b.id)} className="btn-secondary px-3 py-1.5 text-xs">
                     <FiX className="inline w-3 h-3" /> Cancel
                   </button>
+                </div>
+              )}
+              {b.status === "CONFIRMED" && (
+                <div className="flex flex-col gap-2 mt-3">
+                  <button onClick={() => handleComplete(b.id)} className="btn-primary px-4 py-1.5 text-xs bg-green-600 hover:bg-green-700">
+                    <FiCheck className="inline w-3 h-3" /> Mark as completed
+                  </button>
+                  <p className="text-[11px] text-gray-400">After service, release escrow to your Gig wallet</p>
                 </div>
               )}
             </div>

@@ -9,6 +9,10 @@ export const confirmServiceBooking = async (bookingId) => {
   const { data } = await api.post(`/services/bookings/${bookingId}/confirm`);
   return data;
 };
+export const completeServiceBooking = async (bookingId) => {
+  const { data } = await api.post(`/services/bookings/${bookingId}/complete`);
+  return data;
+};
 export const cancelServiceBooking = async (bookingId) => {
   const { data } = await api.post(`/services/bookings/${bookingId}/cancel`);
   return data;
