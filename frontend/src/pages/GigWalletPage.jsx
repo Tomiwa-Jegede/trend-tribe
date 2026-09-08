@@ -1,5 +1,5 @@
 // src/pages/GigWalletPage.jsx — Full Gig Wallet: balance, transfer (3-step + receipt), history, top-up, withdraw (bank), PIN OTP
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { getGigAccount, getMyGigs, getGigTransfers, withdrawGig, initGigPayment, resolveGigAccount, transferGig } from "../services/gigService";
@@ -17,6 +17,7 @@ export default function GigWalletPage() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const withdrawRef = useRef(null);
   const [withdrawForm, setWithdrawForm] = useState({ amount: "", bankCode: "044", accountNumber: "", pin: "" });
   const [withdrawing, setWithdrawing] = useState(false);
   const [banks, setBanks] = useState([]);
@@ -62,6 +63,7 @@ export default function GigWalletPage() {
   };
   useEffect(() => { fetchAll(); }, []);
   useEffect(() => { api.get("/gigs/banks").then(r=>{ if(r.data?.banks) setBanks(r.data.banks); }).catch(()=>{ setBanks([{code:"044", name:"Access Bank"}, {code:"058", name:"GTBank"}, {code:"011", name:"First Bank"}, {code:"033", name:"UBA"}, {code:"057", name:"Zenith Bank"}, {code:"999992", name:"OPay"}, {code:"50211", name:"Kuda Bank"}, {code:"50515", name:"Moniepoint"}, {code:"999991", name:"PalmPay"}]); }); }, []);
+  useEffect(() => { if (showWithdraw && withdrawRef.current) withdrawRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, [showWithdraw]);
 
   const handleCopyAccount = async () => {
     if (!account?.accountNumber) return;
@@ -165,7 +167,7 @@ export default function GigWalletPage() {
         </div>
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <Link to="/gigs/wallet/transfer" className="flex-1 bg-white text-navy-900 font-bold px-6 py-3 rounded-full text-sm shadow-lg hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2"><FiSend className="w-4 h-4"/> Transfer</Link>
-          <button onClick={() => setShowWithdraw((v) => !v)} className="flex-1 bg-white/15 text-white font-bold px-6 py-3 rounded-full text-sm border border-white/20 hover:bg-white/25 transition-colors inline-flex items-center justify-center gap-2"><FiArrowDownCircle className="w-4 h-4" /> Withdraw</button>
+          <button onClick={() => setShowWithdraw((v) => !v)} className="flex-1 bg-white/15 text-white font-bold px-6 py-3 rounded-full text-sm border border-white/20 hover:bg-white/25 transition-colors inline-flex items-center justify-center gap-2"><FiArrowDownCircle className={`w-4 h-4 transition-transform ${showWithdraw ? "rotate-180" : ""}`} /> {showWithdraw ? "Close Withdraw" : "Withdraw"}</button>
         </div>
       </div>
 
@@ -184,15 +186,15 @@ export default function GigWalletPage() {
         )}
       </div>
 
-      {/* ── Withdraw form (inline, toggled) ── */}
+      {/* ── Withdraw form (inline, toggled) — navigates to card ── */}
       {showWithdraw && (
-        <form onSubmit={handleWithdraw} className="card p-4 mt-4 flex flex-col gap-3">
+        <form ref={withdrawRef} onSubmit={handleWithdraw} className="card p-4 mt-4 flex flex-col gap-3 border-2 border-primary-100 shadow-sm">
           <div>
             <label className="text-xs font-semibold text-gray-500">Amount ₦</label>
             <input type="number" min="1000" value={withdrawForm.amount} onChange={(e) => setWithdrawForm((f) => ({ ...f, amount: e.target.value }))} placeholder="1000" className="input-field mt-1" required />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div><label className="text-xs font-semibold text-gray-500">Bank</label><select value={withdrawForm.bankCode} onChange={e=>setWithdrawForm(f=>({...f, bankCode:e.target.value}))} className="input-field mt-1"><option value="">Select bank</option>{banks.map(b=> <option key={b.code} value={b.code}>{b.name}</option>)}</select></div>
+            <div><label className="text-xs font-semibold text-gray-500">Bank</label><select value={withdrawForm.bankCode} onChange={e=>setWithdrawForm(f=>({...f, bankCode:e.target.value}))} className="input-field mt-1"><option value="">Select bank</option>{banks.map((b,i)=> <option key={`${b.code}-${i}`} value={b.code}>{b.name}</option>)}</select></div>
             <div><label className="text-xs font-semibold text-gray-500">Account number</label><input value={withdrawForm.accountNumber} onChange={e=>setWithdrawForm(f=>({...f, accountNumber:e.target.value.replace(/\D/g,"").slice(0,10)}))} placeholder="809..." maxLength={10} className="input-field mt-1 font-mono" required /></div>
           </div>
           <div><label className="text-xs font-semibold text-gray-500">PIN</label><input type="password" maxLength={4} inputMode="numeric" value={withdrawForm.pin || ""} onChange={e=>setWithdrawForm(f=>({...f, pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="••••" className="input-field mt-1 w-24" required /></div>
