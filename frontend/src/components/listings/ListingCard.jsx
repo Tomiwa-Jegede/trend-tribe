@@ -256,11 +256,13 @@ const ListingCard = ({ listing }) => {
 
           {/* Seller row */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-            <div
-              className="w-6 h-6 bg-sage-100 rounded-full flex
-                         items-center justify-center flex-shrink-0"
-            >
-              <FiUser className="w-3 h-3 text-primary-600" />
+            <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-sage-100">
+              {seller?.avatar ? (
+                <img src={seller.avatar} alt={seller.username} className="w-full h-full object-cover" loading="lazy" onError={(e)=>{e.currentTarget.style.display="none"; e.currentTarget.nextSibling.style.display="flex";}} />
+              ) : null}
+              <span style={{display: seller?.avatar ? "none" : "flex"}} className="w-full h-full items-center justify-center">
+                <FiUser className="w-3 h-3 text-primary-600" />
+              </span>
             </div>
 
             <span className="text-xs text-gray-500 truncate">

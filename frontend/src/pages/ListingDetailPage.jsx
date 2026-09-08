@@ -431,11 +431,12 @@ const ListingDetailPage = () => {
             className="card p-4 flex items-center gap-3 mb-6 hover:border-primary-200
                        transition-colors group"
           >
-            <div
-              className="w-12 h-12 bg-primary-100 rounded-full flex
-                            items-center justify-center flex-shrink-0"
-            >
-              <FiUser className="w-5 h-5 text-primary-600" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-primary-100">
+              {listing.seller.avatar ? (
+                <img src={listing.seller.avatar} alt={listing.seller.username} className="w-full h-full object-cover" onError={(e)=>{e.currentTarget.style.display="none";}} />
+              ) : (
+                <FiUser className="w-5 h-5 text-primary-600" />
+              )}
             </div>
             <div className="flex-1">
               <p
