@@ -88,7 +88,7 @@ const myGigs = async (req, res) => {
   }
 };
 
-// POST /api/gigs/:id/claim — free, no fee on claim
+// POST /api/gigs/:id/claim — free, no fee on claim (atomic)
 const claimGig = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -96,10 +96,9 @@ const claimGig = async (req, res) => {
     const gig = await prisma.gig.findUnique({ where: { id } });
     if (!gig) return res.status(404).json({ error: "Gig not found" });
     if (gig.posterId === req.user.id) return res.status(400).json({ error: "You cannot claim your own gig" });
-    if (gig.status !== "OPEN") return res.status(400).json({ error: `Gig is ${gig.status}, not open` });
-    if (gig.expiresAt < new Date()) return res.status(400).json({ error: "Gig expired" });
-
-    const updated = await prisma.gig.update({ where: { id }, data: { status: "CLAIMED", claimerId: req.user.id, claimedAt: new Date() } });
+    const { count } = await prisma.gig.updateMany({ where: { id, status: "OPEN", expiresAt: { gt: new Date() } }, data: { status: "CLAIMED", claimerId: req.user.id, claimedAt: new Date() } });
+    if (count === 0) return res.status(409).json({ error: "Gig is no longer open or already claimed" });
+    const updated = await prisma.gig.findUnique({ where: { id } });
     return res.json({ gig: updated, whatsapp: gig.whatsapp, message: "Claimed — you got the poster's WhatsApp, coordinate off-platform. Poster must Confirm within 72h." });
   } catch (err) {
     console.error("[CLAIM GIG ERROR]", err);
@@ -107,21 +106,18 @@ const claimGig = async (req, res) => {
   }
 };
 
-// POST /api/gigs/:id/confirm — poster confirms, 80% to claimer, 20% fee retained
+// POST /api/gigs/:id/confirm — poster confirms, 80% to claimer, 20% fee retained (atomic)
 const confirmGig = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const gig = await prisma.gig.findUnique({ where: { id } });
     if (!gig) return res.status(404).json({ error: "Gig not found" });
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster can confirm" });
-    if (gig.status !== "CLAIMED") return res.status(400).json({ error: `Gig is ${gig.status}` });
     if (!gig.claimerId) return res.status(400).json({ error: "No claimer" });
-
     const pay = payout(gig.escrowAmount);
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
-      await tx.gig.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date() } });
-    });
+    const { count } = await prisma.gig.updateMany({ where: { id, status: "CLAIMED", posterId: req.user.id }, data: { status: "COMPLETED", completedAt: new Date() } });
+    if (count === 0) return res.status(409).json({ error: `Gig is no longer claimable (already ${gig.status})` });
+    await prisma.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
     return res.json({ message: `Confirmed — ₦${(pay/100).toLocaleString()} sent to claimer, ₦${(fee(gig.escrowAmount)/100).toLocaleString()} fee retained.`, payout: pay, fee: fee(gig.escrowAmount) });
   } catch (err) {
     console.error("[CONFIRM GIG ERROR]", err);
@@ -129,21 +125,18 @@ const confirmGig = async (req, res) => {
   }
 };
 
-// POST /api/gigs/:id/cancel — poster cancels before claimed: 5% fee, 95% refund
+// POST /api/gigs/:id/cancel — poster cancels before claimed: 5% fee, 95% refund (atomic)
 const cancelGig = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const gig = await prisma.gig.findUnique({ where: { id } });
     if (!gig) return res.status(404).json({ error: "Gig not found" });
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster can cancel" });
-    if (gig.status !== "OPEN") return res.status(400).json({ error: `Cannot cancel ${gig.status} gig. After claimed, use Confirm/Dispute.` });
-
     const cancelFee = Math.floor(gig.escrowAmount * 0.05);
     const refund = gig.escrowAmount - cancelFee;
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: refund } } });
-      await tx.gig.update({ where: { id }, data: { status: "CANCELLED" } });
-    });
+    const { count } = await prisma.gig.updateMany({ where: { id, status: "OPEN", posterId: req.user.id }, data: { status: "CANCELLED" } });
+    if (count === 0) return res.status(409).json({ error: `Cannot cancel ${gig.status} gig` });
+    await prisma.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: refund } } });
     return res.json({ message: `Cancelled — 5% fee ₦${(cancelFee/100).toLocaleString()}, refund ₦${(refund/100).toLocaleString()} to Gig wallet.`, refund, fee: cancelFee });
   } catch (err) {
     console.error("[CANCEL GIG ERROR]", err);
@@ -240,7 +233,7 @@ const withdrawGig = async (req, res) => {
     const w = await prisma.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, fee: feeKobo, bankCode: bankCode.trim(), bankAccountNumber: accountNumber.trim(), bankName: bankName || bankCode, accountName, reference, status: "PENDING" } });
     // save bank to user for next time (don't deduct yet)
     await prisma.user.update({ where: { id: req.user.id }, data: { bankAccountNumber: accountNumber.trim(), bankCode: bankCode.trim(), bankName: bankName || bankCode } });
-    return res.status(201).json({ withdrawal: w, message: `Withdraw request ₦${amt.toLocaleString()} queued — admin will approve (fee ₦${(feeKobo/100).toFixed(2)}). Money leaves Gig wallet only when Flutterwave confirms. If Flutterwave has no cash (T+1), it stays queued for next settlement.` });
+    return res.status(201).json({ withdrawal: w, message: `Withdraw request ₦${amt.toLocaleString()} received — fee ₦${(feeKobo/100).toFixed(2)}.` });
   } catch (err) {
     console.error("[WITHDRAW GIG ERROR]", err);
     return res.status(500).json({ error: "Could not withdraw" });

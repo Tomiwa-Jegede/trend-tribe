@@ -220,7 +220,7 @@ export default function GigsPage() {
         <div className="mt-4 grid grid-cols-1 sm:flex gap-3">
           <div className="flex-1 card p-3"><label className="text-xs font-semibold text-gray-500">Top up</label><div className="flex gap-2 mt-1"><input type="number" min="100" value={topupAmount} onChange={e=>setTopupAmount(e.target.value)} placeholder="500" className="input-field flex-1 text-sm" /><button onClick={handleTopup} className="btn-primary px-3 py-2 text-xs">Top up</button></div></div>
           <form onSubmit={handleWithdraw} className="flex-1 card p-3 space-y-2">
-            <p className="text-xs font-semibold text-gray-700">Withdraw to bank — PIN + admin approve → Flutterwave</p>
+            <p className="text-xs font-semibold text-gray-700">Withdraw to bank</p>
             <div className="flex gap-2">
               <input type="number" min="1000" value={withdrawForm.amount} onChange={e=>setWithdrawForm(f=>({...f, amount:e.target.value}))} placeholder="1000" className="input-field flex-1 text-sm" />
               <input value={withdrawForm.accountNumber} onChange={e=>setWithdrawForm(f=>({...f, accountNumber:e.target.value.replace(/\D/g,"").slice(0,10)}))} placeholder="Account 809..." maxLength={10} className="input-field flex-1 text-sm font-mono" />
@@ -230,7 +230,7 @@ export default function GigsPage() {
               <input type="password" maxLength={4} inputMode="numeric" value={withdrawForm.pin} onChange={e=>setWithdrawForm(f=>({...f, pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="PIN" className="input-field w-20 text-sm" />
               <button type="submit" className="btn-secondary px-3 py-2 text-xs">Withdraw</button>
             </div>
-            <p className="text-[10px] text-gray-400">Min ₦1000 · 1% fee · admin approves → auto transfer</p>
+            <p className="text-[10px] text-gray-400">Min ₦1000 · 1% fee</p>
           </form>
         </div>
         {(hasPin===false || hasPin===true) && (
@@ -260,6 +260,68 @@ export default function GigsPage() {
             )}
           </div>
         )}
+        {/* Transfer — in-place inside wallet, not another card */}
+        {showTransfer && (
+          <div className="mt-5 pt-5 border-t border-white/15">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white text-sm">Transfer</h3>
+              <button onClick={()=>{ setShowTransfer(false); setTransferStep(1); setTransferResult(null); setResolved(null); }} className="text-xs text-white/70 hover:text-white">Close</button>
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              {[1,2,3].map(s=> <div key={s} className={`flex-1 h-1.5 rounded-full ${transferStep>=s ? "bg-white" : "bg-white/20"}`} />)}
+              <span className="text-xs text-white/70 ml-2">Step {transferStep>3?3:transferStep}/3</span>
+            </div>
+            {transferStep !== 4 ? (
+              <div className="max-w-md mx-auto space-y-4 bg-white rounded-2xl p-5">
+                {transferStep===1 && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700">Step 1 — Recipient account number</label>
+                    <input value={transferForm.toAccount} onChange={async (e)=>{ const v=e.target.value.replace(/\D/g,"").slice(0,10); setTransferForm(f=>({...f, toAccount:v})); if(/^\d{10}$/.test(v)){ try{ const r=await resolveGigAccount(v); setResolved(r.user);}catch{setResolved(null);} } else setResolved(null); }} placeholder="8091234567" maxLength={10} inputMode="numeric" className="input-field mt-2 text-lg tracking-widest font-mono" />
+                    {resolved ? <p className="text-sm text-green-600 mt-2 font-medium bg-green-50 border border-green-200 rounded-lg px-3 py-2">→ {resolved.fullName} <span className="text-gray-500">@{resolved.username}</span></p> : transferForm.toAccount.length===10 ? <p className="text-xs text-red-500 mt-2">Account not found</p> : <p className="text-xs text-gray-400 mt-2">Enter 10 digits — name shows automatically</p>}
+                    <button disabled={!resolved} onClick={()=>setTransferStep(2)} className="w-full mt-4 btn-primary py-3 rounded-full font-bold disabled:opacity-60">Next — Amount</button>
+                  </div>
+                )}
+                {transferStep===2 && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700">Step 2 — Amount ₦</label>
+                    <input type="number" min="1" value={transferForm.amount} onChange={e=>setTransferForm(f=>({...f, amount:e.target.value}))} placeholder="500" className="input-field mt-2 text-lg" />
+                    <p className="text-xs text-gray-500 mt-2">Fee 1% · {transferForm.amount ? `₦${(parseInt(transferForm.amount,10)*0.01).toFixed(2)}` : "—"} · Total ₦{transferForm.amount ? (parseInt(transferForm.amount,10) *1.01).toFixed(2) : "—"}</p>
+                    <div className="flex gap-2 mt-4"><button onClick={()=>setTransferStep(1)} className="flex-1 btn-secondary py-3 rounded-full">Back</button><button disabled={!transferForm.amount || parseInt(transferForm.amount,10)<1} onClick={()=>setTransferStep(3)} className="flex-1 btn-primary py-3 rounded-full font-bold disabled:opacity-60">Next — PIN</button></div>
+                  </div>
+                )}
+                {transferStep===3 && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700">Step 3 — Enter PIN to authorize</label>
+                    <input type="password" maxLength={4} inputMode="numeric" value={transferForm.pin} onChange={e=>setTransferForm(f=>({...f, pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="••••" className="input-field mt-2 tracking-widest text-lg text-center" autoFocus />
+                    <p className="text-xs text-gray-500 mt-2 text-center">Transfer ₦{transferForm.amount ? parseInt(transferForm.amount,10).toLocaleString() : "—"} to {resolved?.fullName} — fee ₦{transferForm.amount ? (parseInt(transferForm.amount,10)*0.01).toFixed(2) : "—"}</p>
+                    <div className="flex gap-2 mt-4"><button onClick={()=>setTransferStep(2)} className="flex-1 btn-secondary py-3 rounded-full">Back</button><button disabled={transferring || !/^\d{4}$/.test(transferForm.pin)} onClick={handleTransfer} className="flex-1 btn-primary py-3 rounded-full font-bold disabled:opacity-60 flex items-center justify-center gap-2"><FiSend className="w-4 h-4"/> {transferring?"Sending...":"Confirm & Send"}</button></div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="max-w-md mx-auto text-center py-4 bg-white rounded-2xl p-5">
+                {transferResult?.success ? (
+                  <>
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3"><FiCheck className="w-8 h-8 text-green-600" /></div>
+                    <h4 className="font-extrabold text-gray-900 text-lg">Transfer Successful</h4>
+                    <p className="text-2xl font-extrabold text-primary-600 mt-2">₦{transferResult.amount.toLocaleString()}</p>
+                    <p className="text-sm text-gray-600 mt-1">to {transferResult.recipient.fullName} @{transferResult.recipient.username} · Fee ₦{(transferResult.fee/100).toFixed(2)}</p>
+                    <p className="text-xs text-gray-400 mt-1">Ref: {transferResult.reference || "—"} · {new Date().toLocaleString()}</p>
+                    <button onClick={handleDownloadReceipt} className="mt-4 btn-primary px-6 py-2.5 rounded-full text-sm font-bold">Download Receipt</button>
+                    <button onClick={()=>{ setTransferResult(null); setTransferForm({toAccount:"",amount:"",pin:""}); setResolved(null); setTransferStep(1); }} className="mt-2 block mx-auto text-sm text-gray-500">Done</button>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><FiX className="w-8 h-8 text-red-600" /></div>
+                    <h4 className="font-extrabold text-gray-900 text-lg">Transfer Failed</h4>
+                    <p className="text-sm text-red-600 mt-2">{transferResult?.error || "Transaction did not go through."}</p>
+                    <button onClick={()=>setTransferStep(3)} className="mt-4 btn-secondary px-6 py-2.5 rounded-full text-sm">Try again</button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {/* OTP Modal for PIN update */}
         {showOtpModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={()=>setShowOtpModal(false)}>
@@ -285,6 +347,8 @@ export default function GigsPage() {
           </div>
         )}
       </div>
+
+
 
 
 
