@@ -1,10 +1,11 @@
 const express = require("express");
 const { protect } = require("../middleware/auth.middleware");
-const { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage, getThread, markDelivered, getPresence } = require("../controllers/message.controller");
+const { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage, getThread, markDelivered, getPresence, getConversations } = require("../controllers/message.controller");
 
 const router = express.Router();
 router.use(protect);
 router.post("/", createMessage);
+router.get("/conversations", getConversations);
 router.get("/", getMyMessages);
 router.get("/thread", getThread);
 router.get("/presence", getPresence);

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye, FiMessageCircle } from "react-icons/fi";
-import { getMyMessages, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
+import { getMyMessages, getConversations, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
 import useRealtime from "../hooks/useRealtime";
 import { useAuth } from "../context/AuthContext";
 import ChatThread from "../components/chat/ChatThread";
@@ -12,6 +12,7 @@ const InboxPage = () => {
   const { isAuthenticated, token, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(() => new Set());
@@ -22,21 +23,15 @@ const InboxPage = () => {
     if (!isAuthenticated || !token) return;
     if (showLoader) setLoading(true);
     try {
-      const data = await getMyMessages({ limit: 20 });
-      setMessages(data.messages);
-      setPagination(data.pagination);
-      // auto-open thread from ?thread=listingId-withId (contact seller → chat room)
+      const [msgData, convos] = await Promise.all([getMyMessages({ limit: 20 }), getConversations().catch(() => [])]);
+      setMessages(msgData.messages);
+      setConversations(convos || []);
+      setPagination(msgData.pagination);
       const threadParam = searchParams.get("thread");
-      if (threadParam && data.messages.length) {
+      if (threadParam) {
         const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
-        const match = data.messages.find((m) => m.listing?.id === lid && (m.sender?.id === withId || m.recipient?.id === withId));
-        if (match) {
-          const otherId = match.senderId === user?.id ? match.recipient?.id : match.sender?.id;
-          if (otherId) setExpanded(`thread-${lid}-${otherId}`);
-        } else if (!isNaN(lid) && !isNaN(withId)) {
-          setExpanded(`thread-${lid}-${withId}`);
-        }
-      } else if (data.messages?.some((m) => !m.read)) {
+        if (!isNaN(lid) && !isNaN(withId)) setExpanded(`thread-${lid}-${withId}`);
+      } else if (msgData.messages?.some((m) => !m.read)) {
         markAllMessagesRead().catch(() => {});
         setMessages((prev) => prev.map((x) => ({ ...x, read: true })));
         if ("clearAppBadge" in navigator) navigator.clearAppBadge().catch(() => {});
@@ -142,9 +137,38 @@ const InboxPage = () => {
         </div>
       </div>
 
+      {conversations.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-bold tracking-widest uppercase text-gray-700 mb-3">Chat rooms — per seller</h2>
+          <div className="grid gap-3">
+            {conversations.map((c) => {
+              const key = c.key;
+              const isOpen = expanded === key;
+              return (
+                <div key={key} className="card p-4">
+                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => setExpanded(isOpen ? null : key)}>
+                    {c.otherUser?.avatar ? <img src={c.otherUser.avatar} alt={c.otherUser.username} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{c.otherUser?.fullName?.[0] || c.otherUser?.username?.[0] || "?"}</div>}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{c.otherUser?.fullName || c.otherUser?.username} · {c.listing?.title || "Chat"}</p>
+                      <p className="text-xs text-gray-500 truncate">{c.lastMessage?.body?.slice(0, 60) || "No messages"} {c.unreadCount > 0 && <span className="ml-2 bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{c.unreadCount} new</span>}</p>
+                    </div>
+                    <span className="text-xs text-primary-600 font-semibold">{isOpen ? "Close" : "Open chat →"}</span>
+                  </div>
+                  {isOpen && c.listing?.id && c.otherUser?.id && (
+                    <div className="mt-4">
+                      <ChatThread listingId={c.listing.id} withUser={c.otherUser} onClose={() => setExpanded(null)} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div>
-      ) : messages.length === 0 ? (
+      ) : messages.length === 0 && conversations.length === 0 ? (
         <div className="card p-10 text-center">
           <FiMail className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No messages yet</p>

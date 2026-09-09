@@ -185,6 +185,38 @@ const getPresence = async (req, res) => {
   }
 };
 
+// GET /api/messages/conversations — per-seller chat rooms (grouped by listing+otherUser)
+const getConversations = async (req, res) => {
+  try {
+    const msgs = await prisma.message.findMany({
+      where: { OR: [{ senderId: req.user.id }, { recipientId: req.user.id }] },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      include: {
+        sender: { select: { id: true, username: true, fullName: true, avatar: true } },
+        recipient: { select: { id: true, username: true, fullName: true, avatar: true } },
+        listing: { select: { id: true, slug: true, title: true, images: true, price: true } },
+      },
+    });
+    const map = new Map();
+    for (const m of msgs) {
+      const other = m.senderId === req.user.id ? m.recipient : m.sender;
+      const otherId = other?.id;
+      if (!otherId) continue;
+      const key = `thread-${m.listingId || "no-listing"}-${otherId}`;
+      if (!map.has(key)) {
+        const unread = msgs.filter((x) => x.listingId === m.listingId && ((x.senderId === otherId && x.recipientId === req.user.id && !x.read))).length;
+        map.set(key, { key, listing: m.listing, otherUser: other, lastMessage: m, unreadCount: unread, updatedAt: m.createdAt });
+      }
+    }
+    const conversations = Array.from(map.values()).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    return res.status(200).json({ conversations });
+  } catch (err) {
+    console.error("[GET CONVERSATIONS ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 const deleteOne = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -222,4 +254,4 @@ const deleteAll = async (req, res) => {
   }
 };
 
-module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage, getThread, markDelivered, getPresence };
+module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage, getThread, markDelivered, getPresence, getConversations };

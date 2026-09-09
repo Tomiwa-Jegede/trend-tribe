@@ -48,6 +48,10 @@ export const markDelivered = async (id) => {
   const { data } = await api.post(`/messages/${id}/delivered`);
   return data;
 };
+export const getConversations = async () => {
+  const { data } = await api.get("/messages/conversations");
+  return data.conversations;
+};
 
 // admin
 export const broadcastMessage = async ({ subject, body }) => {
