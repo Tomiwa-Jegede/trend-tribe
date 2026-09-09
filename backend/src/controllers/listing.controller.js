@@ -11,10 +11,10 @@ const formatListing = (listing) => ({
   price: parseFloat(listing.price),
 });
 
-// Admin-only fields that must not leak to public responses
+// Admin-only fields that must not leak — keep counts (views/shares/contactViews) public for social proof
 const stripAdminFields = (listing) => {
   if (!listing) return listing;
-  const { contactViews, contactViewLogs, ...rest } = listing;
+  const { contactViewLogs, ...rest } = listing;
   return rest;
 };
 

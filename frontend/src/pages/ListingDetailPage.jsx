@@ -135,6 +135,9 @@ const ListingDetailPage = () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
       toast.success("Link copied to clipboard!");
+      // increment share count (realtime like views) — don't block toast
+      const { incrementShare } = await import("../services/listingService");
+      incrementShare(listing.slug || listing.id).catch(() => {});
     } catch {
       toast.error("Failed to copy link.");
     }
