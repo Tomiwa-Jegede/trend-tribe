@@ -294,15 +294,8 @@ const DiscoverFeed = () => {
 
   const handleContact = async (listing) => {
     if (!isAuthenticated) { navigate("/login"); return; }
-    setContactLoadingId(listing.id);
-    try {
-      const api = (await import("../../api/axios")).default;
-      await api.post("/messages", { listingId: listing.id, body: `Hi ${listing.seller.fullName}, is this still available? — ${listing.title} (₦${listing.price})` });
-      toast.success("Product sent to chat");
-      navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
-    } catch (e) {
-      toast.error(e.response?.data?.error || "Failed to send");
-    } finally { setContactLoadingId(null); }
+    // open chat room — product is shown in header, no auto message
+    navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
   };
 
   if (loading) {

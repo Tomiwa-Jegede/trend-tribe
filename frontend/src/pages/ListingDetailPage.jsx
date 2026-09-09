@@ -500,15 +500,8 @@ const ListingDetailPage = () => {
                 onClick={async () => {
                   if (!isAuthenticated) { navigate("/login"); return; }
                   if (listing.seller.id === user?.id) { toast.info("This is your listing"); return; }
-                  setContactLoading(true);
-                  try {
-                    const api = (await import("../api/axios")).default;
-                    await api.post("/messages", { listingId: listing.id, body: `Hi ${listing.seller.fullName}, is this still available? — ${listing.title} (₦${listing.price})` });
-                    toast.success("Product sent to chat — open chat room");
-                    navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
-                  } catch (e) {
-                    toast.error(e.response?.data?.error || "Failed to send message");
-                  } finally { setContactLoading(false); }
+                  // open chat room for this product — don't auto-send, let buyer type first
+                  navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
                 }}
                 disabled={!listing.isAvailable || contactLoading}
                 className="btn-primary flex items-center justify-center gap-2 py-3.5"
