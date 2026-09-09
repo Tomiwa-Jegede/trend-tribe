@@ -145,8 +145,8 @@ const InboxPage = () => {
             {messages.map((m) => {
               const isSelected = selected.has(m.id);
               const isExpanded = expanded === m.id;
-              const threadKey = m.listing ? `thread-${m.listing.id}-${m.sender.id}` : null;
-              const isThread = expanded === threadKey;
+              const threadKey = m.listing?.id && m.sender?.id ? `thread-${m.listing.id}-${m.sender.id}` : null;
+              const isThread = threadKey && expanded === threadKey;
               return (
                 <div key={m.id} className={`card p-4 flex gap-3 ${!m.read ? "bg-primary-50/40 border-primary-100" : ""} ${isSelected ? "ring-2 ring-primary-200" : ""}`}>
                   {selecting && (
@@ -168,7 +168,7 @@ const InboxPage = () => {
                         {!m.read && <span className="w-2 h-2 bg-primary-600 rounded-full inline-block" />}
                       </span>
                     </div>
-                    {m.listing && (
+                    {m.listing?.id && (
                       <Link to={`/listings/${m.listing.slug || m.listing.id}`} onClick={(e) => e.stopPropagation()} className="mt-3 flex items-center gap-3 bg-white border border-sage-100 rounded-xl p-3 hover:border-primary-200 transition-colors">
                         {m.listing.images?.[0] ? <img src={m.listing.images[0]} alt={m.listing.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" /> : <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center">🛍️</div>}
                         <div className="min-w-0">
@@ -181,10 +181,10 @@ const InboxPage = () => {
                       <div className="mt-3 flex flex-col gap-3">
                         <div className="flex gap-2">
                           <button onClick={(e) => { e.stopPropagation(); setExpanded(null); }} className="text-xs text-gray-500 hover:text-gray-700">Collapse</button>
-                          {m.listing && <Link to={`/listings/${m.listing.slug || m.listing.id}`} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiEye className="w-3 h-3" /> View product</Link>}
-                          {!isThread && m.listing && <button onClick={(e) => { e.stopPropagation(); setExpanded(threadKey); }} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiMessageCircle className="w-3 h-3" /> Reply in chat</button>}
+                          {m.listing?.id && <Link to={`/listings/${m.listing.slug || m.listing.id}`} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiEye className="w-3 h-3" /> View product</Link>}
+                          {!isThread && m.listing?.id && m.sender?.id && <button onClick={(e) => { e.stopPropagation(); setExpanded(threadKey); }} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiMessageCircle className="w-3 h-3" /> Reply in chat</button>}
                         </div>
-                        {isThread && (
+                        {isThread && m.listing?.id && m.sender?.id && (
                           <ChatThread listingId={m.listing.id} withUser={m.sender} onClose={() => setExpanded(m.id)} />
                         )}
                       </div>
