@@ -299,7 +299,7 @@ const DiscoverFeed = () => {
       const api = (await import("../../api/axios")).default;
       await api.post("/messages", { listingId: listing.id, body: `Hi ${listing.seller.fullName}, is this still available? — ${listing.title} (₦${listing.price})` });
       toast.success("Product sent to chat");
-      navigate(`/messages?thread=${listing.id}-${listing.seller.id}`);
+      navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
     } catch (e) {
       toast.error(e.response?.data?.error || "Failed to send");
     } finally { setContactLoadingId(null); }

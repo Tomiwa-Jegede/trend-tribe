@@ -411,8 +411,8 @@ const Navbar = () => {
                         </span>
                       )}
                     </Link>
-                    <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Chats">
-                      <FiMessageCircle className={`w-5 h-5 ${location.pathname === "/inbox" ? "text-primary-600" : "text-gray-600"}`} />
+                    <Link to="/chat" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Chats">
+                      <FiMessageCircle className={`w-5 h-5 ${location.pathname === "/chat" ? "text-primary-600" : "text-gray-600"}`} />
                       {inboxUnread > 0 && (
                         <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                           {inboxUnread > 99 ? "99+" : inboxUnread}
@@ -508,7 +508,7 @@ const Navbar = () => {
                   </span>
                 )}
               </Link>
-              <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Chats">
+              <Link to="/chat" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Chats">
                 <FiMessageCircle className="w-5 h-5 text-gray-600" />
                 {inboxUnread > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
@@ -550,7 +550,7 @@ const Navbar = () => {
               <MobileNavLink path="/" label="Home" index={0} />
               <MobileNavLink path="/marketplace" label="Marketplace" index={1} />
               <MobileNavLink path="/inbox" label="Inbox" index={1} />
-              <MobileNavLink path="/inbox" label="Chats" index={1} />
+              <MobileNavLink path="/chat" label="Chats" index={1} />
               <div ref={gigsMenuMobileRef}>
                 <motion.div custom={1} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
                   <button

@@ -35,7 +35,7 @@ const createMessage = async (req, res) => {
       sendPushToUser(prisma, recipientId, {
         title: "Trend Tribe — New chat message",
         body: `${msg.sender.fullName || msg.sender.username}: ${text.slice(0, 80)}`,
-        url: "/messages",
+        url: `/chat?thread=${lid}-${msg.senderId}`,
         icon: "/icon-192.png",
         badge: "/icon-192.png",
         badgeCount: unread,

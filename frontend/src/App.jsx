@@ -268,6 +268,7 @@ const App = () => {
             <Route path="/coming-soon" element={<ComingSoonPage />} />
             <Route path="/messages" element={<Navigate to="/inbox" replace />} />
             <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
             <Route
               path="/saved"
               element={
