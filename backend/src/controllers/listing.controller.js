@@ -38,23 +38,34 @@ function getDisplayViews(listing, totalUsers) {
   const contacts = listing.contactViews ?? 0;
 
   // ── NEW: starter + real, starter grows with time even if real=0 ──
+  // Make starters look real & not similar: per-listing variance in base, cap, and speed
   if (isNew) {
     const ageMins = Math.max(0, (now.getTime() - new Date(listing.createdAt).getTime()) / 60000);
-    // starter base 2-6 (deterministic per listing, varies)
-    const sBase = (hashToNum(String(listing.id)) % 4) + 2; // 2-5
-    const sJit = hashToNum(String(listing.id) + "starter") % 3; // 0-2
-    const starterBase = sBase + sJit; // 2-7
-    // caps hierarchy: non < x1 < x2 < total, and <80 (all strictly < total)
-    const capNon = Math.min(14, total - 3, Math.max(6, Math.floor(total * 0.22))); // e.g. 50→11, 20→6, 100→14
-    const capX1 = Math.min(32, total - 2, Math.max(capNon + 6, Math.floor(total * 0.45))); // e.g. 50→22, 100→32
-    const capX2 = Math.min(50, total - 1, Math.max(capX1 + 8, Math.floor(total * 0.70))); // e.g. 50→35, 100→50
-    // organic starter grows to capNon over ~36h even with no real views
-    const ORGANIC_MINS = 36 * 60;
+    // starter base 3-13 spread per listing (not 2-7) — hash-driven so cards don't cluster
+    const sBase = (hashToNum(String(listing.id)) % 7) + 3; // 3-9
+    const sJit = hashToNum(String(listing.id) + "starter") % 5; // 0-4
+    const sVar = hashToNum(String(listing.id) + "v2") % 3; // 0-2 extra wobble
+    const starterBase = sBase + sJit + (sVar === 2 ? 1 : 0); // 3-13
+    // caps hierarchy with per-listing jitter so not every card caps identically
+    const capJitNon = (hashToNum(String(listing.id) + "capN") % 7) - 3; // -3..+3
+    const capJitX1 = (hashToNum(String(listing.id) + "cap1") % 9) - 4; // -4..+4
+    const capJitX2 = (hashToNum(String(listing.id) + "cap2") % 11) - 5; // -5..+5
+    const capNonBase = Math.min(14, total - 3, Math.max(6, Math.floor(total * 0.22)));
+    const capX1Base = Math.min(32, total - 2, Math.max(capNonBase + 6, Math.floor(total * 0.45)));
+    const capX2Base = Math.min(50, total - 1, Math.max(capX1Base + 8, Math.floor(total * 0.70)));
+    const capNon = Math.min(14, total - 3, Math.max(6, capNonBase + capJitNon));
+    const capX1 = Math.min(32, total - 2, Math.max(capNon + 5, capX1Base + capJitX1));
+    const capX2 = Math.min(50, total - 1, Math.max(capX1 + 7, capX2Base + capJitX2));
+    // organic starter grows to capNon over ~28-44h per listing (varies), not fixed 36h
+    const organicHours = 28 + (hashToNum(String(listing.id) + "spd") % 17); // 28-44h
+    const ORGANIC_MINS = organicHours * 60;
     let progOrganic = Math.min(1, ageMins / ORGANIC_MINS);
-    // slight ease: faster at start, slower near cap (sqrt)
-    progOrganic = Math.sqrt(progOrganic);
+    progOrganic = Math.pow(progOrganic, 0.62); // ease, varies slightly per listing via hours
+    // per-listing growth wobble ±8%
+    const speedVar = 0.92 + (hashToNum(String(listing.id) + "grow") % 17) / 100; // 0.92-1.08
+    progOrganic = Math.min(1, progOrganic * speedVar);
     let starter = starterBase + Math.floor((capNon - starterBase) * progOrganic);
-    starter = Math.max(starter, starterBase);
+    starter = Math.max(starter, Math.min(starterBase, capNon));
     starter = Math.min(starter, capNon);
 
     // boost extra — gradual after few mins, not instant
