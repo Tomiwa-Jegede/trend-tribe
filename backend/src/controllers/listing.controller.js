@@ -318,6 +318,18 @@ const getListingById = async (req, res) => {
 
     if (!listing) return res.status(404).json({ error: "Listing not found" });
 
+    // ── Detail view count: 1 per authenticated non-owner per day ──
+    const viewerId = req.user?.id;
+    const isOwner = viewerId && listing.sellerId === viewerId;
+    if (viewerId && !isOwner) {
+      const date = new Date().toISOString().slice(0, 10);
+      // fire-and-forget, deduped by @@unique([listingId, viewerId, date])
+      prisma.listingView
+        .create({ data: { listingId: listing.id, viewerId, date } })
+        .then(() => prisma.listing.update({ where: { id: listing.id }, data: { views: { increment: 1 } } }).catch(() => {}))
+        .catch(() => {}); // duplicate date = already counted today
+    }
+
     const { listings: sellerListings, ...sellerFields } = listing.seller;
     const cleaned = stripAdminFields(listing);
     cleaned.seller = undefined;

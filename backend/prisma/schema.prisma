@@ -59,6 +59,7 @@ model User {
   favorites            Favorite[]
   notifications        Notification[]
   contactViews         ContactView[]
+  viewLogs             ListingView[]
   sentMessages         Message[] @relation("SentMessages")
   receivedMessages     Message[] @relation("ReceivedMessages")
   pushSubscriptions    PushSubscription[]
@@ -133,11 +134,13 @@ model Listing {
   coverPosition  Json?     @default("{\"x\": 50, \"y\": 50}")
   editCount      Int       @default(0)
   contactViews   Int       @default(0)
+  views          Int       @default(0)
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   reports        Report[]
   favorites      Favorite[]
   notifications  Notification[]
   contactViewLogs ContactView[]
+  viewLogs       ListingView[]
   messages       Message[]
   serviceBookings ServiceBooking[]
 
@@ -199,6 +202,21 @@ model ContactView {
   @@index([listingId, createdAt])
   @@index([viewerId])
   @@map("contact_views")
+}
+
+model ListingView {
+  id        Int      @id @default(autoincrement())
+  listingId Int
+  viewerId  Int
+  date      String // YYYY-MM-DD for dedupe: 1 per user per listing per day
+  createdAt DateTime @default(now())
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, viewerId, date])
+  @@index([listingId, date])
+  @@index([viewerId])
+  @@map("listing_views")
 }
 
 model Message {

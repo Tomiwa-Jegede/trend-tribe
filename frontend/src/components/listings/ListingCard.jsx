@@ -218,15 +218,25 @@ const ListingCard = ({ listing }) => {
 
         {/* ── Content ───────────────────────────────────── */}
         <div className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 flex-1">
-          {/* Category */}
-          <motion.span
-            className="text-[11px] sm:text-xs font-semibold text-primary-600 uppercase tracking-wide truncate"
-            variants={reduced ? {} : categoryVariants}
-            initial="hidden"
-            animate="show"
-          >
-            {category.replace("_", " ")}
-          </motion.span>
+          {/* Category + public view count (detail opens, social proof) */}
+          <div className="flex items-center justify-between gap-2">
+            <motion.span
+              className="text-[11px] sm:text-xs font-semibold text-primary-600 uppercase tracking-wide truncate"
+              variants={reduced ? {} : categoryVariants}
+              initial="hidden"
+              animate="show"
+            >
+              {category.replace("_", " ")}
+            </motion.span>
+            {listing.views != null && (
+              <span
+                className="text-[11px] text-gray-400 flex-shrink-0"
+                title="Views = detail page opens, unique per user per day, not counting you"
+              >
+                {(listing.views ?? 0) >= 4 ? `👁 ${listing.views}` : "✨ New"}
+              </span>
+            )}
+          </div>
 
           {/* Title */}
           <h4

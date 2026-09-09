@@ -19,6 +19,7 @@ const {
   getMyFavorites,
 } = require("../controllers/listing.controller");
 const { protect } = require("../middleware/auth.middleware");
+const { optionalAuth } = require("../middleware/optionalAuth.middleware");
 const { requireVerified, requireSeller } = require("../middleware/verified.middleware");
 const {
   createListingRules,
@@ -41,7 +42,7 @@ router.get("/me", protect, getMyListings);
 router.get("/user/:userId", getListingsByUser);
 router.get("/favorites/mine", protect, getMyFavorites);
 router.get("/favorites/ids", protect, getMyFavoriteIds);
-router.get("/:id", getListingById);
+router.get("/:id", optionalAuth, getListingById);
 // ─── Protected ────────────────────────────────────────────────
 router.post(
   "/image-search",
