@@ -95,6 +95,12 @@ export const getMyFavorites = async (params = {}) => {
   return data; // { listings, pagination }
 };
 
+// ─── POST /api/listings/:id/share — increment share/copy count ─────
+export const incrementShare = async (slugOrId) => {
+  const { data } = await api.post(`/listings/${slugOrId}/share`);
+  return data; // { shares }
+};
+
 // ─── POST /api/listings/image-search ─────────────────────────────
 export const searchByImage = async (file) => {
   const form = new FormData();

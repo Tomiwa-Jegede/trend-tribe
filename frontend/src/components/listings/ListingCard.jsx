@@ -254,6 +254,17 @@ const ListingCard = ({ listing }) => {
             {formatPrice(price)}
           </motion.p>
 
+          {/* Stats — public figures for every card */}
+          <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-1 flex-wrap">
+            <span title="Views — detail opens, unique per user per day">👁 {listing.views ?? 0}</span>
+            <span className="text-gray-300">·</span>
+            <span title="Favorites — saves">❤️ {listing.favoriteCount ?? 0}</span>
+            <span className="text-gray-300">·</span>
+            <span title="WhatsApp contacts — clicks">💬 {listing.contactViews ?? 0}</span>
+            <span className="text-gray-300">·</span>
+            <span title="Shares — copy link">🔗 {listing.shares ?? 0}</span>
+          </div>
+
           {/* Location */}
           {location && (
             <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">

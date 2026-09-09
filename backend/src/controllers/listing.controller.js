@@ -126,10 +126,11 @@ const getAllListings = async (req, res) => {
                 school: true,
               },
             },
+            _count: { select: { favorites: true } },
           },
         });
         const map = new Map(fetched.map((l) => [l.id, l]));
-        listings = pagedIds.map((id) => map.get(id)).filter(Boolean);
+        listings = pagedIds.map((id) => map.get(id)).filter(Boolean).map((l) => ({ ...l, favoriteCount: l._count?.favorites ?? 0 }));
       }
       const totalPages = Math.ceil(totalCount / limitNum);
       if (search?.trim()) {
@@ -177,7 +178,7 @@ const getAllListings = async (req, res) => {
       sortOrder,
     ];
 
-    const [listings, totalCount] = await Promise.all([
+    const [rawListings, totalCount] = await Promise.all([
       prisma.listing.findMany({
         where,
         orderBy,
@@ -194,10 +195,12 @@ const getAllListings = async (req, res) => {
               school: true,
             },
           },
+          _count: { select: { favorites: true } },
         },
       }),
       prisma.listing.count({ where }),
     ]);
+    const listings = rawListings.map((l) => ({ ...l, favoriteCount: l._count?.favorites ?? 0 }));
 
     const totalPages = Math.ceil(totalCount / limitNum);
 
@@ -1213,6 +1216,27 @@ const getMyFavorites = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// POST /api/listings/:id/share — increment share/copy count (public)
+// ─────────────────────────────────────────────────────────────
+const incrementShare = async (req, res) => {
+  try {
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
+    const listing = await findListingByIdentifier(identifier);
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+    const updated = await prisma.listing.update({
+      where: { id: listing.id },
+      data: { shares: { increment: 1 } },
+      select: { shares: true, id: true },
+    });
+    return res.status(200).json({ shares: updated.shares });
+  } catch (err) {
+    console.error("[INCREMENT SHARE ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   getAllListings,
   getListingById,
@@ -1229,4 +1253,5 @@ module.exports = {
   toggleFavorite,
   getMyFavoriteIds,
   getMyFavorites,
+  incrementShare,
 };

@@ -5,7 +5,7 @@ import { FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
 import { useAuth } from "../../context/AuthContext";
 import { useFavorites } from "../../context/FavoritesContext";
 import { useToast } from "../../context/ToastContext";
-import { getListings } from "../../services/listingService";
+import { getListings, incrementShare } from "../../services/listingService";
 import { revealContact } from "../../services/contactService";
 
 const formatPrice = (price) =>
@@ -68,7 +68,16 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
           </span>
         </p>
         <h3 className="text-lg font-bold leading-snug line-clamp-2 mb-1">{listing.title}</h3>
-        <p className="text-xl font-extrabold mb-3">{formatPrice(listing.price)}</p>
+        <p className="text-xl font-extrabold mb-1">{formatPrice(listing.price)}</p>
+        <div className="flex items-center gap-2 text-xs text-white/70 mb-3 flex-wrap">
+          <span title="Views — detail opens">👁 {listing.views ?? 0}</span>
+          <span className="text-white/30">·</span>
+          <span title="Favorites">❤️ {listing.favoriteCount ?? 0}</span>
+          <span className="text-white/30">·</span>
+          <span title="WhatsApp contacts">💬 {listing.contactViews ?? 0}</span>
+          <span className="text-white/30">·</span>
+          <span title="Shares — copy link">🔗 {listing.shares ?? 0}</span>
+        </div>
         <Link
           to={`/listings/${listing.slug || listing.id}`}
           className="pointer-events-auto inline-flex items-center gap-1.5 bg-white text-black text-xs font-bold px-4 py-2 rounded-full w-fit shadow-md"
@@ -231,9 +240,14 @@ const DiscoverFeed = () => {
 
   const handleShare = async (listing) => {
     const url = `${window.location.origin}/listings/${listing.slug || listing.id}`;
+    const bumpShare = () => {
+      incrementShare(listing.slug || listing.id).catch(() => {});
+      setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, shares: (l.shares ?? 0) + 1 } : l)));
+    };
     if (navigator.share) {
       try {
         await navigator.share({ title: listing.title, url });
+        bumpShare();
       } catch {
         // Share cancelled — no action needed
       }
@@ -242,6 +256,7 @@ const DiscoverFeed = () => {
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link copied to clipboard!");
+      bumpShare();
     } catch {
       toast.error("Failed to copy link.");
     }

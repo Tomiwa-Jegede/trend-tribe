@@ -135,6 +135,7 @@ model Listing {
   editCount      Int       @default(0)
   contactViews   Int       @default(0)
   views          Int       @default(0)
+  shares         Int       @default(0)
   seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   reports        Report[]
   favorites      Favorite[]

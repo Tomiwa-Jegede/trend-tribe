@@ -205,7 +205,7 @@ const MyListingsPage = () => {
                     <p className="text-xs text-gray-500 mt-1">
                       {l.category} {l.subcategory ? `· ${l.subcategory}` : ""} · {l.condition} · {new Date(l.createdAt).toLocaleDateString()} · ♥ {l.favoriteCount ?? 0} {l.reportCount ? `· ⚑ ${l.reportCount}` : ""}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">👁 {l.views ?? 0} · ❤️ {l.favoriteCount ?? 0} · 💬 {l.contactViews ?? 0}</p>
+                    <p className="text-xs text-gray-400 mt-1">👁 {l.views ?? 0} · ❤️ {l.favoriteCount ?? 0} · 💬 {l.contactViews ?? 0} · 🔗 {l.shares ?? 0}</p>
                     {diagnosis(l) && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1 mt-1">{diagnosis(l)}</p>}
                     {l.isAvailable ? <p className="text-xs text-gray-400 mt-1">{left}d left before auto-hide</p> : <p className="text-xs text-gray-400 mt-1">Hidden from marketplace — toggle to re-activate</p>}
                     <div className="flex gap-2 mt-3 flex-wrap">

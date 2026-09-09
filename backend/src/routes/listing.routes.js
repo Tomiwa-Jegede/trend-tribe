@@ -17,6 +17,7 @@ const {
   toggleFavorite,
   getMyFavoriteIds,
   getMyFavorites,
+  incrementShare,
 } = require("../controllers/listing.controller");
 const { protect } = require("../middleware/auth.middleware");
 const { optionalAuth } = require("../middleware/optionalAuth.middleware");
@@ -65,5 +66,6 @@ router.post("/:id/boost", protect, requireSeller, boostListing);
 router.post("/:id/report", protect, reportListing);
 router.post("/:id/contact", protect, revealContact);
 router.post("/:id/favorite", protect, toggleFavorite);
+router.post("/:id/share", incrementShare);
 
 module.exports = router;
