@@ -193,6 +193,14 @@ async function startServer() {
     setInterval(autoReleaseGigs, 60 * 60 * 1000);
     expireGigs().catch(() => {});
     autoReleaseGigs().catch(() => {});
+    // ─── Chat TTL 30d — auto-delete old messages (person-to-person only) ──
+    setInterval(async () => {
+      try {
+        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const { count } = await prisma.message.deleteMany({ where: { createdAt: { lt: cutoff } } });
+        if (count > 0) console.log(`🧹 Chat TTL deleted ${count} messages older than 30d`);
+      } catch {}
+    }, 24 * 60 * 60 * 1000);
     // ─── Services: 1h booking expiry ──
     const { expireServiceBookings } = require("./controllers/serviceBooking.controller");
     setInterval(expireServiceBookings, 5 * 60 * 1000);
