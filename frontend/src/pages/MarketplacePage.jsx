@@ -21,6 +21,7 @@ const CATEGORIES = [
   { label: "Snacks", emoji: "🍿", value: "SNACKS" },
   { label: "Gadgets", emoji: "📱", value: "GADGETS" },
   { label: "Services", emoji: "🛠️", value: "SERVICES" },
+  { label: "Books", emoji: "📚", value: "BOOKS" },
   { label: "Others", emoji: "🗂️", value: "OTHERS" },
 ];
 const SUBCATEGORY_DISPLAY = {

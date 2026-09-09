@@ -10,6 +10,7 @@ export const CATEGORIES = [
   "SNACKS",
   "GADGETS",
   "SERVICES",
+  "BOOKS",
   "OTHERS",
 ];
 

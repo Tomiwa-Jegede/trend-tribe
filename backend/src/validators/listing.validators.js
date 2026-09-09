@@ -10,6 +10,7 @@ const VALID_CATEGORIES = [
   "SNACKS",
   "GADGETS",
   "SERVICES",
+  "BOOKS",
   "OTHERS",
 ];
 const VALID_SUBCATEGORIES = [

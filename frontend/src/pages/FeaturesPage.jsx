@@ -119,12 +119,13 @@ const Step = ({ number, title, desc, delay = 0 }) => {
   );
 };
 
-// ── Category pill — matches Prisma Category enum (6)
+// ── Category pill — matches Prisma Category enum (7)
 const CATEGORIES = [
   { emoji: "👜", label: "Accessories" },
   { emoji: "👗", label: "Fashion" },
   { emoji: "💄", label: "Beauty & Personal Care" },
   { emoji: "📱", label: "Gadgets" },
+  { emoji: "📚", label: "Books" },
   { emoji: "🍿", label: "Snacks" },
   { emoji: "🗂️", label: "Others" },
 ];
