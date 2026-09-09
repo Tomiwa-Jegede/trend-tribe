@@ -1196,7 +1196,7 @@ const revealContact = async (req, res) => {
 
     if (!listing) return res.status(404).json({ error: "Listing not found" });
 
-    // Track view — don't block response if tracking fails
+    // Track view — don't block response if tracking fails + realtime like views/shares
     // Don't count owner's own clicks; count only authenticated non-owner views
     const viewerId = req.user?.id;
     const isOwner = viewerId && listing.sellerId === viewerId;
@@ -1209,12 +1209,18 @@ const revealContact = async (req, res) => {
         prisma.contactView.create({
           data: { listingId: id, viewerId },
         }),
-      ]).catch((e) => console.error("[CONTACT VIEW TRACK ERROR]", e.message));
+      ]).then(() =>
+        prisma.listing.findUnique({ where: { id }, select: { id: true, contactViews: true } }).then((u) => {
+          try { const { emitContactView } = require("../realtime"); emitContactView(u.id, u.contactViews); } catch {}
+        }).catch(() => {})
+      ).catch((e) => console.error("[CONTACT VIEW TRACK ERROR]", e.message));
     } else if (!isOwner) {
       // Anonymous fallback (should not happen — route is protected — but safe)
       prisma.listing.update({
         where: { id },
         data: { contactViews: { increment: 1 } },
+      }).then((u) => {
+        try { const { emitContactView } = require("../realtime"); emitContactView(u.id, u.contactViews); } catch {}
       }).catch((e) => console.error("[CONTACT VIEW TRACK ERROR]", e.message));
     }
 
@@ -1251,12 +1257,23 @@ const toggleFavorite = async (req, res) => {
 
     if (existing) {
       await prisma.favorite.delete({ where: { id: existing.id } });
-      try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, false); } catch {}
+      // emit with count (idempotent — fixes boosted +2 duplicate via socket+pusher)
+      prisma.favorite.count({ where: { listingId } }).then((cnt) => {
+        try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, false, cnt); } catch {}
+      }).catch(() => {
+        try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, false); } catch {}
+      });
       return res.status(200).json({ favorited: false });
     }
 
     await prisma.favorite.create({
       data: { listingId, userId: req.user.id },
+    });
+    // emit with count for realtime favoriteCount
+    prisma.favorite.count({ where: { listingId } }).then((cnt) => {
+      try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, true, cnt); } catch {}
+    }).catch(() => {
+      try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, true); } catch {}
     });
      // Bell-only notification for seller (in-app pull + push when app closed)
     if (listing.sellerId !== req.user.id) {
@@ -1278,19 +1295,15 @@ const toggleFavorite = async (req, res) => {
         }).catch(() => {});
         // badge update via push
         if ("setAppBadge" in globalThis) {}
-        // realtime: notify seller instantly + favorite toggle
+        // realtime: notify seller instantly (favorite count already emitted with count above)
         try {
-          const { emitFavorite, emitNotification } = require("../realtime");
-          emitFavorite(listingId, req.user.id, true);
-          // fetch created notification for payload
+          const { emitNotification } = require("../realtime");
           const n = await prisma.notification.findFirst({ where: { userId: listing.sellerId, actorId: req.user.id, listingId, type: "FAVORITE" }, orderBy: { createdAt: "desc" } });
           if (n) emitNotification(listing.sellerId, n);
         } catch {}
       } catch (e) {
         console.error("[NOTIFICATION CREATE ERROR]", e.message);
       }
-    } else {
-      try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, true); } catch {}
     }
     return res.status(201).json({ favorited: true });
   } catch (err) {

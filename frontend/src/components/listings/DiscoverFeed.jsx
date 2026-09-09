@@ -1,5 +1,5 @@
 // src/components/listings/DiscoverFeed.jsx — TikTok-style infinite product feed
-import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
 import { useAuth } from "../../context/AuthContext";
@@ -7,6 +7,7 @@ import { useFavorites } from "../../context/FavoritesContext";
 import { useToast } from "../../context/ToastContext";
 import { getListings, incrementShare } from "../../services/listingService";
 import { revealContact } from "../../services/contactService";
+import useRealtime from "../../hooks/useRealtime";
 
 const formatPrice = (price) =>
   new Intl.NumberFormat("en-NG", {
@@ -132,6 +133,36 @@ const DiscoverFeed = () => {
   const { isAuthenticated } = useAuth();
   const { isFavorited, toggleFavorite } = useFavorites();
   const { toast } = useToast();
+
+  const lastEvRef = useRef(new Map());
+  const dedup = useCallback((key, ms = 900) => {
+    const now = Date.now();
+    const last = lastEvRef.current.get(key) || 0;
+    if (now - last < ms) return true;
+    lastEvRef.current.set(key, now);
+    return false;
+  }, []);
+
+  // realtime — favorite / share / contact like views (deduped)
+  const handleFav = useCallback(({ listingId, favorited, favoriteCount }) => {
+    if (dedup(`fav:${listingId}:${favorited}:${favoriteCount ?? ''}`)) return;
+    setListings((prev) => prev.map((l) => {
+      if (l.id !== listingId) return l;
+      if (favoriteCount !== undefined && favoriteCount !== null) return { ...l, favoriteCount };
+      return { ...l, favoriteCount: Math.max(0, (l.favoriteCount ?? 0) + (favorited ? 1 : -1)) };
+    }));
+  }, [dedup]);
+  const handleShare = useCallback(({ listingId, shares }) => {
+    if (dedup(`share:${listingId}:${shares}`)) return;
+    setListings((prev) => prev.map((l) => l.id === listingId ? { ...l, shares } : l));
+  }, [dedup]);
+  const handleContact = useCallback(({ listingId, contactViews }) => {
+    if (dedup(`contact:${listingId}:${contactViews}`)) return;
+    setListings((prev) => prev.map((l) => l.id === listingId ? { ...l, contactViews } : l));
+  }, [dedup]);
+  useRealtime("favorite", handleFav);
+  useRealtime("listing:shared", handleShare);
+  useRealtime("listing:contacted", handleContact);
 
   const shuffleArray = (arr) => {
     const a = [...arr];

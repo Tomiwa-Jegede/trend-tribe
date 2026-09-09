@@ -74,13 +74,15 @@ const emitListing = (action, listing) => {
   try { const { emitListing: p } = require("./pusher"); p(action, listing); } catch {}
 };
 
-const emitFavorite = (listingId, userId, favorited) => {
+const emitFavorite = (listingId, userId, favorited, favoriteCount = null) => {
   try {
     const io = getIO();
-    io.to("marketplace").emit("favorite", { listingId, userId, favorited });
-    io.to("admin").emit("admin:favorite", { listingId, userId, favorited });
+    const data = favoriteCount !== null ? { listingId, userId, favorited, favoriteCount } : { listingId, userId, favorited };
+    io.to("marketplace").emit("favorite", data);
+    io.emit("favorite", data);
+    io.to("admin").emit("admin:favorite", data);
   } catch {}
-  try { const { emitFavorite: p } = require("./pusher"); p(listingId, userId, favorited); } catch {}
+  try { const { emitFavorite: p } = require("./pusher"); p(listingId, userId, favorited, favoriteCount); } catch {}
 };
 
 const emitNotification = (userId, notification) => {
@@ -124,4 +126,13 @@ const emitListingShare = (listingId, shares) => {
   try { const { emitListingShare: p } = require("./pusher"); if (p) p(listingId, shares); } catch {}
 };
 
-module.exports = { initRealtime, getIO, emitListing, emitFavorite, emitNotification, emitMessage, emitInboxBroadcast, emitListingView, emitListingShare };
+const emitContactView = (listingId, contactViews) => {
+  try {
+    const io = getIO();
+    io.to("marketplace").emit("listing:contacted", { listingId, contactViews });
+    io.emit("listing:contacted", { listingId, contactViews });
+  } catch {}
+  try { const { emitContactView: p } = require("./pusher"); if (p) p(listingId, contactViews); } catch {}
+};
+
+module.exports = { initRealtime, getIO, emitListing, emitFavorite, emitNotification, emitMessage, emitInboxBroadcast, emitListingView, emitListingShare, emitContactView };

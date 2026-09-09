@@ -1,5 +1,5 @@
 // src/pages/MarketplacePage.jsx — Live API Version
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Helmet } from "react-helmet-async";
@@ -124,22 +124,44 @@ const MarketplacePage = () => {
     }
   }, [filters, currentPage]);
 
-  // ── Realtime: views — gradual boost (#3) means old listings have fake offset, don't drop to real
+  // ── Realtime: views / shares / favorite / contact — deduped (socket+pusher can double deliver)
+  const lastEvRef = useRef(new Map());
+  const dedup = useCallback((key, ms = 900) => {
+    const now = Date.now();
+    const last = lastEvRef.current.get(key) || 0;
+    if (now - last < ms) return true;
+    lastEvRef.current.set(key, now);
+    return false;
+  }, []);
   const handleViewed = useCallback(({ listingId, views }) => {
+    if (dedup(`view:${listingId}:${views}`)) return;
     setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, views: Math.max((l.views ?? 0) + 1, views) } : l)));
     setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, views: Math.max((l.views ?? 0) + 1, views) } : l)));
-  }, []);
+  }, [dedup]);
   const handleShared = useCallback(({ listingId, shares }) => {
+    if (dedup(`share:${listingId}:${shares}`)) return;
     setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, shares } : l)));
     setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, shares } : l)));
-  }, []);
-  const handleFavoriteRealtime = useCallback(({ listingId, favorited }) => {
-    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, favoriteCount: Math.max(0, (l.favoriteCount ?? 0) + (favorited ? 1 : -1)) } : l)));
-    setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, favoriteCount: Math.max(0, (l.favoriteCount ?? 0) + (favorited ? 1 : -1)) } : l)));
-  }, []);
+  }, [dedup]);
+  const handleFavoriteRealtime = useCallback(({ listingId, favorited, favoriteCount }) => {
+    if (dedup(`fav:${listingId}:${favorited}:${favoriteCount ?? ''}`)) return;
+    if (favoriteCount !== undefined && favoriteCount !== null) {
+      setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, favoriteCount } : l)));
+      setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, favoriteCount } : l)));
+    } else {
+      setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, favoriteCount: Math.max(0, (l.favoriteCount ?? 0) + (favorited ? 1 : -1)) } : l)));
+      setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, favoriteCount: Math.max(0, (l.favoriteCount ?? 0) + (favorited ? 1 : -1)) } : l)));
+    }
+  }, [dedup]);
+  const handleContacted = useCallback(({ listingId, contactViews }) => {
+    if (dedup(`contact:${listingId}:${contactViews}`)) return;
+    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, contactViews } : l)));
+    setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, contactViews } : l)));
+  }, [dedup]);
   useRealtime("listing:viewed", handleViewed);
   useRealtime("listing:shared", handleShared);
   useRealtime("favorite", handleFavoriteRealtime);
+  useRealtime("listing:contacted", handleContacted);
 
   useEffect(() => {
     fetchListings();

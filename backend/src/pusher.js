@@ -40,9 +40,10 @@ const emitListing = (action, listing) => {
   trigger("admin", "admin:listing", { action, listing });
 };
 
-const emitFavorite = (listingId, userId, favorited) => {
-  trigger("marketplace", "favorite", { listingId, userId, favorited });
-  trigger("admin", "admin:favorite", { listingId, userId, favorited });
+const emitFavorite = (listingId, userId, favorited, favoriteCount = null) => {
+  const data = favoriteCount !== null ? { listingId, userId, favorited, favoriteCount } : { listingId, userId, favorited };
+  trigger("marketplace", "favorite", data);
+  trigger("admin", "admin:favorite", data);
 };
 
 const emitNotification = (userId, notification) => {
@@ -67,4 +68,9 @@ const emitListingShare = (listingId, shares) => {
   trigger("listings", "listing:shared", { listingId, shares });
 };
 
-module.exports = { getPusher, trigger, emitListing, emitFavorite, emitNotification, emitMessage, emitListingView, emitListingShare };
+const emitContactView = (listingId, contactViews) => {
+  trigger("marketplace", "listing:contacted", { listingId, contactViews });
+  trigger("listings", "listing:contacted", { listingId, contactViews });
+};
+
+module.exports = { getPusher, trigger, emitListing, emitFavorite, emitNotification, emitMessage, emitListingView, emitListingShare, emitContactView };
