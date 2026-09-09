@@ -90,9 +90,12 @@ function getDisplayViews(listing, totalUsers) {
         starter = starter + Math.floor(extraTotal * p);
         starter = Math.min(starter, capBoost);
       }
-    } else if (listing.boostTier === 2) {
-      // previously boosted residual small
-      starter = Math.min(starter + 4, capNon + 4, total - 1);
+    } else if (listing.boostedUntil) {
+      // was boosted before — keep views, don't drop to non-boost
+      const capPrev = listing.boostTier === 2 ? capX2 : capX1;
+      // stay at boosted cap (not instant drop to capNon)
+      starter = Math.max(starter, capPrev);
+      starter = Math.min(starter, capPrev, total - 1);
     }
     // engagement floor still respects contacts/favs even for new
     const minFromEngagement = contacts * 2 + favs * 3 + 3;
@@ -132,6 +135,12 @@ function getDisplayViews(listing, totalUsers) {
       const extra = Math.max(0, fullBoosted - baseFake);
       display = baseFake + Math.floor(extra * progress);
     }
+  } else if (listing.boostedUntil) {
+    // was boosted before — keep views, don't drop
+    const wasTier2 = listing.boostTier === 2;
+    const baseForPrev = wasTier2 ? Math.floor(baseFake * 2.2 + 18) : Math.floor(baseFake * 1.6 + 9);
+    display = Math.max(display, baseForPrev);
+    display = Math.min(display, total, 80);
   } else if (listing.boostTier === 2) {
     display += 6;
   }
