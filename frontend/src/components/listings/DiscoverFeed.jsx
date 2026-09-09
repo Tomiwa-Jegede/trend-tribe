@@ -113,6 +113,7 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
           <span className="text-xs font-semibold text-white mt-1">{listing.contactViews ?? 0}</span>
         </div>
       </div>
+      </div>
     </div>
   );
 };
