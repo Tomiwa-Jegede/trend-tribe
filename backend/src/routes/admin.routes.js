@@ -808,7 +808,8 @@ router.get("/profit-summary", protect, requireAdmin, async (req, res) => {
     const todayAgg = await prisma.platformProfit.aggregate({ where: { createdAt: { gte: startOfDay } }, _sum: { grossFee: true, netFee: true }, _count: { _all: true } });
     const sevenAgg = await prisma.platformProfit.aggregate({ where: { createdAt: { gte: d7 } }, _sum: { grossFee: true, netFee: true } });
     const thirtyAgg = await prisma.platformProfit.aggregate({ where: { createdAt: { gte: d30 } }, _sum: { grossFee: true, netFee: true } });
-    const tokenAgg = await prisma.tokenPurchase.aggregate({ where: { status: "SUCCESS" }, _sum: { quantity: true, amount: true }, _count: { _all: true } });
+    // Only non-admin token purchases count toward personal profit
+    const tokenAgg = await prisma.tokenPurchase.aggregate({ where: { status: "SUCCESS", user: { role: { not: "ADMIN" } } }, _sum: { quantity: true, amount: true }, _count: { _all: true } });
     const tokenViaGig = await prisma.platformProfit.aggregate({ where: { source: "TOKEN_SOLD", meta: { path: ["via"], equals: "GIG_BALANCE" } }, _sum: { grossFee: true }, _count: { _all: true } }).catch(()=>({ _sum:{ grossFee:0}, _count:{_all:0}}));
     return res.json({
       totalGrossKobo: totalGross, totalNetKobo: totalNet,
@@ -821,6 +822,17 @@ router.get("/profit-summary", protect, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("[PROFIT SUMMARY ERROR]", err.message);
     return res.status(500).json({ error: "Could not load profit" });
+  }
+});
+
+// ─── Clear personal profit — restart, only non-admin going forward ──
+router.delete("/profit/clear", protect, requireAdmin, async (req, res) => {
+  try {
+    const deleted = await prisma.platformProfit.deleteMany({});
+    return res.json({ message: `Cleared ${deleted.count} profit records — restart complete. Future profits only for non-admin accounts.`, deleted: deleted.count });
+  } catch (err) {
+    console.error("[CLEAR PROFIT ERROR]", err.message);
+    return res.status(500).json({ error: "Could not clear profit" });
   }
 });
 
@@ -853,14 +865,16 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
         });
         try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_DISPUTE_REFUND", title: "Dispute resolved — refunded", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for gig #${gigId} (admin decision: refund).`, meta: { gigId } }); } catch {}
       } else if (decision === "release") {
-        const pay = gig.escrowAmount - Math.floor(gig.escrowAmount*0.2);
-        const fee = Math.floor(gig.escrowAmount*0.2);
+        const posterUser = await prisma.user.findUnique({ where: { id: gig.posterId }, select: { role: true } });
+        const isPosterAdmin = posterUser?.role === "ADMIN";
+        const fee = isPosterAdmin ? 0 : Math.floor(gig.escrowAmount*0.2);
+        const pay = isPosterAdmin ? gig.escrowAmount : gig.escrowAmount - Math.floor(gig.escrowAmount*0.2);
         await prisma.$transaction(async (tx) => {
           await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
           await tx.gig.update({ where: { id: gigId }, data: { status: "COMPLETED", completedAt: new Date() } });
-          await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: fee, netFee: fee, refId: String(gigId), meta: { gigId, disputed: true, decision } } });
+          if (!isPosterAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: fee, netFee: fee, refId: String(gigId), meta: { gigId, disputed: true, decision } } });
         });
-        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_DISPUTE_RELEASE", title: "Dispute resolved — released", body: `Credit: ₦${(pay/100).toLocaleString()} released for gig #${gigId} (admin decision: release, fee ₦${(fee/100).toLocaleString()}).`, meta: { gigId } }); } catch {}
+        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_DISPUTE_RELEASE", title: "Dispute resolved — released", body: `Credit: ₦${(pay/100).toLocaleString()} released for gig #${gigId} (admin decision: release${isPosterAdmin ? ", admin free — no fee" : `, fee ₦${(fee/100).toLocaleString()}`}).`, meta: { gigId, adminFree: isPosterAdmin } }); } catch {}
       } else if (decision === "split") {
         const half = Math.floor(gig.escrowAmount/2);
         await prisma.$transaction(async (tx) => {

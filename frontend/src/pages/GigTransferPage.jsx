@@ -4,11 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { resolveGigAccount, transferGig } from "../services/gigService";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
 import { FiArrowLeft, FiSend, FiCheck, FiX } from "react-icons/fi";
 
 export default function GigTransferPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   const [step, setStep] = useState(1); // 1 recipient, 2 amount, 3 pin, 4 result
   const [form, setForm] = useState({ toAccount: "", amount: "", pin: "" });
@@ -36,9 +39,9 @@ export default function GigTransferPage() {
     const amt = parseInt(form.amount, 10);
     if (!amt || amt < 1) return toast.error("Enter amount");
     if (!/^\d{4}$/.test(form.pin)) return toast.error("Enter 4-digit PIN");
-    const fee = Math.max(1, Math.round(amt*100*0.01))/100;
+    const fee = isAdmin ? 0 : Math.max(1, Math.round(amt*100*0.01))/100;
     const total = amt + fee;
-    if (!confirm(`Transfer ₦${amt.toLocaleString()} to ${resolved.fullName} @${resolved.username}?\n\nAmount: ₦${amt.toLocaleString()}\nFee (1%): ₦${fee.toFixed(2)}\nTotal debited: ₦${total.toFixed(2)}\n\nContinue?`)) return;
+    if (!confirm(`Transfer ₦${amt.toLocaleString()} to ${resolved.fullName} @${resolved.username}?\n\nAmount: ₦${amt.toLocaleString()}\nFee (1%): ₦${fee.toFixed(2)}${isAdmin ? " (admin free)" : ""}\nTotal debited: ₦${total.toFixed(2)}\n\nContinue?`)) return;
 
     setTransferring(true);
     try {
@@ -175,10 +178,10 @@ export default function GigTransferPage() {
                 autoFocus
               />
               <p className="text-xs text-gray-500 mt-2">
-                Fee 1% ·{" "}
-                {form.amount ? `₦${(parseInt(form.amount, 10) * 0.01).toFixed(2)}` : "—"} · Total ₦
+                Fee 1%{isAdmin ? " — free for admin" : ""} ·{" "}
+                {form.amount ? `₦${isAdmin ? "0.00" : (parseInt(form.amount, 10) * 0.01).toFixed(2)}` : "—"} · Total ₦
                 {form.amount
-                  ? (parseInt(form.amount, 10) * 1.01).toFixed(2)
+                  ? isAdmin ? parseInt(form.amount, 10).toFixed(2) : (parseInt(form.amount, 10) * 1.01).toFixed(2)
                   : "—"}
               </p>
               <div className="flex gap-2 mt-4">
@@ -214,7 +217,7 @@ export default function GigTransferPage() {
               <p className="text-xs text-gray-500 mt-2 text-center">
                 Transfer ₦{form.amount ? parseInt(form.amount, 10).toLocaleString() : "—"} to{" "}
                 {resolved?.fullName} — fee ₦
-                {form.amount ? (parseInt(form.amount, 10) * 0.01).toFixed(2) : "—"}
+                {form.amount ? (isAdmin ? "0.00" : (parseInt(form.amount, 10) * 0.01).toFixed(2)) : "—"}{isAdmin ? " (admin free)" : ""}
               </p>
               <div className="flex gap-2 mt-4">
                 <button onClick={() => setStep(2)} className="flex-1 btn-secondary py-3 rounded-full">

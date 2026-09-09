@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { getGigAccount, getMyGigs, getGigTransfers, withdrawGig, initGigPayment, resolveGigAccount, transferGig } from "../services/gigService";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
 import { FiCopy, FiSend, FiArrowDownCircle, FiChevronRight, FiPlusCircle, FiCheck, FiX, FiClock } from "react-icons/fi";
 import InfoModal from "../components/ui/InfoModal";
 import api from "../api/axios";
@@ -12,6 +13,8 @@ const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
 
 export default function GigWalletPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [account, setAccount] = useState(null);
   const [my, setMy] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -174,9 +177,9 @@ export default function GigWalletPage() {
       else if (/^\d+$/.test(bankQuery.trim())) bankCode = bankQuery.trim(); // typed code directly
     }
     if (!bankCode) return toast.error("Select a bank — search and tap from list");
-    const feePreview = Math.max(1, Math.round(amt*100*0.01));
+    const feePreview = isAdmin ? 0 : Math.max(1, Math.round(amt*100*0.01));
     const totalPreview = amt*100 + feePreview;
-    if (!confirm(`Withdraw ₦${amt.toLocaleString()} to ${bankName || bankCode} • ${cleanAcc}?\n\nAmount: ₦${amt.toLocaleString()}\nFee (1%): ₦${(feePreview/100).toFixed(2)}\nTotal debited: ₦${(totalPreview/100).toLocaleString()}\n\nContinue?`)) return;
+    if (!confirm(`Withdraw ₦${amt.toLocaleString()} to ${bankName || bankCode} • ${cleanAcc}?\n\nAmount: ₦${amt.toLocaleString()}\nFee (1%): ₦${(feePreview/100).toFixed(2)}${isAdmin ? " (admin free)" : ""}\nTotal debited: ₦${(totalPreview/100).toLocaleString()}\n\nContinue?`)) return;
     setWithdrawing(true);
     try {
       const r = await withdrawGig({ amount: amt, bankCode, accountNumber: cleanAcc, pin: withdrawForm.pin });
@@ -353,18 +356,18 @@ export default function GigWalletPage() {
           {(() => {
             const amt = parseInt(withdrawForm.amount, 10);
             if (!amt || amt < 1000) return null;
-            const fee = Math.max(1, Math.round(amt * 100 * 0.01));
+            const fee = isAdmin ? 0 : Math.max(1, Math.round(amt * 100 * 0.01));
             const total = amt * 100 + fee;
             const enough = balance >= total;
             return (
               <div className={`rounded-xl px-3 py-2.5 text-[13px] border ${enough ? "bg-amber-50 border-amber-200 text-amber-900" : "bg-red-50 border-red-200 text-red-700"}`}>
-                <p className="font-bold">Total to be deducted: {formatNaira(total)} <span className="font-normal text-xs">({formatNaira(amt*100)} + fee {formatNaira(fee)} = {formatNaira(total)})</span></p>
+                <p className="font-bold">Total to be deducted: {formatNaira(total)} <span className="font-normal text-xs">({formatNaira(amt*100)} + fee {formatNaira(fee)}{isAdmin ? " — admin free" : ""} = {formatNaira(total)})</span></p>
                 <p className="text-xs mt-1">Gig balance: {formatNaira(balance)} → after: <span className={enough ? "font-bold" : "font-bold text-red-700"}>{formatNaira(balance - total)}</span> {enough ? "" : "· Insufficient"}</p>
               </div>
             );
           })()}
           <div className="flex gap-2">
-            <button type="submit" disabled={withdrawing} className="flex-1 btn-primary py-2.5 text-sm disabled:opacity-60">{withdrawing ? "Processing..." : "Withdraw — 1% fee"}</button>
+            <button type="submit" disabled={withdrawing} className="flex-1 btn-primary py-2.5 text-sm disabled:opacity-60">{withdrawing ? "Processing..." : isAdmin ? "Withdraw — free for admin" : "Withdraw — 1% fee"}</button>
             <button type="button" onClick={()=>{
               setWithdrawForm({ amount: "", bankCode: "", accountNumber: "", pin: "", bankName: "" });
               setBankQuery("");
@@ -372,7 +375,7 @@ export default function GigWalletPage() {
               try{ localStorage.removeItem("tt_gig_withdraw_form_v1"); localStorage.removeItem("tt_gig_withdraw_bankQuery_v1"); }catch{}
             }} className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 inline-flex items-center gap-1"><FiX className="w-4 h-4"/> Cancel</button>
           </div>
-          <p className="text-[10px] text-gray-400">Min ₦1000 · 1% fee · admin approves → auto transfer to bank · Total shows before you confirm</p>
+          <p className="text-[10px] text-gray-400">Min ₦1000 · 1% fee{isAdmin ? " — free for admin" : ""} · admin approves → auto transfer to bank · Total shows before you confirm</p>
         </form>
       )}
 

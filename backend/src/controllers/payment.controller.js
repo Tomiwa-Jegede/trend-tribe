@@ -188,7 +188,11 @@ async function creditPurchase(purchase, flutterwaveTransactionId) {
       data: { tokenBalance: { increment: purchase.quantity } },
     });
     const gross = purchase.quantity * TOKEN_PRICE_NAIRA * 100;
-    try { await prisma.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: gross, netFee: gross, refId: purchase.reference, meta: { tokenPurchaseId: purchase.reference, quantity: purchase.quantity } } }); } catch {}
+    try {
+      const buyer = await prisma.user.findUnique({ where: { id: purchase.userId }, select: { role: true } });
+      const isAdminBuyer = buyer?.role === "ADMIN";
+      if (!isAdminBuyer) await prisma.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: gross, netFee: gross, refId: purchase.reference, meta: { tokenPurchaseId: purchase.reference, quantity: purchase.quantity } } });
+    } catch {}
   }
 }
 
@@ -202,11 +206,12 @@ const buyWithGigBalance = async (req, res) => {
       return res.status(402).json({ error: `Need ₦${(costKobo/100).toLocaleString()} in Gig wallet for ${qty} token(s). You have ₦${((user?.gigBalance||0)/100).toLocaleString()}.`, required: costKobo, gigBalance: user?.gigBalance||0 });
     }
     const ref = `gig_${req.user.id}_${Date.now()}`;
+    const isAdminBuyer = req.user.role === "ADMIN";
     await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: costKobo } }, data: { gigBalance: { decrement: costKobo }, tokenBalance: { increment: qty } } });
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       await tx.tokenPurchase.create({ data: { userId: req.user.id, reference: ref, quantity: qty, amount: qty * TOKEN_PRICE_NAIRA, status: "SUCCESS", flutterwaveTransactionId: ref } });
-      await tx.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: costKobo, netFee: costKobo, refId: ref, meta: { tokenPurchaseId: ref, quantity: qty, via: "GIG_BALANCE" } } });
+      if (!isAdminBuyer) await tx.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: costKobo, netFee: costKobo, refId: ref, meta: { tokenPurchaseId: ref, quantity: qty, via: "GIG_BALANCE" } } });
     });
     // ledger + inbox + push + notification (debit gig wallet, credit tokens)
     try {

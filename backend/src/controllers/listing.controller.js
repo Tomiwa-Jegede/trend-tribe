@@ -836,26 +836,34 @@ const boostListing = async (req, res) => {
     if (error) return res.status(status).json({ error });
     if (!listing.isAvailable) return res.status(400).json({ error: "Only active listings can be boosted" });
     const tier = req.body.tier === 2 ? 2 : 1;
-    const cost = tier === 2 ? 2 : 1;
+    const isAdmin = req.user.role === "ADMIN";
+    const cost = isAdmin ? 0 : (tier === 2 ? 2 : 1);
     const { confirmSpend } = req.body;
-    const seller = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tokenBalance: true } });
-    if (!seller || seller.tokenBalance < cost) {
-      return res.status(403).json({ error: `You need ${cost} token${cost>1?"s":""} to boost ${tier===2?"to Picks":"for 24h"}.`, tokenBalance: seller?.tokenBalance ?? 0, cost, tier });
-    }
-    if (!confirmSpend) {
-      const msg = tier === 2
-        ? "Boost to Picks for 24h? 2 tokens — top 5 in category + guaranteed Featured (all Picks shown, order curated). Re-boost to climb."
-        : "Boost to top 5 in category for 24h? This will use 1 token. Re-boost to climb if pushed down.";
-      return res.status(402).json({ needsTokenConfirm: true, tokenBalance: seller.tokenBalance, cost, tier, error: msg });
+    if (!isAdmin) {
+      const seller = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tokenBalance: true } });
+      if (!seller || seller.tokenBalance < cost) {
+        return res.status(403).json({ error: `You need ${cost} token${cost>1?"s":""} to boost ${tier===2?"to Picks":"for 24h"}.`, tokenBalance: seller?.tokenBalance ?? 0, cost, tier });
+      }
+      if (!confirmSpend) {
+        const msg = tier === 2
+          ? "Boost to Picks for 24h? 2 tokens — top 5 in category + guaranteed Featured (all Picks shown, order curated). Re-boost to climb."
+          : "Boost to top 5 in category for 24h? This will use 1 token. Re-boost to climb if pushed down.";
+        return res.status(402).json({ needsTokenConfirm: true, tokenBalance: seller.tokenBalance, cost, tier, error: msg });
+      }
     }
     const now = new Date();
     const until = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     // Allow re-boost to climb: always refresh boostedAt/Until and boostTier
-    const updated = await prisma.$transaction(async (tx) => {
-      const ok = await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: cost } }, data: { tokenBalance: { decrement: cost } } });
-      if (ok.count === 0) throw new Error("TOKEN_BALANCE_RACE");
-      return tx.listing.update({ where: { id: listing.id }, data: { boostedAt: now, boostedUntil: until, boostTier: tier } });
-    });
+    let updated;
+    if (isAdmin) {
+      updated = await prisma.listing.update({ where: { id: listing.id }, data: { boostedAt: now, boostedUntil: until, boostTier: tier } });
+    } else {
+      updated = await prisma.$transaction(async (tx) => {
+        const ok = await tx.user.updateMany({ where: { id: req.user.id, tokenBalance: { gte: cost } }, data: { tokenBalance: { decrement: cost } } });
+        if (ok.count === 0) throw new Error("TOKEN_BALANCE_RACE");
+        return tx.listing.update({ where: { id: listing.id }, data: { boostedAt: now, boostedUntil: until, boostTier: tier } });
+      });
+    }
     try { const { emitListing } = require("../realtime"); emitListing("boosted", updated); } catch {}
     const msg = tier === 2 ? "Listing boosted to Picks for 24h ✅" : "Listing boosted for 24h ✅";
     return res.status(200).json({ message: msg, listing: formatListing(updated) });

@@ -111,7 +111,7 @@ const claimGig = async (req, res) => {
   }
 };
 
-// POST /api/gigs/:id/confirm — poster confirms, 80% to claimer, 20% fee retained (atomic)
+// POST /api/gigs/:id/confirm — poster confirms, 80% to claimer, 20% fee retained (atomic) — ADMIN free (100% to claimer, no profit)
 const confirmGig = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -119,19 +119,20 @@ const confirmGig = async (req, res) => {
     if (!gig) return res.status(404).json({ error: "Gig not found" });
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster can confirm" });
     if (!gig.claimerId) return res.status(400).json({ error: "No claimer" });
-    const pay = payout(gig.escrowAmount);
-    const gross = fee(gig.escrowAmount);
+    const isAdmin = req.user.role === "ADMIN";
+    const gross = isAdmin ? 0 : fee(gig.escrowAmount);
+    const pay = isAdmin ? gig.escrowAmount : payout(gig.escrowAmount);
     await prisma.$transaction(async (tx) => {
       const { count } = await tx.gig.updateMany({ where: { id, status: "CLAIMED", posterId: req.user.id }, data: { status: "COMPLETED", completedAt: new Date() } });
       if (count === 0) throw new Error("ALREADY");
       await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
-      await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(id), meta: { gigId: id, posterId: gig.posterId, claimerId: gig.claimerId } } });
+      if (!isAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(id), meta: { gigId: id, posterId: gig.posterId, claimerId: gig.claimerId } } });
     });
     try {
       const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_PAYOUT", title: "Gig payout — credited", body: `Credit: ₦${(pay/100).toLocaleString()} from gig #${id} (fee ₦${(gross/100).toLocaleString()} retained) — credited to Gig wallet.`, meta: { gigId: id, fee: gross } });
+      await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_PAYOUT", title: "Gig payout — credited", body: `Credit: ₦${(pay/100).toLocaleString()} from gig #${id}${isAdmin ? " (admin free — no fee)" : ` (fee ₦${(gross/100).toLocaleString()} retained)`} — credited to Gig wallet.`, meta: { gigId: id, fee: gross, adminFree: isAdmin } });
     } catch {}
-    return res.json({ message: `Confirmed — ₦${(pay/100).toLocaleString()} sent to claimer, ₦${(gross/100).toLocaleString()} fee retained.`, payout: pay, fee: gross });
+    return res.json({ message: isAdmin ? `Confirmed (admin free) — ₦${(pay/100).toLocaleString()} sent to claimer.` : `Confirmed — ₦${(pay/100).toLocaleString()} sent to claimer, ₦${(gross/100).toLocaleString()} fee retained.`, payout: pay, fee: gross });
   } catch (err) {
     if (err.message === "ALREADY") return res.status(409).json({ error: `Gig is no longer claimable` });
     console.error("[CONFIRM GIG ERROR]", err);
@@ -139,26 +140,27 @@ const confirmGig = async (req, res) => {
   }
 };
 
-// POST /api/gigs/:id/cancel — poster cancels before claimed: 5% fee, 95% refund (atomic)
+// POST /api/gigs/:id/cancel — poster cancels before claimed: 5% fee, 95% refund (atomic) — ADMIN free (100% refund)
 const cancelGig = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const gig = await prisma.gig.findUnique({ where: { id } });
     if (!gig) return res.status(404).json({ error: "Gig not found" });
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster can cancel" });
-    const cancelFee = Math.floor(gig.escrowAmount * 0.05);
+    const isAdmin = req.user.role === "ADMIN";
+    const cancelFee = isAdmin ? 0 : Math.floor(gig.escrowAmount * 0.05);
     const refund = gig.escrowAmount - cancelFee;
     await prisma.$transaction(async (tx) => {
       const { count } = await tx.gig.updateMany({ where: { id, status: "OPEN", posterId: req.user.id }, data: { status: "CANCELLED" } });
       if (count === 0) throw new Error("ALREADY");
       await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: refund } } });
-      await tx.platformProfit.create({ data: { source: "GIG_CANCEL_5", grossFee: cancelFee, netFee: cancelFee, refId: String(id), meta: { gigId: id } } });
+      if (!isAdmin) await tx.platformProfit.create({ data: { source: "GIG_CANCEL_5", grossFee: cancelFee, netFee: cancelFee, refId: String(id), meta: { gigId: id } } });
     });
     try {
       const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: refund, fee: 0, type: "GIG_CANCEL_REFUND", title: "Gig cancelled — refund", body: `Credit: ₦${(refund/100).toLocaleString()} refunded for gig #${id} (fee ₦${(cancelFee/100).toLocaleString()} retained).`, meta: { gigId: id, fee: cancelFee } });
+      await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: refund, fee: 0, type: "GIG_CANCEL_REFUND", title: "Gig cancelled — refund", body: `Credit: ₦${(refund/100).toLocaleString()} refunded for gig #${id}${isAdmin ? " (admin free — no fee)" : ` (fee ₦${(cancelFee/100).toLocaleString()} retained)`}.`, meta: { gigId: id, fee: cancelFee, adminFree: isAdmin } });
     } catch {}
-    return res.json({ message: `Cancelled — 5% fee ₦${(cancelFee/100).toLocaleString()}, refund ₦${(refund/100).toLocaleString()} to Gig wallet.`, refund, fee: cancelFee });
+    return res.json({ message: isAdmin ? `Cancelled (admin free) — refund ₦${(refund/100).toLocaleString()} to Gig wallet.` : `Cancelled — 5% fee ₦${(cancelFee/100).toLocaleString()}, refund ₦${(refund/100).toLocaleString()} to Gig wallet.`, refund, fee: cancelFee });
   } catch (err) {
     if (err.message === "ALREADY") return res.status(409).json({ error: `Cannot cancel` });
     console.error("[CANCEL GIG ERROR]", err);
@@ -251,9 +253,10 @@ const withdrawGig = async (req, res) => {
     const cleanBank = String(bankCode || "").trim();
     if (!cleanBank || !/^\d{10}$/.test(cleanAcc)) return res.status(400).json({ error: "Valid bank code and 10-digit account number required" });
     if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "4-digit PIN required" });
+    const isAdmin = req.user.role === "ADMIN";
     const kobo = amt * 100;
-    let feeKobo = Math.round(kobo * 0.01); // 1%
-    if (feeKobo === 0 && kobo > 0) feeKobo = 1;
+    let feeKobo = isAdmin ? 0 : Math.round(kobo * 0.01); // 1% — admin free
+    if (!isAdmin && feeKobo === 0 && kobo > 0) feeKobo = 1;
     const totalKobo = kobo + feeKobo;
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, gigTransferPin: true } });
@@ -286,7 +289,7 @@ const withdrawGig = async (req, res) => {
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       await tx.user.update({ where: { id: req.user.id }, data: { bankAccountNumber: cleanAcc, bankCode: cleanBank, bankName: bankName || cleanBank } });
       const wd = await tx.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, fee: feeKobo, bankCode: cleanBank, bankAccountNumber: cleanAcc, bankName: bankName || cleanBank, accountName, reference, status: "PENDING" } });
-      await tx.platformProfit.create({ data: { source: "GIG_WITHDRAW_1P", grossFee: feeKobo, netFee: feeKobo, refId: wd.reference, meta: { withdrawalId: wd.id, amount: kobo } } });
+      if (!isAdmin && feeKobo > 0) await tx.platformProfit.create({ data: { source: "GIG_WITHDRAW_1P", grossFee: feeKobo, netFee: feeKobo, refId: wd.reference, meta: { withdrawalId: wd.id, amount: kobo } } });
       return wd;
     });
     // ledger for history
@@ -512,9 +515,10 @@ const transferGig = async (req, res) => {
     const amt = parseInt(amount, 10);
     if (!amt || amt < 1) return res.status(400).json({ error: "Amount must be at least ₦1" });
     if (!pin || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: "4-digit transfer PIN required" });
+    const isAdminTransfer = req.user.role === "ADMIN";
     const amountKobo = amt * 100;
-    let feeKobo = Math.round(amountKobo * 0.01); // 1%
-    if (feeKobo === 0 && amountKobo > 0) feeKobo = 1; // min 1 kobo
+    let feeKobo = isAdminTransfer ? 0 : Math.round(amountKobo * 0.01); // 1% — admin free
+    if (!isAdminTransfer && feeKobo === 0 && amountKobo > 0) feeKobo = 1; // min 1 kobo
     const totalKobo = amountKobo + feeKobo;
 
     const recipient = await prisma.user.findUnique({ where: { gigAccountNumber: toAccountNumber.trim() }, select: { id: true, fullName: true, username: true } });
@@ -543,7 +547,7 @@ const transferGig = async (req, res) => {
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       await tx.user.update({ where: { id: recipient.id }, data: { gigBalance: { increment: amountKobo } } });
       const tr = await tx.gigTransfer.create({ data: { fromUserId: req.user.id, toUserId: recipient.id, amount: amountKobo, fee: feeKobo, status: "SUCCESS" } });
-      await tx.platformProfit.create({ data: { source: "GIG_TRANSFER_1P", grossFee: feeKobo, netFee: feeKobo, refId: tr.reference, meta: { transferId: tr.id, from: req.user.id, to: recipient.id } } });
+      if (!isAdminTransfer && feeKobo > 0) await tx.platformProfit.create({ data: { source: "GIG_TRANSFER_1P", grossFee: feeKobo, netFee: feeKobo, refId: tr.reference, meta: { transferId: tr.id, from: req.user.id, to: recipient.id } } });
       return tr;
     });
     // ledger + history for both sides
@@ -883,17 +887,23 @@ const autoReleaseGigs = async () => {
     const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000);
     const gigs = await prisma.gig.findMany({ where: { status: "CLAIMED", claimedAt: { lte: cutoff } } });
     for (const g of gigs) {
-      const pay = payout(g.escrowAmount);
-      const gross = fee(g.escrowAmount);
+      // Admin posters are free — no profit, 100% payout
+      let isPosterAdmin = false;
+      try {
+        const poster = await prisma.user.findUnique({ where: { id: g.posterId }, select: { role: true } });
+        isPosterAdmin = poster?.role === "ADMIN";
+      } catch {}
+      const gross = isPosterAdmin ? 0 : fee(g.escrowAmount);
+      const pay = isPosterAdmin ? g.escrowAmount : payout(g.escrowAmount);
       await prisma.$transaction(async (tx) => {
         await tx.user.update({ where: { id: g.claimerId }, data: { gigBalance: { increment: pay } } });
         await tx.gig.update({ where: { id: g.id }, data: { status: "COMPLETED", completedAt: new Date() } });
-        await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(g.id), meta: { gigId: g.id, autoReleased: true } } });
+        if (!isPosterAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(g.id), meta: { gigId: g.id, autoReleased: true } } });
       });
-      console.log(`[GIGS] Auto-released gig ${g.id} → ₦${pay/100} to ${g.claimerId} fee ₦${gross/100}`);
+      console.log(`[GIGS] Auto-released gig ${g.id} → ₦${pay/100} to ${g.claimerId}${isPosterAdmin ? " (admin free)" : ` fee ₦${gross/100}`}`);
       try {
         const { recordWalletMovement } = require("../utils/wallet");
-        await recordWalletMovement({ userId: g.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_AUTO_RELEASE", title: "Gig auto-released — credited", body: `Credit: ₦${(pay/100).toLocaleString()} auto-released for gig #${g.id} (fee ₦${(gross/100).toLocaleString()} retained) — 72h`, meta: { gigId: g.id, autoReleased: true } });
+        await recordWalletMovement({ userId: g.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_AUTO_RELEASE", title: "Gig auto-released — credited", body: `Credit: ₦${(pay/100).toLocaleString()} auto-released for gig #${g.id}${isPosterAdmin ? " (admin free — no fee)" : ` (fee ₦${(gross/100).toLocaleString()} retained)`} — 72h`, meta: { gigId: g.id, autoReleased: true, adminFree: isPosterAdmin } });
       } catch {}
     }
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }

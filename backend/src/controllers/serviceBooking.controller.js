@@ -59,23 +59,28 @@ const confirmServiceBooking = async (req, res) => {
     if (booking.status !== "PENDING") return res.status(400).json({ error: `Booking is ${booking.status}` });
     if (booking.expiresAt < new Date()) return res.status(400).json({ error: "Booking expired (1h)" });
 
-    const feeKobo = Math.floor(booking.amount * 0.2);
+    const isAdminProvider = req.user.role === "ADMIN";
+    const feeKobo = isAdminProvider ? 0 : Math.floor(booking.amount * 0.2);
     const provider = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true } });
-    if ((provider?.gigBalance || 0) < feeKobo) return res.status(402).json({ error: `Insufficient Gig balance for 20% fee. Need ₦${(feeKobo/100).toLocaleString()} in Gig wallet. You have ₦${((provider?.gigBalance||0)/100).toLocaleString()}. Please fund your Gig wallet.`, feeKobo });
+    if (!isAdminProvider && (provider?.gigBalance || 0) < feeKobo) return res.status(402).json({ error: `Insufficient Gig balance for 20% fee. Need ₦${(feeKobo/100).toLocaleString()} in Gig wallet. You have ₦${((provider?.gigBalance||0)/100).toLocaleString()}. Please fund your Gig wallet.`, feeKobo });
 
     await prisma.$transaction(async (tx) => {
-      const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: feeKobo } }, data: { gigBalance: { decrement: feeKobo } } });
-      if (ok.count === 0) throw new Error("FEE_RACE");
+      if (!isAdminProvider) {
+        const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: feeKobo } }, data: { gigBalance: { decrement: feeKobo } } });
+        if (ok.count === 0) throw new Error("FEE_RACE");
+      }
       // Keep escrow held — do NOT refund booker yet. Booker paid at booking time, funds stay in escrow until service completed.
       await tx.serviceBooking.update({ where: { id }, data: { status: "CONFIRMED" } });
-      await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
+      if (!isAdminProvider) await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
     });
 
-    // ledger debit for provider fee
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: feeKobo, fee: 0, type: "SERVICE_FEE", title: "Service confirm fee — 20%", body: `Debit: ₦${(feeKobo/100).toLocaleString()} fee for confirming booking #${id} — debited from Gig wallet.`, meta: { bookingId: id } });
-    } catch {}
+    // ledger debit for provider fee — admin free skips
+    if (!isAdminProvider) {
+      try {
+        const { recordWalletMovement } = require("../utils/wallet");
+        await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: feeKobo, fee: 0, type: "SERVICE_FEE", title: "Service confirm fee — 20%", body: `Debit: ₦${(feeKobo/100).toLocaleString()} fee for confirming booking #${id} — debited from Gig wallet.`, meta: { bookingId: id } });
+      } catch {}
+    }
 
     // Notify booker with provider whatsapp — escrow still held
     const providerUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { whatsapp: true } });
