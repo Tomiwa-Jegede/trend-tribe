@@ -493,11 +493,18 @@ const forgotPassword = async (req, res) => {
       data: { resetToken, resetTokenExpiresAt },
     });
 
+    // Use canonical clientUrl (single, not comma-separated) — fixed for email links
     const resetUrl = `${config.clientUrl}/reset-password?token=${resetToken}`;
+    // Always log the URL so it can be recovered from logs if email fails (dev + prod)
+    console.log(`[FORGOT PASSWORD] resetUrl for ${user.email}: ${resetUrl}`);
     try {
       await sendPasswordResetEmail(user.email, user.fullName, resetUrl);
     } catch (emailErr) {
-      console.error("[FORGOT PASSWORD → SEND EMAIL ERROR]", emailErr.message);
+      console.error("[FORGOT PASSWORD → SEND EMAIL ERROR]", emailErr.message, emailErr.response?.data || emailErr.body || "");
+      // In development, surface the reset URL so the flow can be tested without a working email provider
+      if (config.isDev) {
+        return res.status(200).json({ ...genericResponse, _devResetUrl: resetUrl, _devNote: "Email failed, use _devResetUrl for testing" });
+      }
     }
 
     return res.status(200).json(genericResponse);

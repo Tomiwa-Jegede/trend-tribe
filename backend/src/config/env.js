@@ -27,6 +27,14 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+const rawClientUrl = process.env.CLIENT_URL || "https://trendtribe.app";
+const clientUrlList = rawClientUrl.split(",").map((s) => s.trim()).filter(Boolean);
+// Canonical URL for emails/sitemaps: prefer https://trendtribe.app in production, localhost in dev
+const primaryClientUrl =
+  process.env.NODE_ENV === "production"
+    ? clientUrlList.find((u) => u.includes("trendtribe.app") && u.startsWith("https://")) || clientUrlList.find((u) => u.startsWith("https://")) || clientUrlList[0]
+    : clientUrlList[0] || "http://localhost:5173";
+
 const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   nodeEnv: process.env.NODE_ENV || "development",
@@ -39,7 +47,8 @@ const config = {
     expiresIn: process.env.JWT_EXPIRES_IN,
   },
 
-  clientUrl: process.env.CLIENT_URL,
+  clientUrl: primaryClientUrl,
+  clientUrlList,
   apiUrl: process.env.API_URL,
   cronSecret: process.env.CRON_SECRET,
 

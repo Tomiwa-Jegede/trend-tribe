@@ -20,7 +20,7 @@ let cache = { xml: null, expiresAt: 0 };
 const CACHE_MS = 60 * 60 * 1000; // 1h
 
 async function buildSitemapXml() {
-  const origin = (config.clientUrl || process.env.CLIENT_URL || "https://trendtribe.app").split(",")[0].trim().replace(/\/$/, "");
+  const origin = (config.clientUrl || "https://trendtribe.app").replace(/\/$/, "");
   const urls = [...STATIC_URLS];
 
   try {

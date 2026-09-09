@@ -50,7 +50,7 @@ app.use(
 );
 app.use(compression());
 
-const allowedOrigins = config.clientUrl.split(",").map((s) => s.trim()).filter(Boolean);
+const allowedOrigins = (config.clientUrlList || config.clientUrl.split(",")).map((s) => s.trim()).filter(Boolean);
 app.use(
   cors({
     origin: (origin, callback) => {
