@@ -32,6 +32,22 @@ export const getUnreadCount = async () => {
   const { data } = await api.get("/messages/unread-count");
   return data.unreadCount;
 };
+export const sendMessage = async ({ listingId, body }) => {
+  const { data } = await api.post("/messages", { listingId, body });
+  return data.message;
+};
+export const getThread = async (listingId, withId) => {
+  const { data } = await api.get("/messages/thread", { params: { listingId, with: withId } });
+  return data.messages;
+};
+export const getPresence = async (ids) => {
+  const { data } = await api.get("/messages/presence", { params: { ids: ids.join(",") } });
+  return data;
+};
+export const markDelivered = async (id) => {
+  const { data } = await api.post(`/messages/${id}/delivered`);
+  return data;
+};
 
 // admin
 export const broadcastMessage = async ({ subject, body }) => {

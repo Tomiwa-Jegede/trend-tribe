@@ -113,6 +113,63 @@ const getUnreadCount = async (req, res) => {
   }
 };
 
+const getThread = async (req, res) => {
+  try {
+    const listingId = req.query.listingId ? parseInt(req.query.listingId, 10) : null;
+    const withId = req.query.with ? parseInt(req.query.with, 10) : null;
+    if (!listingId || !withId) return res.status(400).json({ error: "listingId and with required" });
+    const where = {
+      listingId,
+      OR: [
+        { senderId: req.user.id, recipientId: withId },
+        { senderId: withId, recipientId: req.user.id },
+      ],
+    };
+    const messages = await prisma.message.findMany({ where, orderBy: { createdAt: "asc" }, take: 100, include: { sender: { select: { id: true, username: true, fullName: true } } } });
+    // mark delivered when fetched by recipient
+    const toMark = messages.filter((m) => m.recipientId === req.user.id && !m.deliveredAt).map((m) => m.id);
+    if (toMark.length) {
+      prisma.message.updateMany({ where: { id: { in: toMark } }, data: { deliveredAt: new Date() } }).then(() => {
+        toMark.forEach((mid) => {
+          prisma.message.findUnique({ where: { id: mid }, select: { senderId: true } }).then((mm) => {
+            try { const { emitDelivered } = require("../realtime"); emitDelivered(mm.senderId, { messageId: mid }); } catch {}
+          });
+        });
+      }).catch(() => {});
+    }
+    return res.status(200).json({ messages });
+  } catch (err) {
+    console.error("[GET THREAD ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const markDelivered = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const msg = await prisma.message.findUnique({ where: { id } });
+    if (!msg || msg.recipientId !== req.user.id) return res.status(404).json({ error: "Not found" });
+    await prisma.message.update({ where: { id }, data: { deliveredAt: new Date() } });
+    try { const { emitDelivered } = require("../realtime"); emitDelivered(msg.senderId, { messageId: id }); } catch {}
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("[MARK DELIVERED ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const getPresence = async (req, res) => {
+  try {
+    const ids = (req.query.ids || "").split(",").map((v) => parseInt(v.trim(), 10)).filter((n) => !isNaN(n));
+    const { isOnline } = require("../realtime");
+    const out = {};
+    ids.forEach((id) => (out[id] = isOnline(id)));
+    return res.status(200).json(out);
+  } catch (err) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 const deleteOne = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -150,4 +207,4 @@ const deleteAll = async (req, res) => {
   }
 };
 
-module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage };
+module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage, getThread, markDelivered, getPresence };

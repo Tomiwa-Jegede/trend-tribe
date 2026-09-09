@@ -73,4 +73,17 @@ const emitContactView = (listingId, contactViews) => {
   trigger("listings", "listing:contacted", { listingId, contactViews });
 };
 
-module.exports = { getPusher, trigger, emitListing, emitFavorite, emitNotification, emitMessage, emitListingView, emitListingShare, emitContactView };
+const emitPresence = (userId, online) => {
+  trigger("presence", "presence", { userId, online, lastSeen: new Date().toISOString() });
+};
+const emitTyping = (to, data) => {
+  trigger(`user-${to}`, "typing", data);
+};
+const emitDelivered = (userId, data) => {
+  trigger(`user-${userId}`, "message:delivered", data);
+};
+const emitRead = (userId, data) => {
+  trigger(`user-${userId}`, "message:read", data);
+};
+
+module.exports = { getPusher, trigger, emitListing, emitFavorite, emitNotification, emitMessage, emitListingView, emitListingShare, emitContactView, emitPresence, emitTyping, emitDelivered, emitRead };

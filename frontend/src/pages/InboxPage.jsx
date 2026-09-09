@@ -2,10 +2,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye } from "react-icons/fi";
+import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye, FiMessageCircle } from "react-icons/fi";
 import { getMyMessages, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
 import useRealtime from "../hooks/useRealtime";
 import { useAuth } from "../context/AuthContext";
+import ChatThread from "../components/chat/ChatThread";
 
 const InboxPage = () => {
   const { isAuthenticated, token, user } = useAuth();
@@ -144,6 +145,8 @@ const InboxPage = () => {
             {messages.map((m) => {
               const isSelected = selected.has(m.id);
               const isExpanded = expanded === m.id;
+              const threadKey = m.listing ? `thread-${m.listing.id}-${m.sender.id}` : null;
+              const isThread = expanded === threadKey;
               return (
                 <div key={m.id} className={`card p-4 flex gap-3 ${!m.read ? "bg-primary-50/40 border-primary-100" : ""} ${isSelected ? "ring-2 ring-primary-200" : ""}`}>
                   {selecting && (
@@ -174,10 +177,16 @@ const InboxPage = () => {
                         </div>
                       </Link>
                     )}
-                    {isExpanded && (
-                      <div className="mt-3 flex gap-2">
-                        <button onClick={(e) => { e.stopPropagation(); setExpanded(null); }} className="text-xs text-gray-500 hover:text-gray-700">Collapse</button>
-                        {m.listing && <Link to={`/listings/${m.listing.slug || m.listing.id}`} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiEye className="w-3 h-3" /> View product</Link>}
+                    {(isExpanded || isThread) && (
+                      <div className="mt-3 flex flex-col gap-3">
+                        <div className="flex gap-2">
+                          <button onClick={(e) => { e.stopPropagation(); setExpanded(null); }} className="text-xs text-gray-500 hover:text-gray-700">Collapse</button>
+                          {m.listing && <Link to={`/listings/${m.listing.slug || m.listing.id}`} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiEye className="w-3 h-3" /> View product</Link>}
+                          {!isThread && m.listing && <button onClick={(e) => { e.stopPropagation(); setExpanded(threadKey); }} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiMessageCircle className="w-3 h-3" /> Reply in chat</button>}
+                        </div>
+                        {isThread && (
+                          <ChatThread listingId={m.listing.id} withUser={m.sender} onClose={() => setExpanded(m.id)} />
+                        )}
                       </div>
                     )}
                   </div>
