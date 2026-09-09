@@ -29,6 +29,19 @@ const createMessage = async (req, res) => {
       prisma.contactView.create({ data: { listingId: lid, viewerId: req.user.id } }).catch(() => {});
     }
     try { emitMessage(recipientId, msg); } catch {}
+    // push notification when app is background/closed
+    prisma.message.count({ where: { recipientId, read: false } }).then((unread) => {
+      const { sendPushToUser } = require("../utils/push");
+      sendPushToUser(prisma, recipientId, {
+        title: "Trend Tribe — New chat message",
+        body: `${msg.sender.fullName || msg.sender.username}: ${text.slice(0, 80)}`,
+        url: "/messages",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        badgeCount: unread,
+        tag: `chat-${msg.id}`,
+      }).catch(() => {});
+    }).catch(() => {});
     return res.status(201).json({ message: msg });
   } catch (err) {
     console.error("[CREATE MESSAGE ERROR]", err);
