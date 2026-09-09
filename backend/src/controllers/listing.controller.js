@@ -38,35 +38,40 @@ function getDisplayViews(listing, totalUsers) {
   const contacts = listing.contactViews ?? 0;
 
   // ── NEW: starter + real, starter grows with time even if real=0 ──
-  // Make starters look real & not similar: per-listing variance in base, cap, and speed
+  // Real-looking variance: every listing has its own base, cap, speed and micro-jitter
   if (isNew) {
     const ageMins = Math.max(0, (now.getTime() - new Date(listing.createdAt).getTime()) / 60000);
-    // starter base 3-13 spread per listing (not 2-7) — hash-driven so cards don't cluster
-    const sBase = (hashToNum(String(listing.id)) % 7) + 3; // 3-9
-    const sJit = hashToNum(String(listing.id) + "starter") % 5; // 0-4
-    const sVar = hashToNum(String(listing.id) + "v2") % 3; // 0-2 extra wobble
-    const starterBase = sBase + sJit + (sVar === 2 ? 1 : 0); // 3-13
-    // caps hierarchy with per-listing jitter so not every card caps identically
-    const capJitNon = (hashToNum(String(listing.id) + "capN") % 7) - 3; // -3..+3
-    const capJitX1 = (hashToNum(String(listing.id) + "cap1") % 9) - 4; // -4..+4
-    const capJitX2 = (hashToNum(String(listing.id) + "cap2") % 11) - 5; // -5..+5
-    const capNonBase = Math.min(14, total - 3, Math.max(6, Math.floor(total * 0.22)));
-    const capX1Base = Math.min(32, total - 2, Math.max(capNonBase + 6, Math.floor(total * 0.45)));
-    const capX2Base = Math.min(50, total - 1, Math.max(capX1Base + 8, Math.floor(total * 0.70)));
-    const capNon = Math.min(14, total - 3, Math.max(6, capNonBase + capJitNon));
-    const capX1 = Math.min(32, total - 2, Math.max(capNon + 5, capX1Base + capJitX1));
-    const capX2 = Math.min(50, total - 1, Math.max(capX1 + 7, capX2Base + capJitX2));
-    // organic starter grows to capNon over ~28-44h per listing (varies), not fixed 36h
-    const organicHours = 28 + (hashToNum(String(listing.id) + "spd") % 17); // 28-44h
+    // starter base wide spread 2-16 so early cards don't cluster (hash-driven)
+    const sBase = (hashToNum(String(listing.id)) % 9) + 2; // 2-10
+    const sJit = hashToNum(String(listing.id) + "starter") % 6; // 0-5
+    const sVar = hashToNum(String(listing.id) + "v2") % 4; // 0-3
+    let starterBase = sBase + sJit + sVar; // 2-16
+    starterBase = Math.min(starterBase, 13); // cap base so it can still grow
+    // caps hierarchy with stronger per-listing jitter so caps don't cluster
+    const capJitNon = (hashToNum(String(listing.id) + "capN") % 9) - 4; // -4..+4
+    const capJitX1 = (hashToNum(String(listing.id) + "cap1") % 11) - 5; // -5..+5
+    const capJitX2 = (hashToNum(String(listing.id) + "cap2") % 13) - 6; // -6..+6
+    const capNonBase = Math.min(15, total - 3, Math.max(6, Math.floor(total * 0.22)));
+    const capX1Base = Math.min(33, total - 2, Math.max(capNonBase + 6, Math.floor(total * 0.45)));
+    const capX2Base = Math.min(52, total - 1, Math.max(capX1Base + 8, Math.floor(total * 0.70)));
+    const capNon = Math.min(15, total - 3, Math.max(5, capNonBase + capJitNon));
+    const capX1 = Math.min(33, total - 2, Math.max(capNon + 4, capX1Base + capJitX1));
+    const capX2 = Math.min(52, total - 1, Math.max(capX1 + 6, capX2Base + capJitX2));
+    // organic speed varies per listing: 18-48h to cap, exponent 0.50-0.70
+    const organicHours = 18 + (hashToNum(String(listing.id) + "spd") % 31); // 18-48h
     const ORGANIC_MINS = organicHours * 60;
+    const exp = 0.50 + (hashToNum(String(listing.id) + "exp") % 21) / 100; // 0.50-0.70
     let progOrganic = Math.min(1, ageMins / ORGANIC_MINS);
-    progOrganic = Math.pow(progOrganic, 0.62); // ease, varies slightly per listing via hours
-    // per-listing growth wobble ±8%
-    const speedVar = 0.92 + (hashToNum(String(listing.id) + "grow") % 17) / 100; // 0.92-1.08
+    progOrganic = Math.pow(progOrganic, exp);
+    // per-listing growth wobble 0.80-1.20
+    const speedVar = 0.80 + (hashToNum(String(listing.id) + "grow") % 41) / 100; // 0.80-1.20
     progOrganic = Math.min(1, progOrganic * speedVar);
     let starter = starterBase + Math.floor((capNon - starterBase) * progOrganic);
     starter = Math.max(starter, Math.min(starterBase, capNon));
     starter = Math.min(starter, capNon);
+    // micro jitter -2..+2 so even same age/cap listings differ by 1-2 views (looks organic)
+    const micro = (hashToNum(String(listing.id) + "micro") % 5) - 2; // -2..+2
+    starter = Math.max(1, Math.min(capNon, starter + micro));
 
     // boost extra — gradual after few mins, not instant
     const isBoosted = listing.boostedUntil && new Date(listing.boostedUntil) > now;
