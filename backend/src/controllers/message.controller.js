@@ -49,22 +49,24 @@ const createMessage = async (req, res) => {
   }
 };
 
-// GET /api/messages — my inbox
+// GET /api/messages — my inbox (both sent and received, so buyer sees his canned first contact)
 const getMyMessages = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * limitNum;
+    const where = { OR: [{ recipientId: req.user.id }, { senderId: req.user.id }] };
     const [messages, totalCount, unreadCount] = await Promise.all([
       prisma.message.findMany({
-        where: { recipientId: req.user.id },
+        where,
         orderBy: { createdAt: "desc" },
         skip,
         take: limitNum,
         include: {
           sender: { select: { id: true, username: true, fullName: true, role: true } },
-          listing: { select: { id: true, title: true, images: true, price: true } },
+          recipient: { select: { id: true, username: true, fullName: true } },
+          listing: { select: { id: true, slug: true, title: true, images: true, price: true } },
         },
       }),
       prisma.message.count({ where: { recipientId: req.user.id } }),

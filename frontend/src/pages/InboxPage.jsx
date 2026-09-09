@@ -145,8 +145,11 @@ const InboxPage = () => {
             {messages.map((m) => {
               const isSelected = selected.has(m.id);
               const isExpanded = expanded === m.id;
-              const threadKey = m.listing?.id && m.sender?.id ? `thread-${m.listing.id}-${m.sender.id}` : null;
+              const otherUser = m.senderId === user?.id ? m.recipient : m.sender;
+              const otherId = otherUser?.id || m.sender?.id;
+              const threadKey = m.listing?.id && otherId ? `thread-${m.listing.id}-${otherId}` : null;
               const isThread = threadKey && expanded === threadKey;
+              const isSent = m.senderId === user?.id;
               return (
                 <div key={m.id} className={`card p-4 flex gap-3 ${!m.read ? "bg-primary-50/40 border-primary-100" : ""} ${isSelected ? "ring-2 ring-primary-200" : ""}`}>
                   {selecting && (
@@ -162,7 +165,7 @@ const InboxPage = () => {
                           {isExpanded ? m.body : `${m.body.slice(0, 80)}${m.body.length > 80 ? "…" : ""}`}
                         </p>
                         {!isExpanded && m.body.length > 80 && <span className="text-xs text-primary-600">View →</span>}
-                        <p className="text-xs text-gray-400 mt-1">{new Date(m.createdAt).toLocaleString()} · from {m.sender?.role === "ADMIN" ? "Trend Tribe" : m.sender?.username || "Trend Tribe"}</p>
+                        <p className="text-xs text-gray-400 mt-1">{new Date(m.createdAt).toLocaleString()} · {isSent ? `to ${otherUser?.username || "user"}` : `from ${m.sender?.role === "ADMIN" ? "Trend Tribe" : m.sender?.username || "Trend Tribe"}`} {isSent && !m.read ? "· sent" : ""}</p>
                       </div>
                       <span className="flex-shrink-0 mt-1">
                         {!m.read && <span className="w-2 h-2 bg-primary-600 rounded-full inline-block" />}
@@ -182,10 +185,10 @@ const InboxPage = () => {
                         <div className="flex gap-2">
                           <button onClick={(e) => { e.stopPropagation(); setExpanded(null); }} className="text-xs text-gray-500 hover:text-gray-700">Collapse</button>
                           {m.listing?.id && <Link to={`/listings/${m.listing.slug || m.listing.id}`} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiEye className="w-3 h-3" /> View product</Link>}
-                          {!isThread && m.listing?.id && m.sender?.id && <button onClick={(e) => { e.stopPropagation(); setExpanded(threadKey); }} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiMessageCircle className="w-3 h-3" /> Reply in chat</button>}
+                          {!isThread && m.listing?.id && otherId && <button onClick={(e) => { e.stopPropagation(); setExpanded(threadKey); }} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiMessageCircle className="w-3 h-3" /> Reply in chat</button>}
                         </div>
-                        {isThread && m.listing?.id && m.sender?.id && (
-                          <ChatThread listingId={m.listing.id} withUser={m.sender} onClose={() => setExpanded(m.id)} />
+                        {isThread && m.listing?.id && otherId && (
+                          <ChatThread listingId={m.listing.id} withUser={otherUser} onClose={() => setExpanded(m.id)} />
                         )}
                       </div>
                     )}
