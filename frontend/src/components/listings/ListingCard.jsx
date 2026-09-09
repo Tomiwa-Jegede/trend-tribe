@@ -1,7 +1,7 @@
 // src/components/listings/ListingCard.jsx
 
 import { Link, useNavigate } from "react-router-dom";
-import { FiMapPin, FiUser, FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
+import { FiMapPin, FiUser, FiHeart, FiLink2, FiMessageCircle, FiShoppingBag } from "react-icons/fi";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import { useFavorites } from "../../context/FavoritesContext";
@@ -132,7 +132,7 @@ const ListingCard = ({ listing }) => {
       className="rounded-2xl overflow-hidden bg-white relative"
       style={{ willChange: "transform" }}
     >
-      {/* Favorite heart + count below */}
+      {/* Favorite heart + count below — 44px hit-area */}
       <div className="absolute top-3 right-3 z-10 flex flex-col items-center gap-1">
         <motion.button
           type="button"
@@ -142,18 +142,18 @@ const ListingCard = ({ listing }) => {
           animate={reduced ? {} : { opacity: 1, scale: 1 }}
           whileTap={reduced ? {} : { scale: 0.85 }}
           transition={{ duration: 0.3, delay: 0.1 }}
-          className="w-8 h-8 rounded-full bg-white/90
+          className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/90
                      backdrop-blur-sm flex items-center justify-center
-                     shadow-sm hover:bg-white transition-colors"
+                     shadow-sm hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2"
         >
           <FiHeart
-            className={`w-4 h-4 transition-colors ${
+            className={`w-5 h-5 transition-colors ${
               favorited ? "fill-red-500 text-red-500" : "text-gray-400"
             }`}
             aria-hidden="true"
           />
         </motion.button>
-        <span className="text-[11px] font-semibold text-white drop-shadow-sm bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+        <span className="text-xs font-semibold text-white bg-navy-900/70 backdrop-blur-sm px-1.5 py-0.5 rounded-full min-w-[24px] text-center border border-white/20">
           {listing.favoriteCount ?? 0}
         </span>
       </div>
@@ -193,7 +193,7 @@ const ListingCard = ({ listing }) => {
               className="w-full h-full flex items-center justify-center
                          bg-gradient-to-br from-sage-50 to-sage-100"
             >
-              <span className="text-4xl opacity-40" aria-hidden="true">🛍️</span>
+              <FiShoppingBag className="w-10 h-10 text-sage-300" aria-hidden="true" />
             </div>
           )}
 
@@ -224,7 +224,7 @@ const ListingCard = ({ listing }) => {
         {/* ── Content ───────────────────────────────────── */}
         <div className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 flex-1">
           <motion.span
-            className="text-[11px] sm:text-xs font-semibold text-primary-600 uppercase tracking-wide truncate"
+            className="text-xs font-semibold text-primary-600 uppercase tracking-wide truncate"
             variants={reduced ? {} : categoryVariants}
             initial="hidden"
             animate="show"
@@ -254,15 +254,19 @@ const ListingCard = ({ listing }) => {
             {listing.views ?? 0} views
           </p>
 
-          {/* Counts under icons — no emojis, numbers only (favorite already at top) */}
-          <div className="flex items-center gap-4 mt-2">
-            <div className="flex flex-col items-center">
-              <FiLink2 className="w-4 h-4 text-gray-400" />
-              <span className="text-[11px] text-gray-500 mt-0.5">{listing.shares ?? 0}</span>
+          {/* Counts under icons — 44px hit-areas, 12px min text */}
+          <div className="flex items-center gap-6 mt-2">
+            <div className="flex flex-col items-center min-w-[44px] min-h-[44px] justify-center">
+              <span className="w-11 h-11 flex items-center justify-center rounded-full bg-gray-50">
+                <FiLink2 className="w-4 h-4 text-gray-500" aria-hidden="true" />
+              </span>
+              <span className="text-xs text-gray-600 mt-1 font-medium">{listing.shares ?? 0}</span>
             </div>
-            <div className="flex flex-col items-center">
-              <FiMessageCircle className="w-4 h-4 text-gray-400" />
-              <span className="text-[11px] text-gray-500 mt-0.5">{listing.contactViews ?? 0}</span>
+            <div className="flex flex-col items-center min-w-[44px] min-h-[44px] justify-center">
+              <span className="w-11 h-11 flex items-center justify-center rounded-full bg-gray-50">
+                <FiMessageCircle className="w-4 h-4 text-gray-500" aria-hidden="true" />
+              </span>
+              <span className="text-xs text-gray-600 mt-1 font-medium">{listing.contactViews ?? 0}</span>
             </div>
           </div>
 

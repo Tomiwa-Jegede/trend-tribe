@@ -1,6 +1,6 @@
 // src/components/listings/FilterBar.jsx
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FiSearch, FiX, FiSliders } from "react-icons/fi";
 import { CATEGORIES, CONDITIONS, SUBCATEGORIES_BY_CATEGORY } from "../../services/listingService";
 
@@ -12,6 +12,15 @@ const FilterBar = ({
   searchPlaceholder = "Search for textbooks, laptops, furniture...",
 }) => {
   const [showFilters, setShowFilters] = useState(false);
+  const [localSearch, setLocalSearch] = useState(filters.search);
+  const debounceRef = useRef(null);
+  useEffect(() => { setLocalSearch(filters.search); }, [filters.search]);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (localSearch === filters.search) return;
+    debounceRef.current = setTimeout(() => onFilterChange({ search: localSearch }), 320);
+    return () => clearTimeout(debounceRef.current);
+  }, [localSearch]);
 
   const hasActiveFilters =
     filters.category ||
@@ -34,8 +43,8 @@ const FilterBar = ({
             id="filter-search"
             type="text"
             placeholder={searchPlaceholder}
-            value={filters.search}
-            onChange={(e) => onFilterChange({ search: e.target.value })}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
             className="input-field pl-10"
             aria-label="Search listings"
           />

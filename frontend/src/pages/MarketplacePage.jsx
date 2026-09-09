@@ -176,7 +176,7 @@ const MarketplacePage = () => {
     return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVis); };
   }, [fetchListings]);
 
-  // ── Sync filters + page to URL ───────────────────────────
+  // ── Sync filters + page to URL — preserve view=discover ──
   useEffect(() => {
     const params = {};
     Object.entries(filters).forEach(([key, value]) => {
@@ -185,7 +185,7 @@ const MarketplacePage = () => {
     if (currentPage > 1) params.page = currentPage;
     if (searchParams.get("view") === "discover") params.view = "discover";
     setSearchParams(params, { replace: true });
-  }, [filters, currentPage]);
+  }, [filters, currentPage, searchParams]);
 
   const handleFilterChange = (update) => {
     setFilters((prev) => ({ ...prev, ...update }));
