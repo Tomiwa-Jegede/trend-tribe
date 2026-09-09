@@ -984,12 +984,20 @@ const getMyListings = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // Job: 30d ghost prune — flips isAvailable=false + archivedAt for stale listings
+// Skips favorited/shared/contacted (buyer-trust slice)
 // ─────────────────────────────────────────────────────────────
 const archiveGhostListings = async () => {
   try {
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const result = await prisma.listing.updateMany({
+    // Find stale candidates, filter in JS to avoid missing fav/share/contact
+    const candidates = await prisma.listing.findMany({
       where: { isAvailable: true, createdAt: { lt: cutoff } },
+      select: { id: true, views: true, shares: true, contactViews: true, favorites: { select: { id: true } } },
+    });
+    const ghostIds = candidates.filter((l) => l.favorites.length === 0 && (l.views ?? 0) === 0 && (l.shares ?? 0) === 0 && (l.contactViews ?? 0) === 0).map((l) => l.id);
+    if (ghostIds.length === 0) return 0;
+    const result = await prisma.listing.updateMany({
+      where: { id: { in: ghostIds } },
       data: { isAvailable: false, archivedAt: new Date() },
     });
     if (result.count > 0) console.log(`🧹 Ghost prune archived ${result.count} stale listing(s)`);
@@ -1266,9 +1274,19 @@ const toggleFavorite = async (req, res) => {
       return res.status(200).json({ favorited: false });
     }
 
-    await prisma.favorite.create({
-      data: { listingId, userId: req.user.id },
-    });
+    try {
+      await prisma.favorite.create({
+        data: { listingId, userId: req.user.id },
+      });
+    } catch (e) {
+      if (e.code === "P2002") {
+        // race: already favorited by concurrent request
+        const cnt = await prisma.favorite.count({ where: { listingId } });
+        try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, true, cnt); } catch {}
+        return res.status(200).json({ favorited: true });
+      }
+      throw e;
+    }
     // emit with count for realtime favoriteCount
     prisma.favorite.count({ where: { listingId } }).then((cnt) => {
       try { const { emitFavorite } = require("../realtime"); emitFavorite(listingId, req.user.id, true, cnt); } catch {}

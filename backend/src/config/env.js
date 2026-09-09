@@ -36,7 +36,7 @@ const primaryClientUrl =
     : clientUrlList[0] || "http://localhost:5173";
 
 const config = {
-  port: parseInt(process.env.PORT, 10) || 5000,
+  port: parseInt(process.env.PORT, 10) || 5050,
   nodeEnv: process.env.NODE_ENV || "development",
   isDev: process.env.NODE_ENV !== "production",
 

@@ -29,11 +29,17 @@ api.interceptors.response.use(
   (error) => {
     if (error?.response?.status === 401) {
       const hasToken = localStorage.getItem("tt_token");
-      // Only auto-clear for /auth/me — other 401s (e.g. login failure) should not wipe session
       const isMeRequest = error?.config?.url?.includes("/auth/me");
-      if (hasToken && isMeRequest) {
-        localStorage.removeItem("tt_token");
-        localStorage.removeItem("tt_user");
+      // Clear stale token on any 401 when token exists — fixes expired token showing as authed
+      // Keep /auth/login 401 from clearing (invalid credentials shouldn't log out)
+      const isLoginAttempt = error?.config?.url?.includes("/auth/login");
+      if (hasToken && (isMeRequest || !isLoginAttempt)) {
+        const errCode = error?.response?.data?.error || "";
+        // Only clear on token-related 401s, not validation
+        if (/token|expired|jwt|unauthorized|invalid/i.test(errCode) || isMeRequest || error?.config?.url?.includes("/auth/")) {
+          localStorage.removeItem("tt_token");
+          localStorage.removeItem("tt_user");
+        }
       }
     }
     return Promise.reject(error);

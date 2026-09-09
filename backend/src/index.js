@@ -180,12 +180,13 @@ async function startServer() {
     }, 24 * 60 * 60 * 1000); // every 24 hours
     // run once on boot (non-blocking)
     archiveGhostListings().catch(() => {});
-    // ─── Clear expired boosts (featured 24h) ──
-    setInterval(async () => {
-      try {
-        await prisma.listing.updateMany({ where: { boostedUntil: { lt: new Date() } }, data: { boostedUntil: null, boostedAt: null, boostTier: 1 } });
-      } catch {}
-    }, 60 * 60 * 1000); // hourly
+    // ─── Clear expired boosts (featured 24h) — keep history for views (don't null boostedUntil, query checks > now) ──
+    // No wipe needed: getDisplayViews keeps views after expiry. If cleanup needed, keep boostedUntil as past value.
+    // setInterval(async () => {
+    //   try {
+    //     await prisma.listing.updateMany({ where: { boostedUntil: { lt: new Date() } }, data: { boostedUntil: null, boostedAt: null, boostTier: 1 } });
+    //   } catch {}
+    // }, 60 * 60 * 1000);
     // ─── Gigs: expire unclaimed + 72h auto-release ──
     const { expireGigs, autoReleaseGigs } = require("./controllers/gig.controller");
     setInterval(expireGigs, 60 * 60 * 1000);

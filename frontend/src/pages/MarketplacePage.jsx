@@ -167,12 +167,13 @@ const MarketplacePage = () => {
     fetchListings();
   }, [fetchListings]);
 
-  // Natural: mount + focus (marketplace not live — admin watches live)
+  // Natural: mount + focus — refetch without spinner
   useEffect(() => {
-    const onFocus = () => fetchListings(false);
+    const onFocus = () => fetchListings();
+    const onVis = () => { if (document.visibilityState === "visible") fetchListings(); };
     window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fetchListings(false); });
-    return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onFocus); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVis); };
   }, [fetchListings]);
 
   // ── Sync filters + page to URL ───────────────────────────

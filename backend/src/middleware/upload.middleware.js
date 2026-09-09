@@ -32,12 +32,13 @@ const avatarStorage = new CloudinaryStorage({
   },
 });
 
-// ─── File filter ───────────────────────────────────────────────
+// ─── File filter — align with Cloudinary allowed_formats (jpg/jpeg/png/webp) ──
+const ALLOWED_MIMES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
+  if (ALLOWED_MIMES.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Only image files are allowed"), false);
+    cb(new Error("Only jpg, jpeg, png, webp images are allowed"), false);
   }
 };
 
