@@ -101,6 +101,69 @@ const getAllListings = async (req, res) => {
       if (maxPrice) where.price.lte = parseFloat(maxPrice);
     }
 
+    // Random sort — shuffle across entire result set, not just latest page
+    if (sort === "random") {
+      const allIds = await prisma.listing.findMany({ where, select: { id: true } });
+      const totalCount = allIds.length;
+      // Fisher-Yates shuffle
+      for (let i = allIds.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allIds[i], allIds[j]] = [allIds[j], allIds[i]];
+      }
+      const pagedIds = allIds.slice(skip, skip + limitNum).map((o) => o.id);
+      let listings = [];
+      if (pagedIds.length > 0) {
+        const fetched = await prisma.listing.findMany({
+          where: { id: { in: pagedIds } },
+          include: {
+            seller: {
+              select: {
+                id: true,
+                slug: true,
+                username: true,
+                fullName: true,
+                avatar: true,
+                school: true,
+              },
+            },
+          },
+        });
+        const map = new Map(fetched.map((l) => [l.id, l]));
+        listings = pagedIds.map((id) => map.get(id)).filter(Boolean);
+      }
+      const totalPages = Math.ceil(totalCount / limitNum);
+      if (search?.trim()) {
+        prisma.searchLog.create({
+          data: {
+            query: search.trim().slice(0, 100),
+            category: category || null,
+            userId: req.user?.id || null,
+            results: totalCount,
+          },
+        }).catch(() => {});
+      }
+      return res.status(200).json({
+        listings: listings.map((l) => formatListing(stripAdminFields(l))),
+        pagination: {
+          totalCount,
+          totalPages,
+          currentPage: pageNum,
+          limit: limitNum,
+          hasNextPage: pageNum < totalPages,
+          hasPrevPage: pageNum > 1,
+        },
+        filters: {
+          search: search || null,
+          category: category || null,
+          subcategory: subcategory || null,
+          condition: condition || null,
+          minPrice: minPrice || null,
+          maxPrice: maxPrice || null,
+          sort,
+        },
+      });
+    }
+
     const orderByMap = {
       newest: { createdAt: "desc" },
       oldest: { createdAt: "asc" },

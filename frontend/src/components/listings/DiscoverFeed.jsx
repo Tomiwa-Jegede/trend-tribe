@@ -121,13 +121,23 @@ const DiscoverFeed = () => {
   const { isFavorited, toggleFavorite } = useFavorites();
   const { toast } = useToast();
 
+  const shuffleArray = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const data = await getListings({ limit: 50 });
-        if (!cancelled) setListings(data.listings || []);
+        // Backend supports sort=random (ORDER BY RANDOM via shuffled IDs) + client shuffle for extra entropy and to break API cache
+        const data = await getListings({ limit: 50, sort: "random" });
+        if (!cancelled) setListings(shuffleArray(data.listings || []));
       } catch {
         if (!cancelled) setListings([]);
       } finally {
