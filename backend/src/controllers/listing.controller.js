@@ -48,7 +48,7 @@ function getDisplayViews(listing, totalUsers) {
     // caps hierarchy with stronger per-listing jitter so caps don't cluster
     const capJitNon = (hashToNum(String(listing.id) + "capN") % 9) - 4; // -4..+4
     const capJitX1 = (hashToNum(String(listing.id) + "cap1") % 11) - 5; // -5..+5
-    const capJitX2 = (hashToNum(String(listing.id) + "cap2") % 13) - 6; // -6..+6
+    const capJitX2 = (hashToNum(String(listing.id) + "cap2") % 17) - 8; // -8..+8 wider for x2 picks
     const capNonBase = Math.min(13, total - 3, Math.max(4, Math.floor(total * 0.15)));
     const capX1Base = Math.min(38, total - 2, Math.max(capNonBase + 10, Math.floor(total * 0.52)));
     const capX2Base = Math.min(62, total - 1, Math.max(capX1Base + 12, Math.floor(total * 0.85)));
@@ -88,7 +88,8 @@ function getDisplayViews(listing, totalUsers) {
         const capBoost = listing.boostTier === 2 ? capX2 : capX1;
         const extraTotal = Math.max(0, capBoost - capNon);
         starter = starter + Math.floor(extraTotal * p);
-        starter = Math.min(starter, capBoost);
+        if (listing.boostTier === 2) starter += listing.id % 3; // x2 wobble 0-2 so picks never identical
+        starter = Math.min(starter, capBoost + (listing.boostTier === 2 ? 2 : 0));
       }
     } else if (listing.boostedUntil) {
       // was boosted before — keep views, don't drop to non-boost
@@ -135,14 +136,21 @@ function getDisplayViews(listing, totalUsers) {
     else if (elapsedMins < GRACE_MINS + RAMP_MINS) progress = (elapsedMins - GRACE_MINS) / RAMP_MINS;
     else progress = 1;
     if (progress > 0) {
-      const fullBoosted = listing.boostTier === 2 ? Math.floor(baseFake * 2.8 + 24) : Math.floor(baseFake * 1.9 + 14);
+      const isX2 = listing.boostTier === 2;
+      const mult = isX2 ? 2.65 + (hashToNum(String(listing.id) + "bx2") % 9) / 20 : 1.9; // x2: 2.65-3.05 per listing
+      const add = isX2 ? 22 + (hashToNum(String(listing.id) + "ax2") % 9) : 14; // x2: 22-30
+      const fullBoosted = Math.floor(baseFake * mult + add);
       const extra = Math.max(0, fullBoosted - baseFake);
       display = baseFake + Math.floor(extra * progress);
+      // x2 micro wobble so no two picks same
+      if (isX2) display += (listing.id % 3); // 0-2
     }
   } else if (listing.boostedUntil) {
     // was boosted before — keep views, don't drop
     const wasTier2 = listing.boostTier === 2;
-    const baseForPrev = wasTier2 ? Math.floor(baseFake * 2.8 + 24) : Math.floor(baseFake * 1.9 + 14);
+    const mult = wasTier2 ? 2.65 + (hashToNum(String(listing.id) + "bx2") % 9) / 20 : 1.9;
+    const add = wasTier2 ? 22 + (hashToNum(String(listing.id) + "ax2") % 9) : 14;
+    const baseForPrev = Math.floor(baseFake * mult + add) + (wasTier2 ? (listing.id % 3) : 0);
     display = Math.max(display, baseForPrev);
     display = Math.min(display, total, 80);
   } else if (listing.boostTier === 2) {
