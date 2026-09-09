@@ -60,24 +60,14 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
 
       {/* ── Bottom-left product info ── */}
       <div className="absolute bottom-8 left-4 right-20 text-white pointer-events-none">
-        <p className="text-xs font-semibold uppercase tracking-wide text-white/70 mb-1 flex items-center gap-2">
-          <span>{listing.category?.replace("_", " ")}</span>
-          <span className="text-white/40">·</span>
-          <span className="font-normal" title="Views = detail page opens, unique per user per day">
-            👁 {listing.views ?? 0}
-          </span>
+        <p className="text-xs font-semibold uppercase tracking-wide text-white/70 mb-1">
+          {listing.category?.replace("_", " ")}
         </p>
         <h3 className="text-lg font-bold leading-snug line-clamp-2 mb-1">{listing.title}</h3>
         <p className="text-xl font-extrabold mb-1">{formatPrice(listing.price)}</p>
-        <div className="flex items-center gap-2 text-xs text-white/70 mb-3 flex-wrap">
-          <span title="Views — detail opens">👁 {listing.views ?? 0}</span>
-          <span className="text-white/30">·</span>
-          <span title="Favorites">❤️ {listing.favoriteCount ?? 0}</span>
-          <span className="text-white/30">·</span>
-          <span title="WhatsApp contacts">💬 {listing.contactViews ?? 0}</span>
-          <span className="text-white/30">·</span>
-          <span title="Shares — copy link">🔗 {listing.shares ?? 0}</span>
-        </div>
+        <p className="text-xs text-white/70 mb-3" title="Views — detail page opens, unique per user per day, not counting you">
+          {listing.views ?? 0} views
+        </p>
         <Link
           to={`/listings/${listing.slug || listing.id}`}
           className="pointer-events-auto inline-flex items-center gap-1.5 bg-white text-black text-xs font-bold px-4 py-2 rounded-full w-fit shadow-md"
@@ -86,34 +76,42 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
         </Link>
       </div>
 
-      {/* ── Right action rail ── */}
-      <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 z-10">
-        <button
-          type="button"
-          onClick={onFavorite}
-          aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
-          className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
-        >
-          <FiHeart className={`w-6 h-6 ${favorited ? "fill-red-500 text-red-500" : "text-white"}`} />
-        </button>
-        <button
-          type="button"
-          onClick={onShare}
-          aria-label="Copy link"
-          className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
-        >
-          <FiLink2 className="w-6 h-6 text-white" />
-        </button>
-        <button
-          type="button"
-          onClick={onContact}
+      {/* ── Right action rail — counts just under icons, no emojis */}
+      <div className="absolute right-3 bottom-28 flex flex-col items-center gap-4 z-10">
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={onFavorite}
+            aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+            className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+          >
+            <FiHeart className={`w-6 h-6 ${favorited ? "fill-red-500 text-red-500" : "text-white"}`} />
+          </button>
+          <span className="text-xs font-semibold text-white mt-1">{listing.favoriteCount ?? 0}</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={onShare}
+            aria-label="Copy link"
+            className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+          >
+            <FiLink2 className="w-6 h-6 text-white" />
+          </button>
+          <span className="text-xs font-semibold text-white mt-1">{listing.shares ?? 0}</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={onContact}
           disabled={contactLoading || !listing.isAvailable}
           aria-label="Contact seller"
           className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center disabled:opacity-50"
         >
           <FiMessageCircle className="w-6 h-6 text-white" />
         </button>
-      </div>
+          <span className="text-xs font-semibold text-white mt-1">{listing.contactViews ?? 0}</span>
+        </div>
       </div>
     </div>
   );

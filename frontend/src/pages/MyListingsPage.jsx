@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import TokenIcon from "../components/ui/TokenIcon";
+import { FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
 
 const GHOST_DAYS = 30;
 
@@ -202,10 +203,26 @@ const MyListingsPage = () => {
                   <div className="p-4">
                     <Link to={`/listings/${l.slug || l.id}`} className="font-bold text-gray-900 line-clamp-1 hover:text-primary-600">{l.title}</Link>
                     <p className="text-primary-600 font-extrabold mt-1">₦{Number(l.price).toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 mt-1" title="Views — detail page opens, unique per user per day, not counting you">
+                      {l.views ?? 0} views
+                    </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {l.category} {l.subcategory ? `· ${l.subcategory}` : ""} · {l.condition} · {new Date(l.createdAt).toLocaleDateString()} · ♥ {l.favoriteCount ?? 0} {l.reportCount ? `· ⚑ ${l.reportCount}` : ""}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">👁 {l.views ?? 0} · ❤️ {l.favoriteCount ?? 0} · 💬 {l.contactViews ?? 0} · 🔗 {l.shares ?? 0}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex flex-col items-center">
+                        <FiHeart className="w-4 h-4 text-gray-400" />
+                        <span className="text-[11px] text-gray-500 mt-0.5">{l.favoriteCount ?? 0}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <FiLink2 className="w-4 h-4 text-gray-400" />
+                        <span className="text-[11px] text-gray-500 mt-0.5">{l.shares ?? 0}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <FiMessageCircle className="w-4 h-4 text-gray-400" />
+                        <span className="text-[11px] text-gray-500 mt-0.5">{l.contactViews ?? 0}</span>
+                      </div>
+                    </div>
                     {diagnosis(l) && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1 mt-1">{diagnosis(l)}</p>}
                     {l.isAvailable ? <p className="text-xs text-gray-400 mt-1">{left}d left before auto-hide</p> : <p className="text-xs text-gray-400 mt-1">Hidden from marketplace — toggle to re-activate</p>}
                     <div className="flex gap-2 mt-3 flex-wrap">

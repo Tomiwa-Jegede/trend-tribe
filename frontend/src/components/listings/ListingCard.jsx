@@ -1,7 +1,7 @@
 // src/components/listings/ListingCard.jsx
 
 import { Link, useNavigate } from "react-router-dom";
-import { FiMapPin, FiUser, FiHeart } from "react-icons/fi";
+import { FiMapPin, FiUser, FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import { useFavorites } from "../../context/FavoritesContext";
@@ -132,26 +132,31 @@ const ListingCard = ({ listing }) => {
       className="rounded-2xl overflow-hidden bg-white relative"
       style={{ willChange: "transform" }}
     >
-      {/* Favorite heart — outside Link to avoid nested interactive */}
-      <motion.button
-        type="button"
-        onClick={handleFavoriteClick}
-        aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
-        initial={reduced ? {} : { opacity: 0, scale: 0.8 }}
-        animate={reduced ? {} : { opacity: 1, scale: 1 }}
-        whileTap={reduced ? {} : { scale: 0.85 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-        className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90
-                   backdrop-blur-sm flex items-center justify-center
-                   shadow-sm hover:bg-white transition-colors"
-      >
-        <FiHeart
-          className={`w-4 h-4 transition-colors ${
-            favorited ? "fill-red-500 text-red-500" : "text-gray-400"
-          }`}
-          aria-hidden="true"
-        />
-      </motion.button>
+      {/* Favorite heart + count below */}
+      <div className="absolute top-3 right-3 z-10 flex flex-col items-center gap-1">
+        <motion.button
+          type="button"
+          onClick={handleFavoriteClick}
+          aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+          initial={reduced ? {} : { opacity: 0, scale: 0.8 }}
+          animate={reduced ? {} : { opacity: 1, scale: 1 }}
+          whileTap={reduced ? {} : { scale: 0.85 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="w-8 h-8 rounded-full bg-white/90
+                     backdrop-blur-sm flex items-center justify-center
+                     shadow-sm hover:bg-white transition-colors"
+        >
+          <FiHeart
+            className={`w-4 h-4 transition-colors ${
+              favorited ? "fill-red-500 text-red-500" : "text-gray-400"
+            }`}
+            aria-hidden="true"
+          />
+        </motion.button>
+        <span className="text-[11px] font-semibold text-white drop-shadow-sm bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+          {listing.favoriteCount ?? 0}
+        </span>
+      </div>
 
       <Link
         to={`/listings/${listingSlug}`}
@@ -218,23 +223,14 @@ const ListingCard = ({ listing }) => {
 
         {/* ── Content ───────────────────────────────────── */}
         <div className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 flex-1">
-          {/* Category + public view count (detail opens, social proof) */}
-          <div className="flex items-center justify-between gap-2">
-            <motion.span
-              className="text-[11px] sm:text-xs font-semibold text-primary-600 uppercase tracking-wide truncate"
-              variants={reduced ? {} : categoryVariants}
-              initial="hidden"
-              animate="show"
-            >
-              {category.replace("_", " ")}
-            </motion.span>
-            <span
-                className="text-[11px] text-gray-400 flex-shrink-0"
-                title="Views = detail page opens, unique per user per day, not counting you"
-              >
-                👁 {listing.views ?? 0}
-              </span>
-          </div>
+          <motion.span
+            className="text-[11px] sm:text-xs font-semibold text-primary-600 uppercase tracking-wide truncate"
+            variants={reduced ? {} : categoryVariants}
+            initial="hidden"
+            animate="show"
+          >
+            {category.replace("_", " ")}
+          </motion.span>
 
           {/* Title */}
           <h4
@@ -253,16 +249,21 @@ const ListingCard = ({ listing }) => {
           >
             {formatPrice(price)}
           </motion.p>
+          {/* Views under price */}
+          <p className="text-xs text-gray-500 mt-1" title="Views — detail page opens, unique per user per day, not counting you">
+            {listing.views ?? 0} views
+          </p>
 
-          {/* Stats — public figures for every card */}
-          <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-1 flex-wrap">
-            <span title="Views — detail opens, unique per user per day">👁 {listing.views ?? 0}</span>
-            <span className="text-gray-300">·</span>
-            <span title="Favorites — saves">❤️ {listing.favoriteCount ?? 0}</span>
-            <span className="text-gray-300">·</span>
-            <span title="WhatsApp contacts — clicks">💬 {listing.contactViews ?? 0}</span>
-            <span className="text-gray-300">·</span>
-            <span title="Shares — copy link">🔗 {listing.shares ?? 0}</span>
+          {/* Counts under icons — no emojis, numbers only (favorite already at top) */}
+          <div className="flex items-center gap-4 mt-2">
+            <div className="flex flex-col items-center">
+              <FiLink2 className="w-4 h-4 text-gray-400" />
+              <span className="text-[11px] text-gray-500 mt-0.5">{listing.shares ?? 0}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <FiMessageCircle className="w-4 h-4 text-gray-400" />
+              <span className="text-[11px] text-gray-500 mt-0.5">{listing.contactViews ?? 0}</span>
+            </div>
           </div>
 
           {/* Location */}
