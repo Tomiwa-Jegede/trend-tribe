@@ -504,8 +504,8 @@ const ListingDetailPage = () => {
                   try {
                     const api = (await import("../api/axios")).default;
                     await api.post("/messages", { listingId: listing.id, body: `Hi ${listing.seller.fullName}, is this still available? — ${listing.title} (₦${listing.price})` });
-                    toast.success("Message sent — seller will reply in Inbox");
-                    navigate("/messages");
+                    toast.success("Product sent to chat — open chat room");
+                    navigate(`/messages?thread=${listing.id}-${listing.seller.id}`);
                   } catch (e) {
                     toast.error(e.response?.data?.error || "Failed to send message");
                   } finally { setContactLoading(false); }

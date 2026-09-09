@@ -1,6 +1,6 @@
 // src/pages/InboxPage.jsx — User inbox for Trend Tribe messages
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye, FiMessageCircle } from "react-icons/fi";
 import { getMyMessages, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
@@ -10,12 +10,13 @@ import ChatThread from "../components/chat/ChatThread";
 
 const InboxPage = () => {
   const { isAuthenticated, token, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(() => new Set());
   const [selecting, setSelecting] = useState(false);
-  const [expanded, setExpanded] = useState(null); // id
+  const [expanded, setExpanded] = useState(null); // id or thread-...
 
   const fetchMessages = useCallback(async (showLoader = true) => {
     if (!isAuthenticated || !token) return;
@@ -24,15 +25,25 @@ const InboxPage = () => {
       const data = await getMyMessages({ limit: 20 });
       setMessages(data.messages);
       setPagination(data.pagination);
-      // first open registers as seen — mark all messages read so badge clears
-      if (data.messages?.some((m) => !m.read)) {
+      // auto-open thread from ?thread=listingId-withId (contact seller → chat room)
+      const threadParam = searchParams.get("thread");
+      if (threadParam && data.messages.length) {
+        const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
+        const match = data.messages.find((m) => m.listing?.id === lid && (m.sender?.id === withId || m.recipient?.id === withId));
+        if (match) {
+          const otherId = match.senderId === user?.id ? match.recipient?.id : match.sender?.id;
+          if (otherId) setExpanded(`thread-${lid}-${otherId}`);
+        } else if (!isNaN(lid) && !isNaN(withId)) {
+          setExpanded(`thread-${lid}-${withId}`);
+        }
+      } else if (data.messages?.some((m) => !m.read)) {
         markAllMessagesRead().catch(() => {});
         setMessages((prev) => prev.map((x) => ({ ...x, read: true })));
         if ("clearAppBadge" in navigator) navigator.clearAppBadge().catch(() => {});
       }
     } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage fetchMessages]", err?.response?.data || err.message); }
     finally { if (showLoader) setLoading(false); }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, searchParams, user?.id]);
 
   // Clear stale inbox on logout or account switch, then fetch for new account
   useEffect(() => {

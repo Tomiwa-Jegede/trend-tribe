@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { FiSend, FiCheck, FiCheckCircle } from "react-icons/fi";
 import { getThread, sendMessage, markMessageRead } from "../../services/messageService";
+import { getListingById } from "../../services/listingService";
 import { getSocket, connectSocket } from "../../services/socket";
 import useRealtime from "../../hooks/useRealtime";
 import { useAuth } from "../../context/AuthContext";
@@ -9,12 +10,18 @@ import { useAuth } from "../../context/AuthContext";
 export default function ChatThread({ listingId, withUser, onClose }) {
   const { user } = useAuth();
   const [msgs, setMsgs] = useState([]);
+  const [product, setProduct] = useState(null);
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
   const [presence, setPresence] = useState({ online: false, lastSeen: null });
   const listRef = useRef(null);
   const typingTimeout = useRef(null);
   const lastTypingSent = useRef(0);
+
+  useEffect(() => {
+    if (!listingId) return;
+    getListingById(listingId).then((d) => setProduct(d)).catch(() => {});
+  }, [listingId]);
 
   const fetchThread = useCallback(async () => {
     if (!listingId || !withUser?.id) return;
@@ -112,6 +119,15 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         </div>
         {onClose && <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">Close</button>}
       </div>
+      {product && (
+        <div className="mx-4 mt-3 p-3 bg-white border border-gray-200 rounded-xl flex gap-3 items-center">
+          {product.images?.[0] ? <img src={product.images[0]} alt={product.title} className="w-14 h-14 rounded-lg object-cover" /> : <div className="w-14 h-14 bg-gray-100 rounded-lg" />}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">{product.title}</p>
+            <p className="text-xs text-primary-600">₦{Number(product.price).toLocaleString()} · WhatsApp chat room</p>
+          </div>
+        </div>
+      )}
       <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30">
         {msgs.map((m) => {
           const mine = m.senderId === user?.id;
