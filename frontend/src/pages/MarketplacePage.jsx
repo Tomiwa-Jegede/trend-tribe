@@ -12,6 +12,7 @@ import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingServi
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
 import DiscoverFeed from "../components/listings/DiscoverFeed";
+import useRealtime from "../hooks/useRealtime";
 const ITEMS_PER_PAGE = 12;
 
 const CATEGORIES = [
@@ -122,6 +123,23 @@ const MarketplacePage = () => {
       setLoading(false);
     }
   }, [filters, currentPage]);
+
+  // ── Realtime: views — gradual boost (#3) means old listings have fake offset, don't drop to real
+  const handleViewed = useCallback(({ listingId, views }) => {
+    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, views: Math.max((l.views ?? 0) + 1, views) } : l)));
+    setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, views: Math.max((l.views ?? 0) + 1, views) } : l)));
+  }, []);
+  const handleShared = useCallback(({ listingId, shares }) => {
+    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, shares } : l)));
+    setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, shares } : l)));
+  }, []);
+  const handleFavoriteRealtime = useCallback(({ listingId, favorited }) => {
+    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, favoriteCount: Math.max(0, (l.favoriteCount ?? 0) + (favorited ? 1 : -1)) } : l)));
+    setPicks((prev) => prev.map((l) => (l.id === listingId ? { ...l, favoriteCount: Math.max(0, (l.favoriteCount ?? 0) + (favorited ? 1 : -1)) } : l)));
+  }, []);
+  useRealtime("listing:viewed", handleViewed);
+  useRealtime("listing:shared", handleShared);
+  useRealtime("favorite", handleFavoriteRealtime);
 
   useEffect(() => {
     fetchListings();

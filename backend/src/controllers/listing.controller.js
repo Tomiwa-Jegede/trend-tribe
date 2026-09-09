@@ -18,6 +18,114 @@ const stripAdminFields = (listing) => {
   return rest;
 };
 
+// ─── Views display — cold start + new starter grow ──
+// Real tracking started 2026-09-09.
+// Old listings (before cutoff): deterministic fake (old logic).
+// New listings (after cutoff): real + starter that grows on its own even with 0 real views.
+//   non-boost starter caps low, x1 higher, x2 highest, all < totalUsers. Boost extra is gradual (4m grace).
+const VIEWS_CUTOFF = new Date("2026-09-09T00:00:00Z");
+function hashToNum(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+  return Math.abs(h);
+}
+function getDisplayViews(listing, totalUsers) {
+  const now = new Date();
+  const isNew = listing.createdAt && new Date(listing.createdAt) >= VIEWS_CUTOFF;
+  const real = listing.views ?? 0;
+  const total = Math.max(10, totalUsers || 10);
+  const favs = listing.favoriteCount ?? listing._count?.favorites ?? 0;
+  const contacts = listing.contactViews ?? 0;
+
+  // ── NEW: starter + real, starter grows with time even if real=0 ──
+  if (isNew) {
+    const ageMins = Math.max(0, (now.getTime() - new Date(listing.createdAt).getTime()) / 60000);
+    // starter base 2-6 (deterministic per listing, varies)
+    const sBase = (hashToNum(String(listing.id)) % 4) + 2; // 2-5
+    const sJit = hashToNum(String(listing.id) + "starter") % 3; // 0-2
+    const starterBase = sBase + sJit; // 2-7
+    // caps hierarchy: non < x1 < x2 < total, and <80 (all strictly < total)
+    const capNon = Math.min(14, total - 3, Math.max(6, Math.floor(total * 0.22))); // e.g. 50→11, 20→6, 100→14
+    const capX1 = Math.min(32, total - 2, Math.max(capNon + 6, Math.floor(total * 0.45))); // e.g. 50→22, 100→32
+    const capX2 = Math.min(50, total - 1, Math.max(capX1 + 8, Math.floor(total * 0.70))); // e.g. 50→35, 100→50
+    // organic starter grows to capNon over ~36h even with no real views
+    const ORGANIC_MINS = 36 * 60;
+    let progOrganic = Math.min(1, ageMins / ORGANIC_MINS);
+    // slight ease: faster at start, slower near cap (sqrt)
+    progOrganic = Math.sqrt(progOrganic);
+    let starter = starterBase + Math.floor((capNon - starterBase) * progOrganic);
+    starter = Math.max(starter, starterBase);
+    starter = Math.min(starter, capNon);
+
+    // boost extra — gradual after few mins, not instant
+    const isBoosted = listing.boostedUntil && new Date(listing.boostedUntil) > now;
+    if (isBoosted) {
+      const boostedAtMs = listing.boostedAt
+        ? new Date(listing.boostedAt).getTime()
+        : new Date(listing.boostedUntil).getTime() - 24 * 60 * 60 * 1000;
+      const elapsedMins = (now.getTime() - boostedAtMs) / 60000;
+      const GRACE = 4;
+      const RAMP = 20;
+      let p = 0;
+      if (elapsedMins < GRACE) p = 0;
+      else if (elapsedMins < GRACE + RAMP) p = (elapsedMins - GRACE) / RAMP;
+      else p = 1;
+      if (p > 0) {
+        const capBoost = listing.boostTier === 2 ? capX2 : capX1;
+        const extraTotal = Math.max(0, capBoost - capNon);
+        starter = starter + Math.floor(extraTotal * p);
+        starter = Math.min(starter, capBoost);
+      }
+    } else if (listing.boostTier === 2) {
+      // previously boosted residual small
+      starter = Math.min(starter + 4, capNon + 4, total - 1);
+    }
+    // engagement floor still respects contacts/favs even for new
+    const minFromEngagement = contacts * 2 + favs * 3 + 3;
+    // engagement gives extra beyond starter, but keep hierarchy
+    if (minFromEngagement > starter) starter = Math.min(minFromEngagement, isBoosted ? (listing.boostTier === 2 ? capX2 : capX1) : capNon);
+
+    let display = real + starter;
+    display = Math.min(Math.floor(display), total - 1, 80); // always < totalUsers
+    display = Math.max(display, 1);
+    // ensure display at least starter when real is 0, but never exceed cap
+    if (real === 0) display = Math.max(display, Math.min(starter, total - 1));
+    return display;
+  }
+
+  // ── OLD: deterministic fake (unchanged) ──
+  const base = (hashToNum(String(listing.id)) % 8) + 3; // 3-10
+  const jitter = hashToNum(String(listing.id) + "salt") % 5; // 0-4
+  const ageDays = Math.max(0, (now.getTime() - new Date(listing.createdAt).getTime()) / 86400000);
+  const growth = Math.min(Math.floor(ageDays * 0.6), Math.floor(total * 0.15)); // grows slowly, cap 15% of users
+  let baseFake = base + jitter + growth;
+  const minFromEngagement = contacts * 2 + favs * 3 + 3;
+  baseFake = Math.max(baseFake, minFromEngagement);
+  let display = baseFake;
+  if (listing.boostedUntil && new Date(listing.boostedUntil) > now) {
+    const boostedAtMs = listing.boostedAt
+      ? new Date(listing.boostedAt).getTime()
+      : new Date(listing.boostedUntil).getTime() - 24 * 60 * 60 * 1000;
+    const elapsedMins = (now.getTime() - boostedAtMs) / 60000;
+    const GRACE_MINS = 4;
+    const RAMP_MINS = 20;
+    let progress = 0;
+    if (elapsedMins < GRACE_MINS) progress = 0;
+    else if (elapsedMins < GRACE_MINS + RAMP_MINS) progress = (elapsedMins - GRACE_MINS) / RAMP_MINS;
+    else progress = 1;
+    if (progress > 0) {
+      const fullBoosted = listing.boostTier === 2 ? Math.floor(baseFake * 2.2 + 18) : Math.floor(baseFake * 1.6 + 9);
+      const extra = Math.max(0, fullBoosted - baseFake);
+      display = baseFake + Math.floor(extra * progress);
+    }
+  } else if (listing.boostTier === 2) {
+    display += 6;
+  }
+  display = Math.min(Math.floor(display), total, 80);
+  display = Math.max(display, 5);
+  return Math.max(display, real);
+}
+
 // ─── Helper: resolve listing by slug or numeric id (backwards compat) ──
 const findListingByIdentifier = async (identifier, extraInclude = undefined) => {
   const { isNumeric, id, slug } = resolveListingWhere(identifier);
@@ -132,6 +240,9 @@ const getAllListings = async (req, res) => {
         const map = new Map(fetched.map((l) => [l.id, l]));
         listings = pagedIds.map((id) => map.get(id)).filter(Boolean).map((l) => ({ ...l, favoriteCount: l._count?.favorites ?? 0 }));
       }
+      // Cold start fake views for old listings (deterministic, boost-aware, within totalUsers)
+      const totalUsersForFake = await prisma.user.count();
+      listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsersForFake) }));
       const totalPages = Math.ceil(totalCount / limitNum);
       if (search?.trim()) {
         prisma.searchLog.create({
@@ -200,7 +311,12 @@ const getAllListings = async (req, res) => {
       }),
       prisma.listing.count({ where }),
     ]);
-    const listings = rawListings.map((l) => ({ ...l, favoriteCount: l._count?.favorites ?? 0 }));
+    let listings = rawListings.map((l) => ({ ...l, favoriteCount: l._count?.favorites ?? 0 }));
+    // Cold start fake views also for non-random sorts (same gradual boost as random)
+    {
+      const totalUsersForFake = await prisma.user.count();
+      listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsersForFake) }));
+    }
 
     const totalPages = Math.ceil(totalCount / limitNum);
 
@@ -321,7 +437,7 @@ const getListingById = async (req, res) => {
 
     if (!listing) return res.status(404).json({ error: "Listing not found" });
 
-    // ── Detail view count: 1 per authenticated non-owner per day ──
+    // ── Detail view count: 1 per authenticated non-owner per day — realtime ──
     const viewerId = req.user?.id;
     const isOwner = viewerId && listing.sellerId === viewerId;
     if (viewerId && !isOwner) {
@@ -329,7 +445,17 @@ const getListingById = async (req, res) => {
       // fire-and-forget, deduped by @@unique([listingId, viewerId, date])
       prisma.listingView
         .create({ data: { listingId: listing.id, viewerId, date } })
-        .then(() => prisma.listing.update({ where: { id: listing.id }, data: { views: { increment: 1 } } }).catch(() => {}))
+        .then(() =>
+          prisma.listing
+            .update({ where: { id: listing.id }, data: { views: { increment: 1 } }, select: { id: true, views: true } })
+            .then((updated) => {
+              try {
+                const { emitListingView } = require("../realtime");
+                emitListingView(updated.id, updated.views);
+              } catch {}
+            })
+            .catch(() => {}),
+        )
         .catch(() => {}); // duplicate date = already counted today
     }
 
@@ -1217,7 +1343,7 @@ const getMyFavorites = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/listings/:id/share — increment share/copy count (public)
+// POST /api/listings/:id/share — increment share/copy count (public) — realtime
 // ─────────────────────────────────────────────────────────────
 const incrementShare = async (req, res) => {
   try {
@@ -1230,6 +1356,10 @@ const incrementShare = async (req, res) => {
       data: { shares: { increment: 1 } },
       select: { shares: true, id: true },
     });
+    try {
+      const { emitListingShare } = require("../realtime");
+      emitListingShare(updated.id, updated.shares);
+    } catch {}
     return res.status(200).json({ shares: updated.shares });
   } catch (err) {
     console.error("[INCREMENT SHARE ERROR]", err);

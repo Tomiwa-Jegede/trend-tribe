@@ -57,4 +57,14 @@ const emitMessage = (recipientId, message) => {
   trigger("messages", "message", { ...message, recipientId });
 };
 
-module.exports = { getPusher, trigger, emitListing, emitFavorite, emitNotification, emitMessage };
+const emitListingView = (listingId, views) => {
+  trigger("marketplace", "listing:viewed", { listingId, views });
+  trigger("listings", "listing:viewed", { listingId, views });
+};
+
+const emitListingShare = (listingId, shares) => {
+  trigger("marketplace", "listing:shared", { listingId, shares });
+  trigger("listings", "listing:shared", { listingId, shares });
+};
+
+module.exports = { getPusher, trigger, emitListing, emitFavorite, emitNotification, emitMessage, emitListingView, emitListingShare };

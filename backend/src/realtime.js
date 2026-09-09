@@ -105,4 +105,23 @@ const emitInboxBroadcast = (message) => {
   } catch {}
 };
 
-module.exports = { initRealtime, getIO, emitListing, emitFavorite, emitNotification, emitMessage, emitInboxBroadcast };
+const emitListingView = (listingId, views) => {
+  try {
+    const io = getIO();
+    io.to("marketplace").emit("listing:viewed", { listingId, views });
+    // also notify seller privately
+    io.emit("listing:viewed", { listingId, views });
+  } catch {}
+  try { const { emitListingView: p } = require("./pusher"); if (p) p(listingId, views); } catch {}
+};
+
+const emitListingShare = (listingId, shares) => {
+  try {
+    const io = getIO();
+    io.to("marketplace").emit("listing:shared", { listingId, shares });
+    io.emit("listing:shared", { listingId, shares });
+  } catch {}
+  try { const { emitListingShare: p } = require("./pusher"); if (p) p(listingId, shares); } catch {}
+};
+
+module.exports = { initRealtime, getIO, emitListing, emitFavorite, emitNotification, emitMessage, emitInboxBroadcast, emitListingView, emitListingShare };
