@@ -110,12 +110,16 @@ function getDisplayViews(listing, totalUsers) {
     return Math.max(0, display);
   }
 
-  // ── OLD: deterministic fake (unchanged) ──
-  const base = (hashToNum(String(listing.id)) % 8) + 3; // 3-10
-  const jitter = hashToNum(String(listing.id) + "salt") % 5; // 0-4
+  // ── OLD: deterministic fake — wide spread so no two show same ──
+  const base = (hashToNum(String(listing.id)) % 12) + 2; // 2-13
+  const jitter = hashToNum(String(listing.id) + "salt") % 8; // 0-7
+  const jitter2 = (hashToNum(String(listing.id) + "old2") % 7) - 3; // -3..+3 micro
   const ageDays = Math.max(0, (now.getTime() - new Date(listing.createdAt).getTime()) / 86400000);
-  const growth = Math.min(Math.floor(ageDays * 0.6), Math.floor(total * 0.15)); // grows slowly, cap 15% of users
-  let baseFake = base + jitter + growth;
+  const rate = 0.45 + (hashToNum(String(listing.id) + "rate") % 35) / 100; // 0.45-0.79 per day
+  const growthCap = Math.floor(total * (0.12 + (hashToNum(String(listing.id) + "cap") % 9) / 100)); // 12-20% of users
+  const growth = Math.min(Math.floor(ageDays * rate), growthCap);
+  const idWobble = listing.id % 4; // 0-3 ensures sequential ids differ
+  let baseFake = base + jitter + growth + jitter2 + idWobble;
   const minFromEngagement = contacts * 2 + favs * 3 + 3;
   baseFake = Math.max(baseFake, minFromEngagement);
   let display = baseFake;
