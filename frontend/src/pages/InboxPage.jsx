@@ -1,6 +1,6 @@
 // src/pages/InboxPage.jsx — User inbox for Trend Tribe messages
 import { useState, useEffect, useCallback } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye, FiMessageCircle } from "react-icons/fi";
 import { getMyMessages, getConversations, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
@@ -10,6 +10,8 @@ import ChatThread from "../components/chat/ChatThread";
 
 const InboxPage = () => {
   const { isAuthenticated, token, user } = useAuth();
+  const location = useLocation();
+  const isChat = location.pathname === "/chat";
   const [searchParams, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState([]);
   const [conversations, setConversations] = useState([]);
@@ -119,9 +121,9 @@ const InboxPage = () => {
 
   return (
     <div className="container-app py-6 sm:py-10">
-      <Helmet><title>Chats — Trend Tribe</title></Helmet>
+      <Helmet><title>{isChat ? "Chats — Trend Tribe" : "Inbox — Trend Tribe"}</title></Helmet>
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><FiMessageCircle className="w-6 h-6" /> Chats {conversations.length > 0 && <span className="text-sm font-normal text-gray-500">({conversations.length} chats)</span>}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">{isChat ? <FiMessageCircle className="w-6 h-6" /> : <FiMail className="w-6 h-6" />} {isChat ? "Chats" : "Inbox"} {isChat ? conversations.length > 0 && <span className="text-sm font-normal text-gray-500">({conversations.length} chats)</span> : pagination && <span className="text-sm font-normal text-gray-500">({pagination.totalCount})</span>}</h1>
         <div className="flex items-center gap-2 flex-wrap">
           {!selecting ? (
             <>
@@ -139,16 +141,17 @@ const InboxPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div>
-      ) : conversations.length === 0 ? (
-        <div className="card p-10 text-center">
-          <FiMessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No chats yet</p>
-          <p className="text-xs text-gray-400 mt-1">Tap Contact Seller on a listing to start a chat — each seller has their own room.</p>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col gap-3">
-            {conversations.map((c) => {
+      ) : isChat ? (
+        conversations.length === 0 ? (
+          <div className="card p-10 text-center">
+            <FiMessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">No chats yet</p>
+            <p className="text-xs text-gray-400 mt-1">Tap Contact Seller on a listing to start a chat — each seller has their own room.</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-3">
+              {conversations.map((c) => {
               // reuse conversations as chat rooms — flat messages list removed for split inbox
               const key = c.key;
               const isOpen = expanded === key;
@@ -177,6 +180,35 @@ const InboxPage = () => {
           <div className="mt-6 flex items-center justify-between gap-2 border-t border-gray-100 pt-4 flex-wrap">
             <span className="text-xs text-gray-400">{conversations.length} chats · {conversations.reduce((a, c) => a + (c.unreadCount || 0), 0)} unread</span>
             <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete all</button>
+          </div>
+        </>
+      )
+      ) : messages.length === 0 ? (
+        <div className="card p-10 text-center">
+          <FiMail className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">No inbox messages</p>
+          <p className="text-xs text-gray-400 mt-1">System notifications and admin messages appear here.</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3">
+            {messages.filter((m) => !m.listingId).map((m) => {
+              const isSelected = selected.has(m.id);
+              const isExpanded = expanded === m.id;
+              return (
+                <div key={m.id} className={`card p-4 flex gap-3 ${!m.read ? "bg-primary-50/40 border-primary-100" : ""} ${isSelected ? "ring-2 ring-primary-200" : ""}`}>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpen(m)}>
+                    <p className={`text-sm ${!m.read ? "font-medium text-gray-900" : "text-gray-700"} ${isExpanded ? "whitespace-pre-wrap break-words" : "truncate"}`}>{isExpanded ? m.body : `${m.body.slice(0, 80)}${m.body.length > 80 ? "…" : ""}`}</p>
+                    <p className="text-xs text-gray-400 mt-1">{new Date(m.createdAt).toLocaleString()} · from {m.sender?.role === "ADMIN" ? "Trend Tribe" : m.sender?.username || "System"}</p>
+                  </div>
+                  <button onClick={(e) => handleDeleteOne(e, m.id)} className="p-2 rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 flex-shrink-0 self-start" aria-label="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-6 flex items-center justify-between gap-2 border-t border-gray-100 pt-4 flex-wrap">
+            <span className="text-xs text-gray-400">{messages.filter((m) => !m.listingId).length} inbox messages</span>
+            <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700">Delete all</button>
           </div>
         </>
       )}
