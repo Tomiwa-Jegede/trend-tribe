@@ -41,12 +41,10 @@ function getDisplayViews(listing, totalUsers) {
   // Real-looking variance: every listing has its own base, cap, speed and micro-jitter
   if (isNew) {
     const ageMins = Math.max(0, (now.getTime() - new Date(listing.createdAt).getTime()) / 60000);
-    // starter base wide spread 2-16 so early cards don't cluster (hash-driven)
-    const sBase = (hashToNum(String(listing.id)) % 9) + 2; // 2-10
-    const sJit = hashToNum(String(listing.id) + "starter") % 6; // 0-5
-    const sVar = hashToNum(String(listing.id) + "v2") % 4; // 0-3
-    let starterBase = sBase + sJit + sVar; // 2-16
-    starterBase = Math.min(starterBase, 13); // cap base so it can still grow
+    // start near 0, then grow naturally — not 4-11 at minute 0
+    const sBase = hashToNum(String(listing.id)) % 3; // 0-2
+    const sJit = hashToNum(String(listing.id) + "starter") % 2; // 0-1
+    let starterBase = sBase + sJit; // 0-3, small so new posts start at 0-3 views
     // caps hierarchy with stronger per-listing jitter so caps don't cluster
     const capJitNon = (hashToNum(String(listing.id) + "capN") % 9) - 4; // -4..+4
     const capJitX1 = (hashToNum(String(listing.id) + "cap1") % 11) - 5; // -5..+5
@@ -69,9 +67,9 @@ function getDisplayViews(listing, totalUsers) {
     let starter = starterBase + Math.floor((capNon - starterBase) * progOrganic);
     starter = Math.max(starter, Math.min(starterBase, capNon));
     starter = Math.min(starter, capNon);
-    // micro jitter -2..+2 so even same age/cap listings differ by 1-2 views (looks organic)
-    const micro = (hashToNum(String(listing.id) + "micro") % 5) - 2; // -2..+2
-    starter = Math.max(1, Math.min(capNon, starter + micro));
+    // micro jitter -1..+1 so even same age/cap listings differ a bit, but keep near 0 at start
+    const micro = (hashToNum(String(listing.id) + "micro") % 3) - 1; // -1..+1
+    starter = Math.max(0, Math.min(capNon, starter + micro));
 
     // boost extra — gradual after few mins, not instant
     const isBoosted = listing.boostedUntil && new Date(listing.boostedUntil) > now;
@@ -103,10 +101,10 @@ function getDisplayViews(listing, totalUsers) {
 
     let display = real + starter;
     display = Math.min(Math.floor(display), total - 1, 80); // always < totalUsers
-    display = Math.max(display, 1);
-    // ensure display at least starter when real is 0, but never exceed cap
+    display = Math.max(display, 0);
     if (real === 0) display = Math.max(display, Math.min(starter, total - 1));
-    return display;
+    // allow 0 at birth, but never negative
+    return Math.max(0, display);
   }
 
   // ── OLD: deterministic fake (unchanged) ──
