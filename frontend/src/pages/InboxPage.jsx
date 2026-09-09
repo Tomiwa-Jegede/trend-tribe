@@ -119,9 +119,9 @@ const InboxPage = () => {
 
   return (
     <div className="container-app py-6 sm:py-10">
-      <Helmet><title>Inbox — Trend Tribe</title></Helmet>
+      <Helmet><title>Chats — Trend Tribe</title></Helmet>
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><FiMail className="w-6 h-6" /> Inbox {pagination && <span className="text-sm font-normal text-gray-500">({pagination.totalCount})</span>}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><FiMessageCircle className="w-6 h-6" /> Chats {conversations.length > 0 && <span className="text-sm font-normal text-gray-500">({conversations.length} chats)</span>}</h1>
         <div className="flex items-center gap-2 flex-wrap">
           {!selecting ? (
             <>
@@ -137,13 +137,24 @@ const InboxPage = () => {
         </div>
       </div>
 
-      {conversations.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-sm font-bold tracking-widest uppercase text-gray-700 mb-3">Chat rooms — per seller</h2>
-          <div className="grid gap-3">
+      {loading ? (
+        <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div>
+      ) : conversations.length === 0 ? (
+        <div className="card p-10 text-center">
+          <FiMessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">No chats yet</p>
+          <p className="text-xs text-gray-400 mt-1">Tap Contact Seller on a listing to start a chat — each seller has their own room.</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3">
             {conversations.map((c) => {
+              // reuse conversations as chat rooms — flat messages list removed for split inbox
               const key = c.key;
               const isOpen = expanded === key;
+              const isSelected = false;
+              // dummy to keep linter happy
+              void messages; void isSelected;
               return (
                 <div key={key} className="card p-4">
                   <div className="flex gap-3 items-center cursor-pointer" onClick={() => setExpanded(isOpen ? null : key)}>
@@ -163,90 +174,9 @@ const InboxPage = () => {
               );
             })}
           </div>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div>
-      ) : messages.length === 0 && conversations.length === 0 ? (
-        <div className="card p-10 text-center">
-          <FiMail className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No messages yet</p>
-          <p className="text-xs text-gray-400 mt-1">When admin sends a message or shares a product, it will appear here.</p>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col gap-3">
-            {messages.map((m) => {
-              const isSelected = selected.has(m.id);
-              const isExpanded = expanded === m.id;
-              const otherUser = m.senderId === user?.id ? m.recipient : m.sender;
-              const otherId = otherUser?.id || m.sender?.id;
-              const threadKey = m.listing?.id && otherId ? `thread-${m.listing.id}-${otherId}` : null;
-              const isThread = threadKey && expanded === threadKey;
-              const isSent = m.senderId === user?.id;
-              return (
-                <div key={m.id} className={`card p-4 flex gap-3 ${!m.read ? "bg-primary-50/40 border-primary-100" : ""} ${isSelected ? "ring-2 ring-primary-200" : ""}`}>
-                  {selecting && (
-                    <button onClick={() => toggleSelect(m.id)} className="mt-1 flex-shrink-0" aria-label={isSelected ? "Deselect" : "Select"}>
-                      {isSelected ? <FiCheckSquare className="w-5 h-5 text-primary-600" /> : <FiSquare className="w-5 h-5 text-gray-300" />}
-                    </button>
-                  )}
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpen(m)}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        {m.subject && <p className="font-semibold text-sm text-gray-900 truncate">{m.subject}</p>}
-                        <p className={`text-sm ${!m.read ? "font-medium text-gray-900" : "text-gray-700"} ${isExpanded ? "whitespace-pre-wrap break-words" : "truncate"}`}>
-                          {isExpanded ? m.body : `${m.body.slice(0, 80)}${m.body.length > 80 ? "…" : ""}`}
-                        </p>
-                        {!isExpanded && m.body.length > 80 && <span className="text-xs text-primary-600">View →</span>}
-                        <p className="text-xs text-gray-400 mt-1">{new Date(m.createdAt).toLocaleString()} · {isSent ? `to ${otherUser?.username || "user"}` : `from ${m.sender?.role === "ADMIN" ? "Trend Tribe" : m.sender?.username || "Trend Tribe"}`} {isSent && !m.read ? "· sent" : ""}</p>
-                      </div>
-                      <span className="flex-shrink-0 mt-1">
-                        {!m.read && <span className="w-2 h-2 bg-primary-600 rounded-full inline-block" />}
-                      </span>
-                    </div>
-                    {m.listing?.id && (
-                      <Link to={`/listings/${m.listing.slug || m.listing.id}`} onClick={(e) => e.stopPropagation()} className="mt-3 flex items-center gap-3 bg-white border border-sage-100 rounded-xl p-3 hover:border-primary-200 transition-colors">
-                        {m.listing.images?.[0] ? <img src={m.listing.images[0]} alt={m.listing.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" /> : <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center">🛍️</div>}
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{m.listing.title}</p>
-                          <p className="text-xs text-primary-600">₦{Number(m.listing.price).toLocaleString()} · View listing →</p>
-                        </div>
-                      </Link>
-                    )}
-                    {(isExpanded || isThread) && (
-                      <div className="mt-3 flex flex-col gap-3">
-                        <div className="flex gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); setExpanded(null); }} className="text-xs text-gray-500 hover:text-gray-700">Collapse</button>
-                          {m.listing?.id && <Link to={`/listings/${m.listing.slug || m.listing.id}`} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiEye className="w-3 h-3" /> View product</Link>}
-                          {!isThread && m.listing?.id && otherId && <button onClick={(e) => { e.stopPropagation(); setExpanded(threadKey); }} className="text-xs text-primary-600 font-semibold inline-flex items-center gap-1"><FiMessageCircle className="w-3 h-3" /> Reply in chat</button>}
-                        </div>
-                        {isThread && m.listing?.id && otherId && (
-                          <ChatThread listingId={m.listing.id} withUser={otherUser} onClose={() => setExpanded(m.id)} />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={(e) => handleDeleteOne(e, m.id)} className="p-2 rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 flex-shrink-0 self-start" aria-label="Delete">
-                    <FiTrash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
           <div className="mt-6 flex items-center justify-between gap-2 border-t border-gray-100 pt-4 flex-wrap">
-            {selecting ? (
-              <>
-                <button onClick={handleDeleteSelected} disabled={selected.size === 0} className="text-sm font-semibold text-red-600 hover:text-red-700 disabled:opacity-40 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete selected {selected.size ? `(${selected.size})` : ""}</button>
-                <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700">Delete all</button>
-              </>
-            ) : (
-              <>
-                <span className="text-xs text-gray-400">{messages.length} messages · {messages.filter((m) => !m.read).length} unread</span>
-                <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete all</button>
-              </>
-            )}
+            <span className="text-xs text-gray-400">{conversations.length} chats · {conversations.reduce((a, c) => a + (c.unreadCount || 0), 0)} unread</span>
+            <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete all</button>
           </div>
         </>
       )}

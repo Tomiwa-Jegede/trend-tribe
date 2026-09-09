@@ -120,7 +120,10 @@ const markAllRead = async (req, res) => {
 
 const getUnreadCount = async (req, res) => {
   try {
-    const count = await prisma.message.count({ where: { recipientId: req.user.id, read: false } });
+    // chat only — exclude system/admin messages (those belong to Notifications inbox)
+    const count = await prisma.message.count({
+      where: { recipientId: req.user.id, read: false, listingId: { not: null }, sender: { role: { not: "ADMIN" } } },
+    });
     return res.status(200).json({ unreadCount: count });
   } catch (err) {
     console.error("[UNREAD MESSAGE COUNT ERROR]", err);
@@ -185,27 +188,33 @@ const getPresence = async (req, res) => {
   }
 };
 
-// GET /api/messages/conversations — per-seller chat rooms (grouped by listing+otherUser)
+// GET /api/messages/conversations — per-seller chat rooms (person-to-person only, no directory)
+// Only threads where a real user-to-user message exists (Contact Seller), excludes system/admin broadcasts
 const getConversations = async (req, res) => {
   try {
     const msgs = await prisma.message.findMany({
-      where: { OR: [{ senderId: req.user.id }, { recipientId: req.user.id }] },
+      where: {
+        OR: [{ senderId: req.user.id }, { recipientId: req.user.id }],
+        listingId: { not: null },
+      },
       orderBy: { createdAt: "desc" },
       take: 200,
       include: {
-        sender: { select: { id: true, username: true, fullName: true, avatar: true } },
-        recipient: { select: { id: true, username: true, fullName: true, avatar: true } },
+        sender: { select: { id: true, username: true, fullName: true, avatar: true, role: true } },
+        recipient: { select: { id: true, username: true, fullName: true, avatar: true, role: true } },
         listing: { select: { id: true, slug: true, title: true, images: true, price: true } },
       },
     });
+    // exclude system/admin senders — those belong to Notifications inbox, not Chat
+    const filtered = msgs.filter((m) => m.sender?.role !== "ADMIN" && m.recipient?.role !== "ADMIN");
     const map = new Map();
-    for (const m of msgs) {
+    for (const m of filtered) {
       const other = m.senderId === req.user.id ? m.recipient : m.sender;
       const otherId = other?.id;
       if (!otherId) continue;
-      const key = `thread-${m.listingId || "no-listing"}-${otherId}`;
+      const key = `thread-${m.listingId}-${otherId}`;
       if (!map.has(key)) {
-        const unread = msgs.filter((x) => x.listingId === m.listingId && ((x.senderId === otherId && x.recipientId === req.user.id && !x.read))).length;
+        const unread = filtered.filter((x) => x.listingId === m.listingId && x.senderId === otherId && x.recipientId === req.user.id && !x.read).length;
         map.set(key, { key, listing: m.listing, otherUser: other, lastMessage: m, unreadCount: unread, updatedAt: m.createdAt });
       }
     }
