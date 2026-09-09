@@ -49,12 +49,12 @@ function getDisplayViews(listing, totalUsers) {
     const capJitNon = (hashToNum(String(listing.id) + "capN") % 9) - 4; // -4..+4
     const capJitX1 = (hashToNum(String(listing.id) + "cap1") % 11) - 5; // -5..+5
     const capJitX2 = (hashToNum(String(listing.id) + "cap2") % 13) - 6; // -6..+6
-    const capNonBase = Math.min(15, total - 3, Math.max(6, Math.floor(total * 0.22)));
-    const capX1Base = Math.min(33, total - 2, Math.max(capNonBase + 6, Math.floor(total * 0.45)));
-    const capX2Base = Math.min(52, total - 1, Math.max(capX1Base + 8, Math.floor(total * 0.70)));
-    const capNon = Math.min(15, total - 3, Math.max(5, capNonBase + capJitNon));
-    const capX1 = Math.min(33, total - 2, Math.max(capNon + 4, capX1Base + capJitX1));
-    const capX2 = Math.min(52, total - 1, Math.max(capX1 + 6, capX2Base + capJitX2));
+    const capNonBase = Math.min(14, total - 3, Math.max(5, Math.floor(total * 0.18)));
+    const capX1Base = Math.min(36, total - 2, Math.max(capNonBase + 8, Math.floor(total * 0.50)));
+    const capX2Base = Math.min(58, total - 1, Math.max(capX1Base + 10, Math.floor(total * 0.80)));
+    const capNon = Math.min(14, total - 3, Math.max(5, capNonBase + capJitNon));
+    const capX1 = Math.min(36, total - 2, Math.max(capNon + 7, capX1Base + capJitX1));
+    const capX2 = Math.min(58, total - 1, Math.max(capX1 + 9, capX2Base + capJitX2));
     // organic speed varies per listing: 18-48h to cap, exponent 0.50-0.70
     const organicHours = 18 + (hashToNum(String(listing.id) + "spd") % 31); // 18-48h
     const ORGANIC_MINS = organicHours * 60;
