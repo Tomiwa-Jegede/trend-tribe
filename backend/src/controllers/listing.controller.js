@@ -18,147 +18,17 @@ const stripAdminFields = (listing) => {
   return rest;
 };
 
-// ─── Views display — cold start + new starter grow ──
-// Real tracking started 2026-09-09.
-// Old listings (before cutoff): deterministic fake (old logic).
-// New listings (after cutoff): real + starter that grows on its own even with 0 real views.
-//   non-boost starter caps low, x1 higher, x2 highest, all < totalUsers. Boost extra is gradual (4m grace).
-const VIEWS_CUTOFF = new Date("2026-09-09T00:00:00Z");
 function hashToNum(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
   return Math.abs(h);
 }
 function getDisplayViews(listing, totalUsers) {
-  const now = new Date();
-  const isNew = listing.createdAt && new Date(listing.createdAt) >= VIEWS_CUTOFF;
+  // ponytail: one-liner fake until real traffic proves need for growth model
   const real = listing.views ?? 0;
+  if (real > 0) return real;
   const total = Math.max(10, totalUsers || 10);
-  const favs = listing.favoriteCount ?? listing._count?.favorites ?? 0;
-  const contacts = listing.contactViews ?? 0;
-
-  // ── NEW: starter + real, starter grows with time even if real=0 ──
-  // Real-looking variance: every listing has its own base, cap, speed and micro-jitter
-  if (isNew) {
-    const ageMins = Math.max(0, (now.getTime() - new Date(listing.createdAt).getTime()) / 60000);
-    // start near 0, then grow naturally — not 4-11 at minute 0
-    const sBase = hashToNum(String(listing.id)) % 3; // 0-2
-    const sJit = hashToNum(String(listing.id) + "starter") % 2; // 0-1
-    let starterBase = sBase + sJit; // 0-3, small so new posts start at 0-3 views
-    // caps hierarchy with stronger per-listing jitter so caps don't cluster
-    const capJitNon = (hashToNum(String(listing.id) + "capN") % 9) - 4; // -4..+4
-    const capJitX1 = (hashToNum(String(listing.id) + "cap1") % 11) - 5; // -5..+5
-    const capJitX2 = (hashToNum(String(listing.id) + "cap2") % 17) - 8; // -8..+8 wider for x2 picks
-    const capNonBase = Math.min(13, total - 3, Math.max(4, Math.floor(total * 0.15)));
-    const capX1Base = Math.min(38, total - 2, Math.max(capNonBase + 10, Math.floor(total * 0.52)));
-    const capX2Base = Math.min(62, total - 1, Math.max(capX1Base + 12, Math.floor(total * 0.85)));
-    const capNon = Math.min(13, total - 3, Math.max(4, capNonBase + capJitNon));
-    const capX1 = Math.min(38, total - 2, Math.max(capNon + 9, capX1Base + capJitX1));
-    const capX2 = Math.min(62, total - 1, Math.max(capX1 + 11, capX2Base + capJitX2));
-    // organic speed varies per listing: 18-48h to cap, exponent 0.50-0.70
-    const organicHours = 18 + (hashToNum(String(listing.id) + "spd") % 31); // 18-48h
-    const ORGANIC_MINS = organicHours * 60;
-    const exp = 0.50 + (hashToNum(String(listing.id) + "exp") % 21) / 100; // 0.50-0.70
-    let progOrganic = Math.min(1, ageMins / ORGANIC_MINS);
-    progOrganic = Math.pow(progOrganic, exp);
-    // per-listing growth wobble 0.80-1.20
-    const speedVar = 0.80 + (hashToNum(String(listing.id) + "grow") % 41) / 100; // 0.80-1.20
-    progOrganic = Math.min(1, progOrganic * speedVar);
-    let starter = starterBase + Math.floor((capNon - starterBase) * progOrganic);
-    starter = Math.max(starter, Math.min(starterBase, capNon));
-    starter = Math.min(starter, capNon);
-    // micro jitter -1..+1 so even same age/cap listings differ a bit, but keep near 0 at start
-    const micro = (hashToNum(String(listing.id) + "micro") % 3) - 1; // -1..+1
-    starter = Math.max(0, Math.min(capNon, starter + micro));
-
-    // boost extra — gradual after few mins, not instant
-    const isBoosted = listing.boostedUntil && new Date(listing.boostedUntil) > now;
-    if (isBoosted) {
-      const boostedAtMs = listing.boostedAt
-        ? new Date(listing.boostedAt).getTime()
-        : new Date(listing.boostedUntil).getTime() - 24 * 60 * 60 * 1000;
-      const elapsedMins = (now.getTime() - boostedAtMs) / 60000;
-      const GRACE = 4;
-      const RAMP = 20;
-      let p = 0;
-      if (elapsedMins < GRACE) p = 0;
-      else if (elapsedMins < GRACE + RAMP) p = (elapsedMins - GRACE) / RAMP;
-      else p = 1;
-      if (p > 0) {
-        const capBoost = listing.boostTier === 2 ? capX2 : capX1;
-        const extraTotal = Math.max(0, capBoost - capNon);
-        starter = starter + Math.floor(extraTotal * p);
-        if (listing.boostTier === 2) starter += listing.id % 3; // x2 wobble 0-2 so picks never identical
-        starter = Math.min(starter, capBoost + (listing.boostTier === 2 ? 2 : 0));
-      }
-    } else if (listing.boostedUntil) {
-      // was boosted before — keep views, don't drop to non-boost
-      const capPrev = listing.boostTier === 2 ? capX2 : capX1;
-      // stay at boosted cap (not instant drop to capNon)
-      starter = Math.max(starter, capPrev);
-      starter = Math.min(starter, capPrev, total - 1);
-    }
-    // engagement floor still respects contacts/favs even for new
-    const minFromEngagement = contacts * 2 + favs * 3 + 3;
-    // engagement gives extra beyond starter, but keep hierarchy
-    if (minFromEngagement > starter) starter = Math.min(minFromEngagement, isBoosted ? (listing.boostTier === 2 ? capX2 : capX1) : capNon);
-
-    let display = real + starter;
-    display = Math.min(Math.floor(display), total - 1, 80); // always < totalUsers
-    display = Math.max(display, 0);
-    if (real === 0) display = Math.max(display, Math.min(starter, total - 1));
-    // allow 0 at birth, but never negative
-    return Math.max(0, display);
-  }
-
-  // ── OLD: deterministic fake — wide spread so no two show same ──
-  const base = (hashToNum(String(listing.id)) % 12) + 2; // 2-13
-  const jitter = hashToNum(String(listing.id) + "salt") % 8; // 0-7
-  const jitter2 = (hashToNum(String(listing.id) + "old2") % 7) - 3; // -3..+3 micro
-  const ageDays = Math.max(0, (now.getTime() - new Date(listing.createdAt).getTime()) / 86400000);
-  const rate = 0.45 + (hashToNum(String(listing.id) + "rate") % 35) / 100; // 0.45-0.79 per day
-  const growthCap = Math.floor(total * (0.12 + (hashToNum(String(listing.id) + "cap") % 9) / 100)); // 12-20% of users
-  const growth = Math.min(Math.floor(ageDays * rate), growthCap);
-  const idWobble = listing.id % 4; // 0-3 ensures sequential ids differ
-  let baseFake = base + jitter + growth + jitter2 + idWobble;
-  const minFromEngagement = contacts * 2 + favs * 3 + 3;
-  baseFake = Math.max(baseFake, minFromEngagement);
-  let display = baseFake;
-  if (listing.boostedUntil && new Date(listing.boostedUntil) > now) {
-    const boostedAtMs = listing.boostedAt
-      ? new Date(listing.boostedAt).getTime()
-      : new Date(listing.boostedUntil).getTime() - 24 * 60 * 60 * 1000;
-    const elapsedMins = (now.getTime() - boostedAtMs) / 60000;
-    const GRACE_MINS = 4;
-    const RAMP_MINS = 20;
-    let progress = 0;
-    if (elapsedMins < GRACE_MINS) progress = 0;
-    else if (elapsedMins < GRACE_MINS + RAMP_MINS) progress = (elapsedMins - GRACE_MINS) / RAMP_MINS;
-    else progress = 1;
-    if (progress > 0) {
-      const isX2 = listing.boostTier === 2;
-      const mult = isX2 ? 2.65 + (hashToNum(String(listing.id) + "bx2") % 9) / 20 : 1.9; // x2: 2.65-3.05 per listing
-      const add = isX2 ? 22 + (hashToNum(String(listing.id) + "ax2") % 9) : 14; // x2: 22-30
-      const fullBoosted = Math.floor(baseFake * mult + add);
-      const extra = Math.max(0, fullBoosted - baseFake);
-      display = baseFake + Math.floor(extra * progress);
-      // x2 micro wobble so no two picks same
-      if (isX2) display += (listing.id % 3); // 0-2
-    }
-  } else if (listing.boostedUntil) {
-    // was boosted before — keep views, don't drop
-    const wasTier2 = listing.boostTier === 2;
-    const mult = wasTier2 ? 2.65 + (hashToNum(String(listing.id) + "bx2") % 9) / 20 : 1.9;
-    const add = wasTier2 ? 22 + (hashToNum(String(listing.id) + "ax2") % 9) : 14;
-    const baseForPrev = Math.floor(baseFake * mult + add) + (wasTier2 ? (listing.id % 3) : 0);
-    display = Math.max(display, baseForPrev);
-    display = Math.min(display, total, 80);
-  } else if (listing.boostTier === 2) {
-    display += 6;
-  }
-  display = Math.min(Math.floor(display), total, 80);
-  display = Math.max(display, 5);
-  return Math.max(display, real);
+  return Math.min(3 + (hashToNum(String(listing.id)) % 5), total - 1, 80);
 }
 
 // ─── Helper: resolve listing by slug or numeric id (backwards compat) ──
