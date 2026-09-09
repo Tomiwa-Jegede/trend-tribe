@@ -228,14 +228,12 @@ const ListingCard = ({ listing }) => {
             >
               {category.replace("_", " ")}
             </motion.span>
-            {listing.views != null && (
-              <span
+            <span
                 className="text-[11px] text-gray-400 flex-shrink-0"
                 title="Views = detail page opens, unique per user per day, not counting you"
               >
-                {(listing.views ?? 0) >= 4 ? `👁 ${listing.views}` : "✨ New"}
+                👁 {listing.views ?? 0}
               </span>
-            )}
           </div>
 
           {/* Title */}

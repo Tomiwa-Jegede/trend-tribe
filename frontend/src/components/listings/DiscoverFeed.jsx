@@ -64,7 +64,7 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
           <span>{listing.category?.replace("_", " ")}</span>
           <span className="text-white/40">·</span>
           <span className="font-normal" title="Views = detail page opens, unique per user per day">
-            {(listing.views ?? 0) >= 4 ? `👁 ${listing.views}` : "✨ New"}
+            👁 {listing.views ?? 0}
           </span>
         </p>
         <h3 className="text-lg font-bold leading-snug line-clamp-2 mb-1">{listing.title}</h3>
