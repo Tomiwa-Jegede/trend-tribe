@@ -60,8 +60,12 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
 
       {/* ── Bottom-left product info ── */}
       <div className="absolute bottom-8 left-4 right-20 text-white pointer-events-none">
-        <p className="text-xs font-semibold uppercase tracking-wide text-white/70 mb-1">
-          {listing.category?.replace("_", " ")}
+        <p className="text-xs font-semibold uppercase tracking-wide text-white/70 mb-1 flex items-center gap-2">
+          <span>{listing.category?.replace("_", " ")}</span>
+          <span className="text-white/40">·</span>
+          <span className="font-normal" title="Views = detail page opens, unique per user per day">
+            {(listing.views ?? 0) >= 4 ? `👁 ${listing.views}` : "✨ New"}
+          </span>
         </p>
         <h3 className="text-lg font-bold leading-snug line-clamp-2 mb-1">{listing.title}</h3>
         <p className="text-xl font-extrabold mb-3">{formatPrice(listing.price)}</p>
