@@ -144,7 +144,7 @@ const DiscoverFeed = () => {
   }, []);
 
   // realtime — favorite / share / contact like views (deduped)
-  const handleFav = useCallback(({ listingId, favorited, favoriteCount }) => {
+  const handleFavRealtime = useCallback(({ listingId, favorited, favoriteCount }) => {
     if (dedup(`fav:${listingId}:${favorited}:${favoriteCount ?? ''}`)) return;
     setListings((prev) => prev.map((l) => {
       if (l.id !== listingId) return l;
@@ -152,17 +152,17 @@ const DiscoverFeed = () => {
       return { ...l, favoriteCount: Math.max(0, (l.favoriteCount ?? 0) + (favorited ? 1 : -1)) };
     }));
   }, [dedup]);
-  const handleShare = useCallback(({ listingId, shares }) => {
+  const handleShareRealtime = useCallback(({ listingId, shares }) => {
     if (dedup(`share:${listingId}:${shares}`)) return;
     setListings((prev) => prev.map((l) => l.id === listingId ? { ...l, shares } : l));
   }, [dedup]);
-  const handleContact = useCallback(({ listingId, contactViews }) => {
+  const handleContactRealtime = useCallback(({ listingId, contactViews }) => {
     if (dedup(`contact:${listingId}:${contactViews}`)) return;
     setListings((prev) => prev.map((l) => l.id === listingId ? { ...l, contactViews } : l));
   }, [dedup]);
-  useRealtime("favorite", handleFav);
-  useRealtime("listing:shared", handleShare);
-  useRealtime("listing:contacted", handleContact);
+  useRealtime("favorite", handleFavRealtime);
+  useRealtime("listing:shared", handleShareRealtime);
+  useRealtime("listing:contacted", handleContactRealtime);
 
   const shuffleArray = (arr) => {
     const a = [...arr];
