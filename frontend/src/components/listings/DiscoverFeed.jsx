@@ -293,41 +293,15 @@ const DiscoverFeed = () => {
   };
 
   const handleContact = async (listing) => {
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
-    let win = null;
-    try { win = window.open("", "_blank"); } catch {}
+    if (!isAuthenticated) { navigate("/login"); return; }
     setContactLoadingId(listing.id);
     try {
-      const result = await revealContact(listing.slug || listing.id);
-      if (result.whatsapp) {
-        const message = encodeURIComponent(
-          `Hi ${listing.seller.fullName}, I'm interested in your listing:\n📦 Item: ${listing.title}\n💰 Price: ₦${listing.price}\n🔗 Listing: ${window.location.origin}/listings/${listing.slug || listing.id}\nIs this still available?`,
-        );
-        const url = `https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`;
-        let opened = false;
-        if (win && !win.closed) {
-          try { win.location.href = url; win.focus(); opened = true; } catch {}
-        }
-        if (!opened) {
-          const a = document.createElement("a");
-          a.href = url;
-          a.target = "_blank";
-          a.rel = "noopener noreferrer";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => { if (!opened && document.visibilityState === "visible") window.location.href = url; }, 300);
-        }
-      } else {
-        if (win && !win.closed) try { win.close(); } catch {}
-        toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
-      }
-    } finally {
-      setContactLoadingId(null);
-    }
+      const api = (await import("../../api/axios")).default;
+      await api.post("/messages", { listingId: listing.id, body: `Hi ${listing.seller.fullName}, is this still available? — ${listing.title} (₦${listing.price})` });
+      toast.success("Message sent — check Inbox");
+    } catch (e) {
+      toast.error(e.response?.data?.error || "Failed to send");
+    } finally { setContactLoadingId(null); }
   };
 
   if (loading) {

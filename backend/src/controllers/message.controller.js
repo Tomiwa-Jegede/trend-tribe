@@ -1,4 +1,40 @@
 const prisma = require("../db");
+const { emitMessage } = require("../realtime");
+
+// POST /api/messages — send canned first contact (replaces WhatsApp jump)
+const createMessage = async (req, res) => {
+  try {
+    const { listingId, body, subject } = req.body;
+    const text = (body || "").trim().slice(0, 1000);
+    if (!text) return res.status(400).json({ error: "Message body required" });
+    const lid = listingId ? parseInt(listingId, 10) : null;
+    let recipientId = req.body.recipientId ? parseInt(req.body.recipientId, 10) : null;
+    let listing = null;
+    if (lid) {
+      listing = await prisma.listing.findUnique({ where: { id: lid }, select: { id: true, sellerId: true, title: true } });
+      if (!listing) return res.status(404).json({ error: "Listing not found" });
+      if (listing.sellerId === req.user.id) return res.status(400).json({ error: "You cannot message your own listing" });
+      recipientId = listing.sellerId;
+    }
+    if (!recipientId || isNaN(recipientId)) return res.status(400).json({ error: "Recipient required" });
+    const msg = await prisma.message.create({
+      data: { body: text, subject: subject || null, senderId: req.user.id, recipientId, listingId: lid },
+      include: { sender: { select: { id: true, username: true, fullName: true } }, listing: { select: { id: true, title: true } } },
+    });
+    // track as contact view for social proof (fire-and-forget)
+    if (lid) {
+      prisma.listing.update({ where: { id: lid }, data: { contactViews: { increment: 1 } } }).then((u) => {
+        try { const { emitContactView } = require("../realtime"); emitContactView(u.id, u.contactViews); } catch {}
+      }).catch(() => {});
+      prisma.contactView.create({ data: { listingId: lid, viewerId: req.user.id } }).catch(() => {});
+    }
+    try { emitMessage(recipientId, msg); } catch {}
+    return res.status(201).json({ message: msg });
+  } catch (err) {
+    console.error("[CREATE MESSAGE ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
 
 // GET /api/messages — my inbox
 const getMyMessages = async (req, res) => {
@@ -114,4 +150,4 @@ const deleteAll = async (req, res) => {
   }
 };
 
-module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll };
+module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage };

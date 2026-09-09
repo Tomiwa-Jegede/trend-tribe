@@ -498,47 +498,25 @@ const ListingDetailPage = () => {
             <div className="flex flex-col gap-2">
                         <button
                 onClick={async () => {
-                  if (!isAuthenticated) {
-                    navigate("/login");
-                    return;
-                  }
-                  let win = null;
-                  try { win = window.open("", "_blank"); } catch {}
+                  if (!isAuthenticated) { navigate("/login"); return; }
+                  if (listing.seller.id === user?.id) { toast.info("This is your listing"); return; }
                   setContactLoading(true);
-                  const result = await revealContact(listing.slug || listing.id);
-                  setContactLoading(false);
-                  if (result.whatsapp) {
-                    const message = encodeURIComponent(`Hi ${listing.seller.fullName}, I'm interested in your listing:
-📦 Item: ${listing.title}
-💰 Price: ₦${listing.price}
-🔗 Listing: ${window.location.origin}/listings/${listing.slug || listing.id}
-Is this still available?`);
-                    const url = `https://wa.me/${result.whatsapp.replace(/\D/g, "")}?text=${message}`;
-                    let opened = false;
-                    if (win && !win.closed) {
-                      try { win.location.href = url; win.focus(); opened = true; } catch {}
-                    }
-                    if (!opened) {
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.target = "_blank";
-                      a.rel = "noopener noreferrer";
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      setTimeout(() => { if (!opened && document.visibilityState === "visible") window.location.href = url; }, 300);
-                    }
-                  } else {
-                    if (win && !win.closed) try { win.close(); } catch {}
-                    toast.info(`${listing.seller.fullName} has not added a WhatsApp number.`);
-                  }
+                  try {
+                    const api = (await import("../api/axios")).default;
+                    await api.post("/messages", { listingId: listing.id, body: `Hi ${listing.seller.fullName}, is this still available? — ${listing.title} (₦${listing.price})` });
+                    toast.success("Message sent — seller will reply in Inbox");
+                    navigate("/messages");
+                  } catch (e) {
+                    toast.error(e.response?.data?.error || "Failed to send message");
+                  } finally { setContactLoading(false); }
                 }}
                 disabled={!listing.isAvailable || contactLoading}
                 className="btn-primary flex items-center justify-center gap-2 py-3.5"
               >
                 <FiMessageCircle className="w-5 h-5" />
-                {listing.isAvailable ? "Contact Seller" : "No Longer Available"}
+                {contactLoading ? "Sending..." : listing.isAvailable ? "Contact Seller" : "No Longer Available"}
               </button>
+              <p className="text-xs text-gray-400 text-center">Replies live in Inbox — WhatsApp shared after seller replies</p>
             </div>
           )}
 
