@@ -131,14 +131,14 @@ function getDisplayViews(listing, totalUsers) {
     else if (elapsedMins < GRACE_MINS + RAMP_MINS) progress = (elapsedMins - GRACE_MINS) / RAMP_MINS;
     else progress = 1;
     if (progress > 0) {
-      const fullBoosted = listing.boostTier === 2 ? Math.floor(baseFake * 2.2 + 18) : Math.floor(baseFake * 1.6 + 9);
+      const fullBoosted = listing.boostTier === 2 ? Math.floor(baseFake * 2.8 + 24) : Math.floor(baseFake * 1.9 + 14);
       const extra = Math.max(0, fullBoosted - baseFake);
       display = baseFake + Math.floor(extra * progress);
     }
   } else if (listing.boostedUntil) {
     // was boosted before — keep views, don't drop
     const wasTier2 = listing.boostTier === 2;
-    const baseForPrev = wasTier2 ? Math.floor(baseFake * 2.2 + 18) : Math.floor(baseFake * 1.6 + 9);
+    const baseForPrev = wasTier2 ? Math.floor(baseFake * 2.8 + 24) : Math.floor(baseFake * 1.9 + 14);
     display = Math.max(display, baseForPrev);
     display = Math.min(display, total, 80);
   } else if (listing.boostTier === 2) {
