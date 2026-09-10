@@ -119,6 +119,15 @@ const InboxPage = () => {
     try { await markAllMessagesRead(); setMessages((prev) => prev.map((x) => ({ ...x, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage markAllRead]", err?.response?.data || err.message); }
   };
 
+  const handleCloseChat = useCallback(() => {
+    setExpanded(null);
+    const params = new URLSearchParams(searchParams);
+    if (params.has("thread")) {
+      params.delete("thread");
+      setSearchParams(params, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   return (
     <div className="container-app py-6 sm:py-10">
       <Helmet><title>{isChat ? "Chats — Trend Tribe" : "Inbox — Trend Tribe"}</title></Helmet>
@@ -162,7 +171,7 @@ const InboxPage = () => {
                 if (isNaN(lid) || isNaN(withId)) return null;
                 return (
                   <div className="card p-4 mb-3 border-primary-200">
-                    <ChatThread listingId={lid} withUser={{ id: withId }} onClose={() => setExpanded(null)} />
+                    <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />
                   </div>
                 );
               })()}
@@ -176,7 +185,7 @@ const InboxPage = () => {
               void messages; void isSelected;
               return (
                 <div key={key} className="card p-4">
-                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => setExpanded(isOpen ? null : key)}>
+                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => isOpen ? handleCloseChat() : setExpanded(key)}>
                     {c.otherUser?.avatar ? <img src={c.otherUser.avatar} alt={c.otherUser.username} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{c.otherUser?.fullName?.[0] || c.otherUser?.username?.[0] || "?"}</div>}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{c.otherUser?.fullName || c.otherUser?.username} · {c.listing?.title || "Chat"}</p>
@@ -186,7 +195,7 @@ const InboxPage = () => {
                   </div>
                   {isOpen && c.listing?.id && c.otherUser?.id && (
                     <div className="mt-4">
-                      <ChatThread listingId={c.listing.id} withUser={c.otherUser} onClose={() => setExpanded(null)} />
+                      <ChatThread listingId={c.listing.id} withUser={c.otherUser} onClose={handleCloseChat} />
                     </div>
                   )}
                 </div>
