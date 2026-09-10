@@ -12,6 +12,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   const { user } = useAuth();
   const [msgs, setMsgs] = useState([]);
   const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
   const [presence, setPresence] = useState({ online: false, lastSeen: null });
@@ -21,16 +22,25 @@ export default function ChatThread({ listingId, withUser, onClose }) {
 
   useEffect(() => {
     if (!listingId) return;
-    getListingById(listingId).then((d) => setProduct(d)).catch(() => {});
-  }, [listingId]);
+    setLoading(true);
+    Promise.all([
+      getListingById(listingId).then((d) => setProduct(d)).catch(() => {}),
+      (async () => {
+        if (!withUser?.id) return;
+        const data = await getThread(listingId, withUser.id).catch(() => []);
+        setMsgs(data || []);
+        (data || []).filter((m) => m.recipientId === user?.id && !m.read).forEach((m) => markMessageRead(m.id).catch(() => {}));
+        const s = getSocket();
+        if (s?.connected) s.emit("message:read", { listingId });
+      })(),
+    ]).finally(() => setLoading(false));
+  }, [listingId, withUser?.id, user?.id]);
 
   const fetchThread = useCallback(async () => {
     if (!listingId || !withUser?.id) return;
     const data = await getThread(listingId, withUser.id);
     setMsgs(data);
-    // mark read for incoming
     data.filter((m) => m.recipientId === user?.id && !m.read).forEach((m) => markMessageRead(m.id).catch(() => {}));
-    // also socket read for listing
     const s = getSocket();
     if (s?.connected) s.emit("message:read", { listingId });
   }, [listingId, withUser?.id, user?.id]);
@@ -100,12 +110,42 @@ export default function ChatThread({ listingId, withUser, onClose }) {
 
   const ticks = (m) => {
     if (m.senderId !== user?.id) return null;
-    if (m.read) return <span className="text-sky-500 flex"><FiCheck className="w-3 h-3" /><FiCheck className="w-3 h-3 -ml-1" /></span>;
-    if (m.deliveredAt) return <span className="text-gray-400 flex"><FiCheck className="w-3 h-3" /><FiCheck className="w-3 h-3 -ml-1" /></span>;
-    return <FiCheck className="w-3 h-3 text-gray-400" />;
+    if (m.read) return <span className="text-sky-500 flex" title="Read — chat open by recipient"><FiCheck className="w-3 h-3" /><FiCheck className="w-3 h-3 -ml-1" /></span>;
+    // double grey when delivered OR recipient is online (WhatsApp: delivered to device)
+    if (m.deliveredAt || presence.online) return <span className="text-gray-400 flex" title={presence.online ? "Delivered — recipient online" : "Delivered"}><FiCheck className="w-3 h-3" /><FiCheck className="w-3 h-3 -ml-1" /></span>;
+    return <FiCheck className="w-3 h-3 text-gray-400" title="Sent — recipient offline" />;
   };
 
   const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
+  if (loading) {
+    return (
+      <div className="flex flex-col h-[70vh] max-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white animate-pulse">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
+          <div className="w-9 h-9 rounded-full bg-gray-200" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 bg-gray-200 rounded w-1/3" />
+            <div className="h-2 bg-gray-200 rounded w-1/4" />
+          </div>
+        </div>
+        <div className="mx-4 mt-3 p-3 bg-gray-50 border border-gray-100 rounded-xl flex gap-3 items-center">
+          <div className="w-14 h-14 bg-gray-200 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 bg-gray-200 rounded w-3/4" />
+            <div className="h-2 bg-gray-200 rounded w-1/2" />
+          </div>
+        </div>
+        <div className="flex-1 p-4 space-y-3 bg-[#ECE5DD]/30">
+          <div className="h-10 bg-white rounded-2xl w-3/4 ml-auto" />
+          <div className="h-8 bg-white rounded-2xl w-1/2" />
+          <div className="h-10 bg-white rounded-2xl w-2/3 ml-auto" />
+        </div>
+        <div className="p-3 border-t border-gray-100 flex gap-2">
+          <div className="flex-1 h-10 bg-gray-100 rounded-lg" />
+          <div className="w-16 h-10 bg-gray-200 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col h-[70vh] max-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
