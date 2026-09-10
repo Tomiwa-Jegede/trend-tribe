@@ -1,5 +1,6 @@
 // src/components/chat/ChatThread.jsx — WhatsApp-like thread per listing
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { FiSend, FiCheck, FiCheckCircle } from "react-icons/fi";
 import { getThread, sendMessage, markMessageRead } from "../../services/messageService";
 import { getListingById } from "../../services/listingService";
@@ -105,40 +106,31 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   };
 
   const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
-  const buyer = user?.id === product?.seller?.id ? displayUser : user;
-  const seller = product?.seller || (user?.id === displayUser?.id ? user : displayUser);
   return (
     <div className="flex flex-col h-[70vh] max-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
         <div className="flex items-center gap-3">
-          <div className="flex -space-x-2">
-            <div className="w-9 h-9 rounded-full bg-primary-100 border-2 border-white flex items-center justify-center font-bold text-primary-700 overflow-hidden">
-              {seller?.avatar ? <img src={seller.avatar} alt={seller.username} className="w-full h-full object-cover" /> : <span>{seller?.fullName?.[0] || seller?.username?.[0] || "S"}</span>}
-            </div>
-            <div className="w-9 h-9 rounded-full bg-sage-100 border-2 border-white flex items-center justify-center font-bold text-sage-700 overflow-hidden">
-              {buyer?.avatar ? <img src={buyer.avatar} alt={buyer.username} className="w-full h-full object-cover" /> : <span>{buyer?.fullName?.[0] || buyer?.username?.[0] || "B"}</span>}
-            </div>
+          <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700 overflow-hidden">
+            {displayUser?.avatar ? <img src={displayUser.avatar} alt={displayUser.username} className="w-full h-full object-cover" /> : <span>{displayUser?.fullName?.[0] || displayUser?.username?.[0] || "?"}</span>}
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <span>{seller?.fullName || seller?.username || "Seller"}</span>
-              <span className="text-gray-400">·</span>
-              <span>{buyer?.fullName || buyer?.username || "Buyer"}</span>
+              {displayUser?.fullName || displayUser?.username || "Chat"}
               <span className={`w-2 h-2 rounded-full ${presence.online ? "bg-green-500" : "bg-gray-300"}`} />
             </p>
-            <p className="text-xs text-gray-500">{displayUser?.fullName || displayUser?.username || "Chat"} {presence.online ? "· Online" : presence.lastSeen ? `· Last seen ${new Date(presence.lastSeen).toLocaleTimeString()}` : "· Offline"} {typing && "· typing..."}</p>
+            <p className="text-xs text-gray-500">{presence.online ? "Online" : presence.lastSeen ? `Last seen ${new Date(presence.lastSeen).toLocaleTimeString()}` : "Offline"} {typing && "· typing..."}</p>
           </div>
         </div>
         {onClose && <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">Close</button>}
       </div>
       {product && (
-        <div className="mx-4 mt-3 p-3 bg-white border border-gray-200 rounded-xl flex gap-3 items-center">
+        <Link to={`/listings/${product.slug || product.id}`} className="mx-4 mt-3 p-3 bg-white border border-gray-200 rounded-xl flex gap-3 items-center hover:border-primary-200 transition-colors">
           {product.images?.[0] ? <img src={product.images[0]} alt={product.title} className="w-14 h-14 rounded-lg object-cover" /> : <div className="w-14 h-14 bg-gray-100 rounded-lg" />}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{product.title}</p>
-            <p className="text-xs text-primary-600">₦{Number(product.price).toLocaleString()} · WhatsApp chat room</p>
+            <p className="text-xs text-primary-600">₦{Number(product.price).toLocaleString()} · Tap to view product →</p>
           </div>
-        </div>
+        </Link>
       )}
       <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30">
         {msgs.map((m) => {
