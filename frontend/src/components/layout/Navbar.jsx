@@ -286,7 +286,7 @@ const Navbar = () => {
               </span>
             </Link>
 
-            {/* ── Desktop Nav Links ─────────────────────────── */}
+            {/* ── Desktop Nav Links — 4 primary + overflow ───── */}
             <div className="hidden md:flex items-center gap-6">
               <NavLink path="/" label="Home" />
               <NavLink path="/marketplace" label="Marketplace" />
@@ -332,43 +332,13 @@ const Navbar = () => {
                   )}
                 </AnimatePresence>
               </div>
-              <div className="relative" ref={bookingsMenuRef}>
-                <button
-                  onClick={() => setShowBookingsMenu((v) => !v)}
-                  className={`flex items-center gap-1 text-sm font-medium pb-1 ${
-                    location.pathname.startsWith("/bookings") ? "text-primary-600" : "text-gray-600 hover:text-primary-600"
-                  }`}
-                >
-                  Bookings
-                  <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showBookingsMenu ? "rotate-180" : ""}`} />
-                </button>
-                <AnimatePresence>
-                  {showBookingsMenu && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.18 }}
-                      className="absolute top-8 left-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-48 z-50"
-                    >
-                      {hasActiveService && (
-                        <Link to="/bookings/provider" onClick={() => setShowBookingsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                          As Provider
-                        </Link>
-                      )}
-                      <Link to="/bookings/mine" onClick={() => setShowBookingsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                        My Bookings
-                      </Link>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <NavLink path="/chat" label="Chats" />
               <div className="relative" ref={moreRef}>
                 <button
                   onClick={() => setShowMore((v) => !v)}
                   className="flex items-center gap-1 text-sm font-medium pb-1 text-gray-600 hover:text-primary-600"
                 >
-                  More <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
+                  Menu <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
                 </button>
                 <AnimatePresence>
                   {showMore && (
@@ -377,21 +347,20 @@ const Navbar = () => {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
-                      className="absolute top-8 left-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-44 z-50"
+                      className="absolute top-8 right-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-56 z-50"
                     >
-                      <Link to="/features" onClick={() => setShowMore(false)} className={`block px-4 py-2 text-sm ${isActive("/features") ? "text-primary-600 bg-primary-50" : "text-gray-700 hover:bg-gray-50"}`}>Features</Link>
-                      <Link to="/pricing" onClick={() => setShowMore(false)} className={`block px-4 py-2 text-sm ${isActive("/pricing") ? "text-primary-600 bg-primary-50" : "text-gray-700 hover:bg-gray-50"}`}>Pricing</Link>
-                      <Link to="/about" onClick={() => setShowMore(false)} className={`block px-4 py-2 text-sm ${isActive("/about") ? "text-primary-600 bg-primary-50" : "text-gray-700 hover:bg-gray-50"}`}>About</Link>
+                      <Link to="/bookings/mine" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">My Bookings</Link>
+                      {hasActiveService && <Link to="/bookings/provider" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">As Provider</Link>}
+                      <Link to={`/profile/${user?.slug || user?.id}`} onClick={() => setShowMore(false)} className={`block px-4 py-2 text-sm ${isAuthenticated ? "text-gray-700 hover:bg-gray-50" : "text-gray-400"}`}>My Profile</Link>
+                      {user?.role === "ADMIN" && <Link to="/admin" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Admin</Link>}
+                      <div className="border-t border-gray-100 my-1" />
+                      <Link to="/features" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Features</Link>
+                      <Link to="/pricing" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Pricing</Link>
+                      <Link to="/about" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">About</Link>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-              {isAuthenticated && (
-                <NavLink path={`/profile/${user?.slug || user?.id}`} label="My Profile" />
-              )}
-              {user?.role === "ADMIN" && (
-                <NavLink path="/admin" label="Admin" />
-              )}
             </div>
 
             {/* ── Desktop Auth Buttons ──────────────────────── */}
@@ -727,6 +696,31 @@ const Navbar = () => {
           )}
         </AnimatePresence>
       </motion.nav>
+
+      {/* ── Mobile Bottom Bar — 4+1 clean ── */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-sage-100 flex justify-around items-center h-16 z-40 pb-safe">
+        <Link to="/" className={`flex flex-col items-center gap-1 p-2 ${location.pathname === "/" ? "text-primary-600" : "text-gray-500"}`}>
+          <FiShoppingBag className="w-5 h-5" />
+          <span className="text-[10px]">Home</span>
+        </Link>
+        <Link to="/marketplace" className={`flex flex-col items-center gap-1 p-2 ${location.pathname === "/marketplace" ? "text-primary-600" : "text-gray-500"}`}>
+          <FiHeart className="w-5 h-5" />
+          <span className="text-[10px]">Market</span>
+        </Link>
+        <Link to="/gigs/available" className={`flex flex-col items-center gap-1 p-2 ${location.pathname.startsWith("/gigs") ? "text-primary-600" : "text-gray-500"}`}>
+          <span className="text-[10px] font-bold">Gigs</span>
+          {availableGigsCount > 0 && <span className="absolute top-1 bg-accent-400 text-navy-900 text-[9px] px-1 rounded-full">{availableGigsCount}</span>}
+        </Link>
+        <Link to="/chat" className={`flex flex-col items-center gap-1 p-2 ${location.pathname === "/chat" ? "text-primary-600" : "text-gray-500"}`}>
+          <FiMessageCircle className="w-5 h-5" />
+          <span className="text-[10px]">Chats</span>
+          {inboxUnread > 0 && <span className="absolute top-1 bg-primary-600 text-white text-[9px] px-1 rounded-full">{inboxUnread}</span>}
+        </Link>
+        <button onClick={() => setMenuOpen((v) => !v)} className="flex flex-col items-center gap-1 p-2 text-gray-500">
+          <FiMenu className="w-5 h-5" />
+          <span className="text-[10px]">Menu</span>
+        </button>
+      </div>
 
       {/* ── Logout Modal (Portal — renders outside nav to avoid stacking context) ── */}
       {createPortal(
