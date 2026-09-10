@@ -293,8 +293,11 @@ const DiscoverFeed = () => {
   };
 
   const handleContact = async (listing) => {
-    if (!isAuthenticated) { navigate("/login"); return; }
-    // open chat room — product is shown in header, no auto message
+    if (!isAuthenticated) { navigate("/login", { state: { from: `/chat?thread=${listing.id}-${listing.seller.id}` } }); return; }
+    try {
+      const api = (await import("../../api/axios")).default;
+      await api.post("/messages/conversations", { listingId: listing.id });
+    } catch {}
     navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
   };
 

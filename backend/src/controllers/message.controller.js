@@ -24,10 +24,27 @@ const createMessage = async (req, res) => {
       }
     }
     if (!recipientId || isNaN(recipientId)) return res.status(400).json({ error: "Recipient required" });
+    // per-person Conversation (buyer,seller) — merge per-listing threads as per Ticket 02
+    let conversationId = null;
+    if (lid && listing) {
+      const isSenderSeller = listing.sellerId === req.user.id;
+      const buyerId = isSenderSeller ? recipientId : req.user.id;
+      const sellerId = isSenderSeller ? req.user.id : listing.sellerId;
+      // ensure buyer != seller (already checked) and create/find conversation
+      const convo = await prisma.conversation.upsert({
+        where: { buyerId_sellerId: { buyerId, sellerId } },
+        create: { buyerId, sellerId, listingId: lid },
+        update: { listingId: lid, lastMessageAt: new Date() },
+      });
+      conversationId = convo.id;
+    }
     const msg = await prisma.message.create({
-      data: { body: text, subject: subject || null, senderId: req.user.id, recipientId, listingId: lid },
+      data: { body: text, subject: subject || null, senderId: req.user.id, recipientId, listingId: lid, conversationId },
       include: { sender: { select: { id: true, username: true, fullName: true } }, listing: { select: { id: true, title: true } } },
     });
+    if (conversationId) {
+      prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date() } }).catch(() => {});
+    }
     // track as contact view for social proof (fire-and-forget)
     if (lid) {
       prisma.listing.update({ where: { id: lid }, data: { contactViews: { increment: 1 } } }).then((u) => {
@@ -145,14 +162,33 @@ const getThread = async (req, res) => {
   try {
     const listingId = req.query.listingId ? parseInt(req.query.listingId, 10) : null;
     const withId = req.query.with ? parseInt(req.query.with, 10) : null;
-    if (!listingId || !withId) return res.status(400).json({ error: "listingId and with required" });
-    const where = {
-      listingId,
-      OR: [
-        { senderId: req.user.id, recipientId: withId },
-        { senderId: withId, recipientId: req.user.id },
-      ],
-    };
+    if (!withId) return res.status(400).json({ error: "with required" });
+    // per-person Conversation first (merged), fallback to per-listing legacy
+    let conversation = null;
+    if (listingId) {
+      conversation = await prisma.conversation.findFirst({
+        where: { OR: [{ buyerId: req.user.id, sellerId: withId }, { buyerId: withId, sellerId: req.user.id }] },
+      });
+    }
+    let where;
+    if (conversation) {
+      where = { conversationId: conversation.id };
+    } else if (listingId) {
+      where = {
+        listingId,
+        OR: [
+          { senderId: req.user.id, recipientId: withId },
+          { senderId: withId, recipientId: req.user.id },
+        ],
+      };
+    } else {
+      where = {
+        OR: [
+          { senderId: req.user.id, recipientId: withId },
+          { senderId: withId, recipientId: req.user.id },
+        ],
+      };
+    }
     const messages = await prisma.message.findMany({ where, orderBy: { createdAt: "asc" }, take: 100, include: { sender: { select: { id: true, username: true, fullName: true } } } });
     // mark delivered when fetched by recipient
     const toMark = messages.filter((m) => m.recipientId === req.user.id && !m.deliveredAt).map((m) => m.id);
@@ -198,38 +234,82 @@ const getPresence = async (req, res) => {
   }
 };
 
-// GET /api/messages/conversations — per-seller chat rooms (person-to-person only, no directory)
-// Only threads where a real user-to-user message exists (Contact Seller), excludes system/admin broadcasts
+const createConversation = async (req, res) => {
+  try {
+    const { listingId } = req.body;
+    const lid = listingId ? parseInt(listingId, 10) : null;
+    if (!lid) return res.status(400).json({ error: "listingId required" });
+    const listing = await prisma.listing.findUnique({ where: { id: lid }, select: { id: true, sellerId: true, isAvailable: true } });
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+    if (!listing.isAvailable) return res.status(400).json({ error: "Product no longer available" });
+    if (listing.sellerId === req.user.id) return res.status(400).json({ error: "Cannot create chat with yourself" });
+    const buyerId = req.user.id;
+    const sellerId = listing.sellerId;
+    const convo = await prisma.conversation.upsert({
+      where: { buyerId_sellerId: { buyerId, sellerId } },
+      create: { buyerId, sellerId, listingId: lid },
+      update: { listingId: lid },
+    });
+    return res.status(200).json({ conversation: convo });
+  } catch (err) {
+    console.error("[CREATE CONVERSATION ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// GET /api/messages/conversations — per-person chat rooms (merged, buyer,seller) via Conversation table
 const getConversations = async (req, res) => {
   try {
-    const msgs = await prisma.message.findMany({
-      where: {
-        OR: [{ senderId: req.user.id }, { recipientId: req.user.id }],
-        listingId: { not: null },
+    const convos = await prisma.conversation.findMany({
+      where: { OR: [{ buyerId: req.user.id }, { sellerId: req.user.id }] },
+      orderBy: { lastMessageAt: "desc" },
+      take: 50,
+      include: {
+        buyer: { select: { id: true, username: true, fullName: true, avatar: true, role: true } },
+        seller: { select: { id: true, username: true, fullName: true, avatar: true, role: true } },
+        listing: { select: { id: true, slug: true, title: true, images: true, price: true } },
+        messages: { orderBy: { createdAt: "desc" }, take: 1 },
       },
+    });
+    // filter out system/admin (should not happen for Conversation, but safe)
+    const filtered = convos.filter((c) => c.buyer.role !== "ADMIN" && c.seller.role !== "ADMIN");
+    const conversations = await Promise.all(filtered.map(async (c) => {
+      const otherUser = c.buyerId === req.user.id ? c.seller : c.buyer;
+      const unreadCount = await prisma.message.count({ where: { conversationId: c.id, recipientId: req.user.id, read: false } });
+      const lastMessage = c.messages[0] || null;
+      const key = `thread-${c.buyerId}-${c.sellerId}`;
+      return { key, id: c.id, listing: c.listing, otherUser, lastMessage, unreadCount, updatedAt: c.lastMessageAt, buyerId: c.buyerId, sellerId: c.sellerId };
+    }));
+    // also include legacy per-listing threads not yet migrated (from Message without conversationId)
+    const legacy = await prisma.message.findMany({
+      where: { OR: [{ senderId: req.user.id }, { recipientId: req.user.id }], listingId: { not: null }, conversationId: null },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: 50,
       include: {
         sender: { select: { id: true, username: true, fullName: true, avatar: true, role: true } },
         recipient: { select: { id: true, username: true, fullName: true, avatar: true, role: true } },
         listing: { select: { id: true, slug: true, title: true, images: true, price: true } },
       },
     });
-    // exclude system/admin senders — those belong to Notifications inbox, not Chat
-    const filtered = msgs.filter((m) => m.sender?.role !== "ADMIN" && m.recipient?.role !== "ADMIN");
-    const map = new Map();
-    for (const m of filtered) {
+    const legacyFiltered = legacy.filter((m) => m.sender?.role !== "ADMIN" && m.recipient?.role !== "ADMIN");
+    const map = new Map(conversations.map((c) => [c.key, c]));
+    for (const m of legacyFiltered) {
       const other = m.senderId === req.user.id ? m.recipient : m.sender;
       const otherId = other?.id;
       if (!otherId) continue;
+      const buyerId = m.senderId === m.listing?.sellerId ? m.recipientId : m.senderId === req.user.id && req.user.id !== m.listing?.sellerId ? req.user.id : otherId;
+      // for legacy, approximate buyer/seller from listing
+      const sellerId = m.listing?.sellerId || (m.senderId === req.user.id ? otherId : req.user.id);
+      const bId = Math.min(buyerId, sellerId); // fallback, but per-person key should be buyer-seller
+      // use per-listing key for legacy to avoid collision
       const key = `thread-${m.listingId}-${otherId}`;
       if (!map.has(key)) {
-        const unread = filtered.filter((x) => x.listingId === m.listingId && x.senderId === otherId && x.recipientId === req.user.id && !x.read).length;
+        const unread = legacyFiltered.filter((x) => x.listingId === m.listingId && x.senderId === otherId && x.recipientId === req.user.id && !x.read).length;
         map.set(key, { key, listing: m.listing, otherUser: other, lastMessage: m, unreadCount: unread, updatedAt: m.createdAt });
       }
     }
-    const conversations = Array.from(map.values()).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    return res.status(200).json({ conversations });
+    const all = Array.from(map.values()).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    return res.status(200).json({ conversations: all });
   } catch (err) {
     console.error("[GET CONVERSATIONS ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -273,4 +353,4 @@ const deleteAll = async (req, res) => {
   }
 };
 
-module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage, getThread, markDelivered, getPresence, getConversations };
+module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage, getThread, markDelivered, getPresence, getConversations, createConversation };

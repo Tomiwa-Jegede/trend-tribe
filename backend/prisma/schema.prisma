@@ -62,6 +62,8 @@ model User {
   viewLogs             ListingView[]
   sentMessages         Message[] @relation("SentMessages")
   receivedMessages     Message[] @relation("ReceivedMessages")
+  conversationsAsBuyer  Conversation[] @relation("ConvBuyer")
+  conversationsAsSeller Conversation[] @relation("ConvSeller")
   pushSubscriptions    PushSubscription[]
   pwaInstalls          PWAInstall[]
 
@@ -143,6 +145,7 @@ model Listing {
   contactViewLogs ContactView[]
   viewLogs       ListingView[]
   messages       Message[]
+  conversations  Conversation[]
   serviceBookings ServiceBooking[]
 
   @@map("listings")
@@ -220,23 +223,45 @@ model ListingView {
   @@map("listing_views")
 }
 
+model Conversation {
+  id            String   @id @default(cuid())
+  listingId     Int?
+  buyerId       Int
+  sellerId      Int
+  lastMessageAt DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  listing       Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  buyer         User     @relation("ConvBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller        User     @relation("ConvSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages      Message[]
+
+  @@unique([buyerId, sellerId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([listingId])
+  @@map("conversations")
+}
+
 model Message {
-  id          Int      @id @default(autoincrement())
-  subject     String?
-  body        String
-  senderId    Int
-  recipientId Int
-  listingId   Int?
-  read        Boolean  @default(false)
-  deliveredAt DateTime?
-  createdAt   DateTime @default(now())
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient   User     @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
-  listing     Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  id             Int      @id @default(autoincrement())
+  subject        String?
+  body           String
+  senderId       Int
+  recipientId    Int
+  listingId      Int?
+  conversationId String?
+  read           Boolean  @default(false)
+  deliveredAt    DateTime?
+  createdAt      DateTime @default(now())
+  sender         User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient      User     @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  listing        Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, read])
   @@index([recipientId, createdAt])
   @@index([listingId])
+  @@index([conversationId])
   @@map("messages")
 }
 

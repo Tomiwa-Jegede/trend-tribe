@@ -498,9 +498,12 @@ const ListingDetailPage = () => {
             <div className="flex flex-col gap-2">
                         <button
                 onClick={async () => {
-                  if (!isAuthenticated) { navigate("/login"); return; }
+                  if (!isAuthenticated) { navigate("/login", { state: { from: `/chat?thread=${listing.id}-${listing.seller.id}` } }); return; }
                   if (listing.seller.id === user?.id) { toast.info("This is your listing"); return; }
-                  // open chat room for this product — don't auto-send, let buyer type first
+                  try {
+                    const api = (await import("../api/axios")).default;
+                    await api.post("/messages/conversations", { listingId: listing.id });
+                  } catch {}
                   navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
                 }}
                 disabled={!listing.isAvailable || contactLoading}
