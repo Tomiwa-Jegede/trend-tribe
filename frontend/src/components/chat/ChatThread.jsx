@@ -104,14 +104,15 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     return <FiCheck className="w-3 h-3 text-gray-400" />;
   };
 
+  const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
   return (
     <div className="flex flex-col h-[70vh] max-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{withUser?.fullName?.[0] || withUser?.username?.[0] || "?"}</div>
+          <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{displayUser?.fullName?.[0] || displayUser?.username?.[0] || "?"}</div>
           <div>
             <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              {withUser?.fullName || withUser?.username}
+              {displayUser?.fullName || displayUser?.username || "Chat"}
               <span className={`w-2 h-2 rounded-full ${presence.online ? "bg-green-500" : "bg-gray-300"}`} />
             </p>
             <p className="text-xs text-gray-500">{presence.online ? "Online" : presence.lastSeen ? `Last seen ${new Date(presence.lastSeen).toLocaleTimeString()}` : "Offline"} {typing && "· typing..."}</p>

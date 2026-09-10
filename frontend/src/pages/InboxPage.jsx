@@ -142,16 +142,32 @@ const InboxPage = () => {
       {loading ? (
         <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div>
       ) : isChat ? (
-        conversations.length === 0 ? (
-          <div className="card p-10 text-center">
-            <FiMessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No chats yet</p>
-            <p className="text-xs text-gray-400 mt-1">Tap Contact Seller on a listing to start a chat — each seller has their own room.</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-3">
-              {conversations.map((c) => {
+        (() => {
+          const threadParam = searchParams.get("thread");
+          const pendingKey = threadParam ? `thread-${threadParam}` : null;
+          const hasPending = pendingKey && !conversations.some((c) => c.key === pendingKey);
+          if (conversations.length === 0 && !hasPending) {
+            return (
+              <div className="card p-10 text-center">
+                <FiMessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No chats yet</p>
+                <p className="text-xs text-gray-400 mt-1">Tap Contact Seller on a listing to start a chat — each seller has their own room.</p>
+              </div>
+            );
+          }
+          return (
+            <>
+              {hasPending && (() => {
+                const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
+                if (isNaN(lid) || isNaN(withId)) return null;
+                return (
+                  <div className="card p-4 mb-3 border-primary-200">
+                    <ChatThread listingId={lid} withUser={{ id: withId }} onClose={() => setExpanded(null)} />
+                  </div>
+                );
+              })()}
+              <div className="flex flex-col gap-3">
+                {conversations.map((c) => {
               // reuse conversations as chat rooms — flat messages list removed for split inbox
               const key = c.key;
               const isOpen = expanded === key;
@@ -182,7 +198,8 @@ const InboxPage = () => {
             <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete all</button>
           </div>
         </>
-      )
+      );
+        })()
       ) : messages.length === 0 ? (
         <div className="card p-10 text-center">
           <FiMail className="w-10 h-10 text-gray-300 mx-auto mb-3" />
