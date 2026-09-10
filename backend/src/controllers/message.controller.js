@@ -8,13 +8,20 @@ const createMessage = async (req, res) => {
     const text = (body || "").trim().slice(0, 1000);
     if (!text) return res.status(400).json({ error: "Message body required" });
     const lid = listingId ? parseInt(listingId, 10) : null;
-    let recipientId = req.body.recipientId ? parseInt(req.body.recipientId, 10) : null;
+    let recipientId = req.body.recipientId ? parseInt(req.body.recipientId, 10) : (req.body.withId ? parseInt(req.body.withId, 10) : null);
     let listing = null;
     if (lid) {
       listing = await prisma.listing.findUnique({ where: { id: lid }, select: { id: true, sellerId: true, title: true } });
       if (!listing) return res.status(404).json({ error: "Listing not found" });
-      if (listing.sellerId === req.user.id) return res.status(400).json({ error: "You cannot message your own listing" });
-      recipientId = listing.sellerId;
+      // for replies, recipient is the other participant (withUser), not always seller
+      if (!recipientId || isNaN(recipientId)) {
+        // initial contact: buyer -> seller
+        if (listing.sellerId === req.user.id) return res.status(400).json({ error: "You cannot message your own listing" });
+        recipientId = listing.sellerId;
+      } else {
+        // reply: ensure not sending to self
+        if (recipientId === req.user.id) return res.status(400).json({ error: "Cannot message yourself" });
+      }
     }
     if (!recipientId || isNaN(recipientId)) return res.status(400).json({ error: "Recipient required" });
     const msg = await prisma.message.create({

@@ -32,8 +32,8 @@ export const getUnreadCount = async () => {
   const { data } = await api.get("/messages/unread-count");
   return data.unreadCount;
 };
-export const sendMessage = async ({ listingId, body }) => {
-  const { data } = await api.post("/messages", { listingId, body });
+export const sendMessage = async ({ listingId, body, recipientId }) => {
+  const { data } = await api.post("/messages", { listingId, body, recipientId });
   return data.message;
 };
 export const getThread = async (listingId, withId) => {

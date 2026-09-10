@@ -106,7 +106,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     setSendError("");
     sendTyping(false);
     try {
-      const msg = await sendMessage({ listingId, body });
+      const msg = await sendMessage({ listingId, body, recipientId: withUser.id });
       setMsgs((p) => [...p, msg]);
       setText("");
     } catch (err) {
