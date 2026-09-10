@@ -45,8 +45,6 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     if (s?.connected) s.emit("message:read", { listingId });
   }, [listingId, withUser?.id, user?.id]);
 
-  useEffect(() => { fetchThread(); }, [fetchThread]);
-
   // realtime: new message in thread — handles both full socket/pusher payload and SW push fallback
   const handleRealtimeMsg = useCallback((msg) => {
     // SW push fallback sends {title, body, url} not full message — trigger refetch instead

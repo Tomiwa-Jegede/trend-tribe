@@ -248,19 +248,7 @@ const DiscoverFeed = () => {
       let index = Math.round(container.scrollTop / itemHeight);
 
       if (index < total || index >= total * 2) {
-        const beforeListing = loopItems[index];
         const targetIndex = index < total ? index + total : index - total;
-        const afterListing = loopItems[targetIndex];
-        console.log("[wraparound]", {
-          fromIndex: index,
-          toIndex: targetIndex,
-          beforeListingId: beforeListing?.id,
-          afterListingId: afterListing?.id,
-          sameListing: beforeListing?.id === afterListing?.id,
-          beforeThumbnail: beforeListing?.images?.[0],
-          afterThumbnail: afterListing?.images?.[0],
-        });
-
         // Temporarily disable snap so the instant jump doesn't get animated
         container.style.scrollSnapType = "none";
         container.scrollTop = index < total
