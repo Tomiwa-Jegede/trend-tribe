@@ -380,14 +380,6 @@ const Navbar = () => {
                         </span>
                       )}
                     </Link>
-                    <Link to="/chat" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Chats">
-                      <FiMessageCircle className={`w-5 h-5 ${location.pathname === "/chat" ? "text-primary-600" : "text-gray-600"}`} />
-                      {inboxUnread > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                          {inboxUnread > 99 ? "99+" : inboxUnread}
-                        </span>
-                      )}
-                    </Link>
                     <NotificationBell />
                     <div className="relative" ref={accountMenuRef}>
                       <button
