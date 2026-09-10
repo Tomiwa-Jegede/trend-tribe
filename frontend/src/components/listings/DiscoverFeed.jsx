@@ -121,6 +121,14 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
 
 // ─── Feed container: fetch, infinite loop, action wiring ───────
 const DISCOVER_SCROLL_KEY = "discoverFeedScrollIndex";
+// PWA and browser tabs share same origin — localStorage keeps resume in sync across contexts
+const getStoredIndex = () => {
+  try {
+    const v = localStorage.getItem(DISCOVER_SCROLL_KEY);
+    const n = Number(v);
+    return Number.isInteger(n) ? n : null;
+  } catch { return null; }
+};
 
 const DiscoverFeed = () => {
   const [listings, setListings] = useState([]);
@@ -163,24 +171,28 @@ const DiscoverFeed = () => {
   useRealtime("favorite", handleFavRealtime);
   useRealtime("listing:shared", handleShareRealtime);
   useRealtime("listing:contacted", handleContactRealtime);
-
-  const shuffleArray = (arr) => {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
+  // keep loop membership in sync — PWA was triplicated stale while browser reload saw new/hidden items
+  const handleListingRealtime = useCallback(({ action, listing }) => {
+    if (!listing?.id) return;
+    if (dedup(`listing:${action}:${listing.id}`, 900)) return;
+    if (action === "create") {
+      setListings((prev) => prev.some((l) => l.id === listing.id) ? prev : [listing, ...prev].slice(0, 50));
+    } else if (action === "delete" || action === "hide") {
+      setListings((prev) => prev.filter((l) => l.id !== listing.id));
+    } else if (action === "update") {
+      setListings((prev) => prev.map((l) => l.id === listing.id ? { ...l, ...listing } : l));
     }
-    return a;
-  };
+  }, [dedup]);
+  useRealtime("listing", handleListingRealtime);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        // Backend supports sort=random (ORDER BY RANDOM via shuffled IDs) + client shuffle for extra entropy and to break API cache
+        // Server sort=random is source of truth — no client shuffle so PWA and browser see identical order
         const data = await getListings({ limit: 50, sort: "random" });
-        if (!cancelled) setListings(shuffleArray(data.listings || []));
+        if (!cancelled) setListings(data.listings || []);
       } catch {
         if (!cancelled) setListings([]);
       } finally {
@@ -201,14 +213,24 @@ const DiscoverFeed = () => {
   // Triplicate the list so we can silently jump between copies for a seamless loop
   const loopItems = listings.length > 0 ? [...listings, ...listings, ...listings] : [];
 
+  // keep itemHeight accurate for PWA window-controls-overlay vs browser tab
   useLayoutEffect(() => {
     if (!containerRef.current || listings.length === 0) return;
     const container = containerRef.current;
-    const itemHeight = container.clientHeight;
-    itemHeightRef.current = itemHeight;
+    const updateHeight = () => { itemHeightRef.current = container.getBoundingClientRect().height || container.clientHeight; };
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [listings.length]);
 
-    const saved = Number(sessionStorage.getItem(DISCOVER_SCROLL_KEY));
-    const savedIndex = Number.isInteger(saved) && saved >= 0 && saved < listings.length ? saved : 0;
+  useLayoutEffect(() => {
+    if (!containerRef.current || listings.length === 0) return;
+    const container = containerRef.current;
+    const itemHeight = itemHeightRef.current || container.getBoundingClientRect().height || container.clientHeight;
+
+    const saved = getStoredIndex();
+    const savedIndex = saved !== null && saved >= 0 && saved < listings.length ? saved : 0;
 
     container.scrollTop = itemHeight * (listings.length + savedIndex); // resume on the middle copy, at the saved position
   }, [listings.length]);
@@ -254,9 +276,10 @@ const DiscoverFeed = () => {
       }
 
       // Persist position (relative to the original list) so returning from
-      // a product page resumes here instead of restarting from the top.
+      // a product page resumes here instead of restarting from the top — localStorage so PWA ↔ browser stay in sync
       const logicalIndex = index - total;
-      sessionStorage.setItem(DISCOVER_SCROLL_KEY, String(logicalIndex));
+      try { localStorage.setItem(DISCOVER_SCROLL_KEY, String(logicalIndex)); } catch {}
+      // also broadcast to other tabs/PWA via storage event (no-op needed, just write)
     }, 120);
   };
 

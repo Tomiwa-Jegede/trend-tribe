@@ -48,7 +48,7 @@ const FAQS = [
       },
       {
         q: "How does TrendTribe work?",
-        a: "Sellers list items with photos and price. Buyers browse Fashion, Beauty and Personal Care, Gadgets, Accessories, Snacks and more, then tap Contact Seller to chat on WhatsApp. Meet on campus, check the item, pay cash or transfer.",
+                a: "Sellers list items with photos and price. Buyers browse Fashion, Beauty and Personal Care, Gadgets, Accessories, Snacks and more, then tap Contact Seller to chat in-app. Meet on campus, check the item, pay cash or transfer.",
       },
       {
         q: "How do I verify my account?",
@@ -90,7 +90,7 @@ const FAQS = [
       },
       {
         q: "Can I bargain?",
-        a: "Yes — on WhatsApp after you tap Contact Seller. The message is pre-filled with the item title, price and link. No in-app chat needed.",
+        a: "Yes — tap Contact Seller to open an in-app chat with the seller, pre-linked to that item, right inside Trend Tribe.",
       },
     ],
   },

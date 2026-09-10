@@ -47,16 +47,24 @@ export default function ChatThread({ listingId, withUser, onClose }) {
 
   useEffect(() => { fetchThread(); }, [fetchThread]);
 
-  // realtime: new message in thread
-  useRealtime("message", useCallback((msg) => {
-    if (!msg?.listingId || msg.listingId !== listingId) return;
+  // realtime: new message in thread — handles both full socket/pusher payload and SW push fallback
+  const handleRealtimeMsg = useCallback((msg) => {
+    // SW push fallback sends {title, body, url} not full message — trigger refetch instead
+    if (!msg || (!msg.listingId && !msg.senderId)) {
+      // eslint-disable-next-line react-hooks/preserve-manual-memoization -- fetchThread stable via ref
+      fetchThread();
+      return;
+    }
+    if (msg.listingId !== listingId) return;
     const isRelevant = (msg.senderId === withUser?.id && msg.recipientId === user?.id) || (msg.senderId === user?.id && msg.recipientId === withUser?.id);
     if (!isRelevant) return;
     setMsgs((p) => p.some((m) => m.id === msg.id) ? p : [...p, msg]);
     if (msg.recipientId === user?.id) {
       const s = getSocket(); if (s?.connected) s.emit("message:delivered", { messageId: msg.id });
     }
-  }, [listingId, withUser?.id, user?.id]));
+  }, [listingId, withUser?.id, user?.id]);
+  useRealtime("message", handleRealtimeMsg);
+  useRealtime("message:unread", handleRealtimeMsg);
 
   useRealtime("typing", useCallback(({ from, listingId: lid, typing: t }) => {
     if (from !== withUser?.id || lid !== listingId) return;

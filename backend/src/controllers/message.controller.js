@@ -54,22 +54,20 @@ const createMessage = async (req, res) => {
       prisma.contactView.create({ data: { listingId: lid, viewerId: req.user.id } }).catch(() => {});
     }
     try { emitMessage(recipientId, msg); } catch {}
-    // push only if recipient is not online (app in background/closed) — if in-focus, rely on realtime + in-app toast
-    const shouldPush = (() => { try { const { isOnline } = require("../realtime"); return !isOnline(recipientId); } catch { return true; } })();
-    if (shouldPush) {
-      prisma.message.count({ where: { recipientId, read: false } }).then((unread) => {
-        const { sendPushToUser } = require("../utils/push");
-        sendPushToUser(prisma, recipientId, {
-          title: "Trend Tribe — New chat message",
-          body: `${msg.sender.fullName || msg.sender.username}: ${text.slice(0, 80)}`,
-          url: `/chat?thread=${lid}-${msg.senderId}`,
-          icon: "/icon-192.png",
-          badge: "/icon-192.png",
-          badgeCount: unread,
-          tag: `chat-${msg.id}`,
-        }).catch(() => {});
+    // Always send Web Push — PWA background throttles Pusher/Socket, so push wakes the SW
+    // SW suppresses the visual notification when app is visible (avoids noise), still refreshes inbox via postMessage
+    prisma.message.count({ where: { recipientId, read: false } }).then((unread) => {
+      const { sendPushToUser } = require("../utils/push");
+      sendPushToUser(prisma, recipientId, {
+        title: "Trend Tribe — New chat message",
+        body: `${msg.sender.fullName || msg.sender.username}: ${text.slice(0, 80)}`,
+        url: `/chat?thread=${lid}-${msg.senderId}`,
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        badgeCount: unread,
+        tag: `chat-${msg.id}`,
       }).catch(() => {});
-    }
+    }).catch(() => {});
     return res.status(201).json({ message: msg });
   } catch (err) {
     console.error("[CREATE MESSAGE ERROR]", err);

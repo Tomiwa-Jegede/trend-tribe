@@ -15,9 +15,6 @@ import {
   FiUser,
   FiLogOut,
   FiHelpCircle,
-  FiHeart,
-  FiMail,
-  FiMessageCircle,
   FiChevronDown,
 } from "react-icons/fi";
 import NotificationBell from "../notifications/NotificationBell";
@@ -85,12 +82,10 @@ const Navbar = () => {
   const [showGigsMenuMobile, setShowGigsMenuMobile] = useState(false);
   const gigsMenuMobileRef = useRef(null);
   const [availableGigsCount, setAvailableGigsCount] = useState(0);
-  const [showBookingsMenu, setShowBookingsMenu] = useState(false);
-  const bookingsMenuRef = useRef(null);
-  const [showBookingsMenuMobile, setShowBookingsMenuMobile] = useState(false);
+  const [showActivityMobile, setShowActivityMobile] = useState(false);
+  const activityMobileRef = useRef(null);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const accountMenuRef = useRef(null);
-  const bookingsMenuMobileRef = useRef(null);
   const [hasActiveService, setHasActiveService] = useState(false);
 
   const fetchInbox = useCallback(async () => {
@@ -153,8 +148,7 @@ const Navbar = () => {
     setShowMoreMobile(false);
     setShowGigsMenu(false);
     setShowGigsMenuMobile(false);
-    setShowBookingsMenu(false);
-    setShowBookingsMenuMobile(false);
+    setShowActivityMobile(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -163,9 +157,8 @@ const Navbar = () => {
       if (moreMobileRef.current && !moreMobileRef.current.contains(e.target)) setShowMoreMobile(false);
       if (gigsMenuRef.current && !gigsMenuRef.current.contains(e.target)) setShowGigsMenu(false);
       if (gigsMenuMobileRef.current && !gigsMenuMobileRef.current.contains(e.target)) setShowGigsMenuMobile(false);
-      if (bookingsMenuRef.current && !bookingsMenuRef.current.contains(e.target)) setShowBookingsMenu(false);
+      if (activityMobileRef.current && !activityMobileRef.current.contains(e.target)) setShowActivityMobile(false);
       if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) setShowAccountMenu(false);
-      if (bookingsMenuMobileRef.current && !bookingsMenuMobileRef.current.contains(e.target)) setShowBookingsMenuMobile(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -294,10 +287,10 @@ const Navbar = () => {
                 <button
                   onClick={() => setShowGigsMenu((v) => !v)}
                   className={`flex items-center gap-1 text-sm font-medium pb-1 ${
-                    location.pathname.startsWith("/gigs") ? "text-primary-600" : "text-gray-600 hover:text-primary-600"
+                    location.pathname.startsWith("/gigs") || location.pathname.startsWith("/bookings") ? "text-primary-600" : "text-gray-600 hover:text-primary-600"
                   }`}
                 >
-                  Gigs
+                  Services
                   {availableGigsCount > 0 && (
                     <span className="ml-0.5 bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
                       {availableGigsCount > 99 ? "99+" : availableGigsCount}
@@ -312,8 +305,9 @@ const Navbar = () => {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
-                      className="absolute top-8 left-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-52 z-50"
+                      className="absolute top-8 left-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-56 z-50"
                     >
+                      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Gigs</p>
                       <Link to="/gigs?view=post" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                         Post Gig
                       </Link>
@@ -328,17 +322,20 @@ const Navbar = () => {
                       <Link to="/gigs/wallet" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                         Wallet
                       </Link>
+                      <div className="border-t border-gray-100 my-1" />
+                      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Bookings</p>
+                      <Link to="/bookings/mine" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">My Bookings</Link>
+                      {hasActiveService && <Link to="/bookings/provider" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">As Provider</Link>}
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-              <NavLink path="/chat" label="Chats" />
               <div className="relative" ref={moreRef}>
                 <button
                   onClick={() => setShowMore((v) => !v)}
                   className="flex items-center gap-1 text-sm font-medium pb-1 text-gray-600 hover:text-primary-600"
                 >
-                  Menu <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
+                  More <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
                 </button>
                 <AnimatePresence>
                   {showMore && (
@@ -349,11 +346,12 @@ const Navbar = () => {
                       transition={{ duration: 0.18 }}
                       className="absolute top-8 right-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-56 z-50"
                     >
-                      <Link to="/bookings/mine" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">My Bookings</Link>
-                      {hasActiveService && <Link to="/bookings/provider" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">As Provider</Link>}
-                      <Link to={`/profile/${user?.slug || user?.id}`} onClick={() => setShowMore(false)} className={`block px-4 py-2 text-sm ${isAuthenticated ? "text-gray-700 hover:bg-gray-50" : "text-gray-400"}`}>My Profile</Link>
-                      {user?.role === "ADMIN" && <Link to="/admin" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Admin</Link>}
+                      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Activity</p>
+                      <Link to="/saved" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Favorites</Link>
+                      <Link to="/inbox" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Inbox</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
+                      <Link to="/chat" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Messages</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
                       <div className="border-t border-gray-100 my-1" />
+                      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Explore</p>
                       <Link to="/features" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Features</Link>
                       <Link to="/pricing" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Pricing</Link>
                       <Link to="/about" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">About</Link>
@@ -478,16 +476,30 @@ const Navbar = () => {
             >
               <MobileNavLink path="/" label="Home" index={0} />
               <MobileNavLink path="/marketplace" label="Marketplace" index={1} />
-              <div className="flex flex-col gap-1">
-                <Link to="/saved" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600">
-                  <span className="flex items-center gap-2"><FiHeart className="w-4 h-4" /> Favorites</span>
-                </Link>
-                <Link to="/inbox" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600">
-                  <span className="flex items-center gap-2"><FiMail className="w-4 h-4" /> Inbox {inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread}</span>}</span>
-                </Link>
-                <Link to="/chat" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600">
-                  <span className="flex items-center gap-2"><FiMessageCircle className="w-4 h-4" /> Chats {inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread}</span>}</span>
-                </Link>
+              <div ref={activityMobileRef}>
+                <motion.div custom={1} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
+                  <button
+                    onClick={() => setShowActivityMobile((v) => !v)}
+                    className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
+                  >
+                    <span className="flex items-center gap-1.5">Activity {inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</span>
+                    <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showActivityMobile ? "rotate-180" : ""}`} />
+                  </button>
+                </motion.div>
+                <AnimatePresence>
+                  {showActivityMobile && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
+                    >
+                      <Link to="/saved" onClick={() => setMenuOpen(false)} className="block text-sm font-medium py-1 text-gray-600 hover:text-primary-600">Favorites</Link>
+                      <Link to="/inbox" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600"><span>Inbox</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
+                      <Link to="/chat" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600"><span>Messages</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <div ref={gigsMenuMobileRef}>
                 <motion.div custom={1} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
@@ -496,7 +508,7 @@ const Navbar = () => {
                     className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
                   >
                     <span className="flex items-center gap-1.5">
-                      Gigs
+                      Services
                       {availableGigsCount > 0 && (
                         <span className="bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
                           {availableGigsCount > 99 ? "99+" : availableGigsCount}
@@ -514,33 +526,14 @@ const Navbar = () => {
                       exit={{ opacity: 0, height: 0 }}
                       className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
                     >
+                      <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase pt-1">Gigs</p>
                       <MobileNavLink path="/gigs?view=post" label="Post Gig" index={2} />
                       <MobileNavLink path="/gigs/available" label="Available Gigs" index={2} />
                       <MobileNavLink path="/gigs/wallet" label="Wallet" index={2} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              <div ref={bookingsMenuMobileRef}>
-                <motion.div custom={1} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
-                  <button
-                    onClick={() => setShowBookingsMenuMobile((v) => !v)}
-                    className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
-                  >
-                    <span>Bookings</span>
-                    <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showBookingsMenuMobile ? "rotate-180" : ""}`} />
-                  </button>
-                </motion.div>
-                <AnimatePresence>
-                  {showBookingsMenuMobile && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
-                    >
-                      {hasActiveService && <MobileNavLink path="/bookings/provider" label="As Provider" index={2} />}
+                      <div className="border-t border-gray-100 my-1" />
+                      <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Bookings</p>
                       <MobileNavLink path="/bookings/mine" label="My Bookings" index={2} />
+                      {hasActiveService && <MobileNavLink path="/bookings/provider" label="As Provider" index={2} />}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -551,7 +544,7 @@ const Navbar = () => {
                     onClick={() => setShowMoreMobile((v) => !v)}
                     className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
                   >
-                    <span>More</span> <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreMobile ? "rotate-180" : ""}`} />
+                    <span>Explore</span> <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreMobile ? "rotate-180" : ""}`} />
                   </button>
                 </motion.div>
                 <AnimatePresence>

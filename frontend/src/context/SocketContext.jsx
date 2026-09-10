@@ -15,18 +15,21 @@ export default function SocketProvider({ children }) {
   }, [isAuthenticated, token, user?.id]);
 
   useEffect(() => {
-    const onVis = () => { if (document.visibilityState === "visible") connectSocket(); };
+    const onVis = () => { if (document.visibilityState === "visible") { try { const s = connectSocket(); if (!s.connected) s.connect(); } catch {} } };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
+    window.addEventListener("pageshow", onVis);
+    // PWA standalone throttles timers — wake socket aggressively when app is in use
     const health = setInterval(() => {
       try {
         const s = connectSocket();
         if (!s.connected) s.connect();
       } catch {}
-    }, 15000);
+    }, 8000);
     return () => {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("focus", onVis);
+      window.removeEventListener("pageshow", onVis);
       clearInterval(health);
     };
   }, []);

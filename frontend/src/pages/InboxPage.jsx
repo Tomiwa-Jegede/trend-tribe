@@ -65,6 +65,7 @@ const InboxPage = () => {
   const [selecting, setSelecting] = useState(false);
   const [expanded, setExpanded] = useState(null); // id or thread-...
 
+  const threadParam = searchParams.get("thread");
   const fetchMessages = useCallback(async (showLoader = true) => {
     if (!isAuthenticated || !token) return;
     if (showLoader) setLoading(true);
@@ -73,12 +74,14 @@ const InboxPage = () => {
       setMessages(msgData.messages);
       setConversations(convos || []);
       setPagination(msgData.pagination);
-      const threadParam = searchParams.get("thread");
-      if (threadParam) {
-        const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
+      const tp = searchParams.get("thread");
+      if (tp) {
+        const [lid, withId] = tp.split("-").map((v) => parseInt(v, 10));
         if (!isNaN(lid) && !isNaN(withId)) {
-          const key = `thread-${lid}-${withId}`;
-          setExpanded(key);
+          // resolve to real per-person conversation key if exists, else keep pending key
+          const real = (convos || []).find((c) => c.otherUser?.id === withId);
+          const key = real ? real.key : `thread-${lid}-${withId}`;
+          setExpanded((prev) => prev === key ? prev : key);
           // save chat so Close just collapses, not deletes — can come back via Chats list
           setSavedChats((prev) => {
             if (prev.some((c) => c.key === key) || convos?.some((c) => c.key === key)) return prev;
@@ -94,7 +97,7 @@ const InboxPage = () => {
       }
     } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage fetchMessages]", err?.response?.data || err.message); }
     finally { if (showLoader) setLoading(false); }
-  }, [isAuthenticated, token, searchParams, user?.id]);
+  }, [isAuthenticated, token, user?.id]); // threadParam intentionally not a dep — read inside to keep callback stable
 
   // Clear stale inbox on logout or account switch, then fetch for new account
   useEffect(() => {
@@ -113,24 +116,32 @@ const InboxPage = () => {
     setSelecting(false);
     setExpanded(null);
     fetchMessages(true);
-  }, [isAuthenticated, token, user?.id, fetchMessages]);
+  }, [isAuthenticated, token, user?.id]); // fetchMessages stable — don't retrigger on thread change
 
-  const pollInbox = useCallback(() => fetchMessages(false), [fetchMessages]);
-  useRealtime("message", pollInbox, { enabled: isAuthenticated && !!token });
-  useRealtime("message:unread", pollInbox, { enabled: isAuthenticated && !!token });
-  // also refresh when app comes back from background (Pusher paused while hidden)
+  // realtime inbox refresh — stable handler via ref, fetches immediately on push/socket
+  const handleRealtimeMessage = useCallback((msg) => {
+    // if payload looks like a full message, optimistically update inbox list to feel instant
+    if (msg && msg.id && msg.body) {
+      setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [msg, ...prev].slice(0, 20));
+    }
+    fetchMessages(false);
+  }, [fetchMessages]);
+  useRealtime("message", handleRealtimeMessage, { enabled: isAuthenticated && !!token });
+  useRealtime("message:unread", handleRealtimeMessage, { enabled: isAuthenticated && !!token });
+  // also refresh when app comes back from background (Pusher paused while hidden / PWA throttled)
   useEffect(() => {
     if (!isAuthenticated || !token) return;
     const onVis = () => { if (document.visibilityState === "visible") fetchMessages(false); };
     const onFocus = () => fetchMessages(false);
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onFocus);
-    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", onFocus); };
+    window.addEventListener("pageshow", onFocus);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", onFocus); window.removeEventListener("pageshow", onFocus); };
   }, [isAuthenticated, token, fetchMessages]);
-  // stay fresh while inbox is open and message lands (no need to re-enter)
+  // fallback polling keeps PWA fresh when websocket/throttle drops — 5s when visible
   useEffect(() => {
     if (!isAuthenticated || !token) return;
-    const id = setInterval(() => { if (document.visibilityState === "visible") fetchMessages(false); }, 10000);
+    const id = setInterval(() => { if (document.visibilityState === "visible") fetchMessages(false); }, 5000);
     return () => clearInterval(id);
   }, [isAuthenticated, token, fetchMessages]);
 
@@ -194,25 +205,26 @@ const InboxPage = () => {
 
   // persist pending new-chat (first Contact Seller) so Close just collapses, not deletes — can reopen from Chats list
   useEffect(() => {
-    const threadParam = searchParams.get("thread");
-    if (!threadParam || !isChat) return;
-    const pendingKey = `thread-${threadParam}`;
-    if (conversations.some((c) => c.key === pendingKey) || savedChats.some((c) => c.key === pendingKey)) return;
-    const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
+    const tp = searchParams.get("thread");
+    if (!tp || !isChat) return;
+    const pendingKey = `thread-${tp}`;
+    const [lid, withId] = tp.split("-").map((v) => parseInt(v, 10));
     if (isNaN(lid) || isNaN(withId)) return;
+    // per-person dedup: if a real conversation with same otherUser exists, don't add pending
+    if (conversations.some((c) => c.otherUser?.id === withId) || savedChats.some((c) => c.otherUser?.id === withId)) return;
     const pending = { key: pendingKey, listing: { id: lid }, otherUser: { id: withId }, lastMessage: null, unreadCount: 0, isPending: true };
     setSavedChats((prev) => {
-      if (prev.some((c) => c.key === pendingKey)) return prev;
+      if (prev.some((c) => c.otherUser?.id === withId)) return prev;
       const next = [pending, ...prev];
       try { localStorage.setItem("tt_saved_chats", JSON.stringify(next)); } catch {}
       return next;
     });
   }, [searchParams, isChat, conversations, savedChats]);
 
-  // cleanup saved pending once real conversation appears (avoid duplicate)
+  // cleanup saved pending once real conversation appears (avoid duplicate) — match by otherUser
   useEffect(() => {
     if (!isChat || savedChats.length === 0 || conversations.length === 0) return;
-    const filtered = savedChats.filter((s) => !conversations.some((c) => c.key === s.key));
+    const filtered = savedChats.filter((s) => !conversations.some((c) => c.otherUser?.id === s.otherUser?.id));
     if (filtered.length !== savedChats.length) {
       setSavedChats(filtered);
       try { localStorage.setItem("tt_saved_chats", JSON.stringify(filtered)); } catch {}
@@ -243,11 +255,12 @@ const InboxPage = () => {
         <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div>
       ) : isChat ? (
         (() => {
-          const threadParam = searchParams.get("thread");
-          const pendingKey = threadParam ? `thread-${threadParam}` : null;
-          const hasPending = pendingKey && !conversations.some((c) => c.key === pendingKey) && !savedChats.some((c) => c.key === pendingKey);
-          const displayConvos = [...savedChats.filter((s) => !conversations.some((c) => c.key === s.key)), ...conversations];
-          const finalConvos = hasPending ? [{ key: pendingKey, listing: { id: parseInt(threadParam.split("-")[0], 10) }, otherUser: { id: parseInt(threadParam.split("-")[1], 10) }, lastMessage: null, unreadCount: 0, isPending: true }, ...displayConvos] : displayConvos;
+          const tp2 = searchParams.get("thread");
+          const pendingKey = tp2 ? `thread-${tp2}` : null;
+          const otherId2 = tp2 ? parseInt(tp2.split("-")[1], 10) : null;
+          const hasPending = pendingKey && otherId2 && !conversations.some((c) => c.otherUser?.id === otherId2) && !savedChats.some((c) => c.otherUser?.id === otherId2);
+          const displayConvos = [...savedChats.filter((s) => !conversations.some((c) => c.otherUser?.id === s.otherUser?.id)), ...conversations];
+          const finalConvos = hasPending ? [{ key: pendingKey, listing: { id: parseInt(tp2.split("-")[0], 10) }, otherUser: { id: otherId2 }, lastMessage: null, unreadCount: 0, isPending: true }, ...displayConvos] : displayConvos;
           if (finalConvos.length === 0) {
             return (
               <div className="card p-10 text-center">
