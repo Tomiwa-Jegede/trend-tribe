@@ -125,6 +125,16 @@ const InboxPage = () => {
     try { await deleteMessagesBulk(Array.from(selected)); setMessages((prev) => prev.filter((x) => !selected.has(x.id))); setSelected(new Set()); setSelecting(false); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage bulkDelete]", err?.response?.data || err.message); }
   };
   const handleDeleteAll = async () => {
+    if (isChat) {
+      if (!window.confirm(`Delete all ${conversations.length + savedChats.length} chats?`)) return;
+      try { await deleteAllMessages(); } catch {}
+      setSavedChats([]);
+      try { localStorage.removeItem("tt_saved_chats"); } catch {}
+      setConversations([]);
+      setMessages([]);
+      setSelected(new Set()); setSelecting(false);
+      return;
+    }
     if (!window.confirm(`Delete all ${messages.length} messages?`)) return;
     try { await deleteAllMessages(); setMessages([]); setSelected(new Set()); setSelecting(false); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage deleteAll]", err?.response?.data || err.message); }
   };
@@ -140,6 +150,33 @@ const InboxPage = () => {
       setSearchParams(params, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // persist pending new-chat (first Contact Seller) so Close just collapses, not deletes — can reopen from Chats list
+  useEffect(() => {
+    const threadParam = searchParams.get("thread");
+    if (!threadParam || !isChat) return;
+    const pendingKey = `thread-${threadParam}`;
+    if (conversations.some((c) => c.key === pendingKey) || savedChats.some((c) => c.key === pendingKey)) return;
+    const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
+    if (isNaN(lid) || isNaN(withId)) return;
+    const pending = { key: pendingKey, listing: { id: lid }, otherUser: { id: withId }, lastMessage: null, unreadCount: 0, isPending: true };
+    setSavedChats((prev) => {
+      if (prev.some((c) => c.key === pendingKey)) return prev;
+      const next = [pending, ...prev];
+      try { localStorage.setItem("tt_saved_chats", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [searchParams, isChat, conversations, savedChats]);
+
+  // cleanup saved pending once real conversation appears (avoid duplicate)
+  useEffect(() => {
+    if (!isChat || savedChats.length === 0 || conversations.length === 0) return;
+    const filtered = savedChats.filter((s) => !conversations.some((c) => c.key === s.key));
+    if (filtered.length !== savedChats.length) {
+      setSavedChats(filtered);
+      try { localStorage.setItem("tt_saved_chats", JSON.stringify(filtered)); } catch {}
+    }
+  }, [isChat, conversations, savedChats]);
 
   return (
     <div className="container-app py-6 sm:py-10">
@@ -168,24 +205,7 @@ const InboxPage = () => {
           const threadParam = searchParams.get("thread");
           const pendingKey = threadParam ? `thread-${threadParam}` : null;
           const hasPending = pendingKey && !conversations.some((c) => c.key === pendingKey) && !savedChats.some((c) => c.key === pendingKey);
-          if (hasPending) {
-            // ensure pending is also in savedChats for persistence after close
-            const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
-            if (!isNaN(lid) && !isNaN(withId) && !savedChats.some((c) => c.key === pendingKey)) {
-              const pending = { key: pendingKey, listing: { id: lid }, otherUser: { id: withId }, lastMessage: null, unreadCount: 0, isPending: true };
-              // don't call setState during render — schedule
-              setTimeout(() => {
-                setSavedChats((prev) => {
-                  if (prev.some((c) => c.key === pendingKey)) return prev;
-                  const next = [pending, ...prev];
-                  localStorage.setItem("tt_saved_chats", JSON.stringify(next));
-                  return next;
-                });
-              }, 0);
-            }
-          }
           const displayConvos = [...savedChats.filter((s) => !conversations.some((c) => c.key === s.key)), ...conversations];
-          // also include current pending if not yet saved (immediate)
           const finalConvos = hasPending ? [{ key: pendingKey, listing: { id: parseInt(threadParam.split("-")[0], 10) }, otherUser: { id: parseInt(threadParam.split("-")[1], 10) }, lastMessage: null, unreadCount: 0, isPending: true }, ...displayConvos] : displayConvos;
           if (finalConvos.length === 0) {
             return (
