@@ -127,7 +127,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
   if (loading) {
     return (
-      <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-[500px] border border-gray-200 rounded-2xl overflow-hidden bg-white animate-pulse">
+      <div className="flex flex-col h-[100dvh] border border-gray-200 rounded-2xl overflow-hidden bg-white animate-pulse">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
           <div className="w-9 h-9 rounded-full bg-gray-200" />
           <div className="flex-1 space-y-2">
@@ -155,7 +155,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     );
   }
   return (
-    <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-[500px] border border-gray-200 rounded-2xl overflow-hidden bg-white">
+    <div className="flex flex-col h-[100dvh] border border-gray-200 rounded-2xl overflow-hidden bg-white">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700 overflow-hidden">
