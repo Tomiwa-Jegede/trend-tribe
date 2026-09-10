@@ -4,9 +4,34 @@ import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye, FiMessageCircle } from "react-icons/fi";
 import { getMyMessages, getConversations, markMessageRead, markAllMessagesRead, deleteMessage, deleteMessagesBulk, deleteAllMessages } from "../services/messageService";
+import { getListingById } from "../services/listingService";
 import useRealtime from "../hooks/useRealtime";
 import { useAuth } from "../context/AuthContext";
 import ChatThread from "../components/chat/ChatThread";
+
+const PendingChatRow = ({ listingId, otherId, onOpen }) => {
+  const [listing, setListing] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    getListingById(listingId).then((d) => { if (!cancelled) setListing(d); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [listingId]);
+  const other = listing?.seller && listing.seller.id === otherId ? listing.seller : { id: otherId, fullName: listing?.seller?.fullName, username: listing?.seller?.username, avatar: listing?.seller?.avatar };
+  const displayName = other?.fullName || other?.username || (listing ? listing.title : `Chat ${listingId}`);
+  const avatar = other?.avatar || listing?.images?.[0];
+  return (
+    <div className="card p-4 cursor-pointer hover:border-primary-200 transition-colors" onClick={onOpen}>
+      <div className="flex gap-3 items-center">
+        {avatar && avatar.startsWith("http") ? <img src={avatar} alt={displayName} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{displayName?.[0] || "?"}</div>}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-900 truncate">{displayName} · {listing?.title || `Listing #${listingId}`}</p>
+          <p className="text-xs text-gray-500 truncate">No messages yet — tap to open chat</p>
+        </div>
+        <span className="text-xs text-primary-600 font-semibold">Open chat →</span>
+      </div>
+    </div>
+  );
+};
 
 const InboxPage = () => {
   const { isAuthenticated, token, user } = useAuth();
@@ -216,31 +241,51 @@ const InboxPage = () => {
               </div>
             );
           }
+          // when a chat is open, show it full-page, not nested inside a card
+          if (expanded && expanded.startsWith("thread-")) {
+            const open = finalConvos.find((c) => c.key === expanded);
+            if (open) {
+              return (
+                <>
+                  <button onClick={handleCloseChat} className="mb-4 flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800">
+                    ← Back to chats
+                  </button>
+                  <ChatThread listingId={open.listing.id} withUser={open.otherUser} onClose={handleCloseChat} />
+                </>
+              );
+            }
+            // pending new thread not yet in finalConvos (first open)
+            const threadParam = searchParams.get("thread");
+            if (threadParam) {
+              const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
+              if (!isNaN(lid) && !isNaN(withId)) {
+                return <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />;
+              }
+            }
+          }
           return (
             <>
               <div className="flex flex-col gap-3">
                 {finalConvos.map((c) => {
-              // reuse conversations as chat rooms — flat messages list removed for split inbox
               const key = c.key;
               const isOpen = expanded === key;
-              const isSelected = false;
-              // dummy to keep linter happy
-              void messages; void isSelected;
+              if (c.isPending) {
+                return (
+                  <div key={key} onClick={() => setExpanded(key)} className="cursor-pointer">
+                    <PendingChatRow listingId={c.listing.id} otherId={c.otherUser.id} onOpen={() => setExpanded(key)} />
+                  </div>
+                );
+              }
               return (
                 <div key={key} className="card p-4">
-                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => isOpen ? handleCloseChat() : setExpanded(key)}>
+                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => setExpanded(key)}>
                     {c.otherUser?.avatar ? <img src={c.otherUser.avatar} alt={c.otherUser.username} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{c.otherUser?.fullName?.[0] || c.otherUser?.username?.[0] || "?"}</div>}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{c.otherUser?.fullName || c.otherUser?.username} · {c.listing?.title || "Chat"}</p>
                       <p className="text-xs text-gray-500 truncate">{c.lastMessage?.body?.slice(0, 60) || "No messages"} {c.unreadCount > 0 && <span className="ml-2 bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{c.unreadCount} new</span>}</p>
                     </div>
-                    <span className="text-xs text-primary-600 font-semibold">{isOpen ? "Close" : "Open chat →"}</span>
+                    <span className="text-xs text-primary-600 font-semibold">Open chat →</span>
                   </div>
-                  {isOpen && c.listing?.id && c.otherUser?.id && (
-                    <div className="mt-4">
-                      <ChatThread listingId={c.listing.id} withUser={c.otherUser} onClose={handleCloseChat} />
-                    </div>
-                  )}
                 </div>
               );
             })}
