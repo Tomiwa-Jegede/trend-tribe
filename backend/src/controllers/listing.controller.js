@@ -1240,6 +1240,31 @@ const revealContact = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// POST /api/listings/:id/contact-open — track Contact Seller open for chat (no WhatsApp), increments contactViews + realtime
+// ─────────────────────────────────────────────────────────────
+const trackContactOpen = async (req, res) => {
+  try {
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
+    const listing = await findListingByIdentifier(identifier);
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+    const viewerId = req.user?.id;
+    const isOwner = viewerId && listing.sellerId === viewerId;
+    if (isOwner) return res.status(400).json({ error: "You cannot contact your own listing" });
+    if (!listing.isAvailable) return res.status(400).json({ error: "Listing not available" });
+    // fire-and-forget increment but return updated count for optimistic UI
+    const updated = await prisma.listing.update({ where: { id: listing.id }, data: { contactViews: { increment: 1 } }, select: { contactViews: true, id: true } });
+    // also log for analytics
+    if (viewerId) prisma.contactView.create({ data: { listingId: listing.id, viewerId } }).catch(() => {});
+    try { const { emitContactView } = require("../realtime"); emitContactView(updated.id, updated.contactViews); } catch {}
+    return res.status(200).json({ contactViews: updated.contactViews });
+  } catch (err) {
+    console.error("[TRACK CONTACT OPEN ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
 // POST /api/listings/:slug/favorite ← PROTECTED
 // Toggles a favorite on/off for the current user.
 // ─────────────────────────────────────────────────────────────
@@ -1445,6 +1470,7 @@ module.exports = {
   getListingsByUser,
   reportListing,
   revealContact,
+  trackContactOpen,
   searchListingsByImage,
   toggleFavorite,
   getMyFavoriteIds,

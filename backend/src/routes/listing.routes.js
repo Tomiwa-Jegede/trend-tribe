@@ -13,6 +13,7 @@ const {
   getListingsByUser,
   reportListing,
   revealContact,
+  trackContactOpen,
   searchListingsByImage,
   toggleFavorite,
   getMyFavoriteIds,
@@ -65,6 +66,7 @@ router.delete("/:id", protect, requireSeller, deleteListing);
 router.post("/:id/boost", protect, requireSeller, boostListing);
 router.post("/:id/report", protect, reportListing);
 router.post("/:id/contact", protect, revealContact);
+router.post("/:id/contact-open", protect, trackContactOpen);
 router.post("/:id/favorite", protect, toggleFavorite);
 router.post("/:id/share", incrementShare);
 
