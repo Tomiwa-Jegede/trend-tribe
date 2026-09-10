@@ -369,17 +369,6 @@ const Navbar = () => {
                 <>
 
                   <div className="flex items-center gap-1 pl-3 border-l border-sage-100">
-                    <Link to="/saved" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Favorites">
-                      <FiHeart className={`w-5 h-5 ${location.pathname === "/saved" ? "text-primary-600 fill-primary-600" : "text-gray-600"}`} />
-                    </Link>
-                    <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Inbox">
-                      <FiMail className={`w-5 h-5 ${location.pathname === "/inbox" ? "text-primary-600" : "text-gray-600"}`} />
-                      {inboxUnread > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                          {inboxUnread > 99 ? "99+" : inboxUnread}
-                        </span>
-                      )}
-                    </Link>
                     <NotificationBell />
                     <div className="relative" ref={accountMenuRef}>
                       <button
@@ -456,27 +445,6 @@ const Navbar = () => {
 
             {/* ── Mobile Bell + Menu Toggle (outside hamburger) ── */}
             <div className="md:hidden flex items-center gap-1">
-              {isAuthenticated && (
-                <Link to="/saved" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Favorites">
-                  <FiHeart className="w-5 h-5 text-gray-600" />
-                </Link>
-              )}
-              <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Inbox">
-                <FiMail className="w-5 h-5 text-gray-600" />
-                {inboxUnread > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
-                    {inboxUnread > 99 ? "99+" : inboxUnread}
-                  </span>
-                )}
-              </Link>
-              <Link to="/chat" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Chats">
-                <FiMessageCircle className="w-5 h-5 text-gray-600" />
-                {inboxUnread > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
-                    {inboxUnread > 99 ? "99+" : inboxUnread}
-                  </span>
-                )}
-              </Link>
               <NotificationBell />
               <motion.button
                 className="p-2 rounded-lg text-gray-600 hover:bg-sage-50 transition-colors"
@@ -510,6 +478,17 @@ const Navbar = () => {
             >
               <MobileNavLink path="/" label="Home" index={0} />
               <MobileNavLink path="/marketplace" label="Marketplace" index={1} />
+              <div className="flex flex-col gap-1">
+                <Link to="/saved" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600">
+                  <span className="flex items-center gap-2"><FiHeart className="w-4 h-4" /> Favorites</span>
+                </Link>
+                <Link to="/inbox" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600">
+                  <span className="flex items-center gap-2"><FiMail className="w-4 h-4" /> Inbox {inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread}</span>}</span>
+                </Link>
+                <Link to="/chat" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600">
+                  <span className="flex items-center gap-2"><FiMessageCircle className="w-4 h-4" /> Chats {inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread}</span>}</span>
+                </Link>
+              </div>
               <div ref={gigsMenuMobileRef}>
                 <motion.div custom={1} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
                   <button
