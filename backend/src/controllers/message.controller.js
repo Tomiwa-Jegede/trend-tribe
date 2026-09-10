@@ -42,6 +42,7 @@ const createMessage = async (req, res) => {
       data: { body: text, subject: subject || null, senderId: req.user.id, recipientId, listingId: lid, conversationId },
       include: { sender: { select: { id: true, username: true, fullName: true } }, listing: { select: { id: true, title: true } } },
     });
+    console.log(`[CREATE MESSAGE] id=${msg.id} conv=${conversationId} listing=${lid} from=${req.user.id} to=${recipientId} bodyLen=${text.length}`);
     if (conversationId) {
       prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date() } }).catch(() => {});
     }
@@ -163,16 +164,35 @@ const getThread = async (req, res) => {
     const listingId = req.query.listingId ? parseInt(req.query.listingId, 10) : null;
     const withId = req.query.with ? parseInt(req.query.with, 10) : null;
     if (!withId) return res.status(400).json({ error: "with required" });
-    // per-person Conversation first (merged), fallback to per-listing legacy
+    // per-person Conversation first, but also include legacy per-listing messages that have no conversationId
     let conversation = null;
     if (listingId) {
+      conversation = await prisma.conversation.findFirst({
+        where: { OR: [{ buyerId: req.user.id, sellerId: withId }, { buyerId: withId, sellerId: req.user.id }] },
+      });
+    } else {
       conversation = await prisma.conversation.findFirst({
         where: { OR: [{ buyerId: req.user.id, sellerId: withId }, { buyerId: withId, sellerId: req.user.id }] },
       });
     }
     let where;
     if (conversation) {
-      where = { conversationId: conversation.id };
+      // include both conversation-linked and legacy per-listing messages for this pair (covers first message before migration)
+      where = {
+        OR: [
+          { conversationId: conversation.id },
+          {
+            listingId: listingId || undefined,
+            conversationId: null,
+            OR: [
+              { senderId: req.user.id, recipientId: withId },
+              { senderId: withId, recipientId: req.user.id },
+            ],
+          },
+        ],
+      };
+      // if listingId is null (per-person view), just use conversationId
+      if (!listingId) where = { conversationId: conversation.id };
     } else if (listingId) {
       where = {
         listingId,
