@@ -11,13 +11,29 @@ import ChatThread from "../components/chat/ChatThread";
 
 const PendingChatRow = ({ listingId, otherId, onOpen }) => {
   const [listing, setListing] = useState(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
-    getListingById(listingId).then((d) => { if (!cancelled) setListing(d); }).catch(() => {});
+    setLoading(true);
+    getListingById(listingId).then((d) => { if (!cancelled) { setListing(d); setLoading(false); } }).catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [listingId]);
+  if (loading) {
+    return (
+      <div className="card p-4 animate-pulse">
+        <div className="flex gap-3 items-center">
+          <div className="w-10 h-10 rounded-full bg-gray-200" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 bg-gray-200 rounded w-1/3" />
+            <div className="h-2 bg-gray-200 rounded w-1/2" />
+          </div>
+          <div className="h-3 bg-gray-100 rounded w-16" />
+        </div>
+      </div>
+    );
+  }
   const other = listing?.seller && listing.seller.id === otherId ? listing.seller : { id: otherId, fullName: listing?.seller?.fullName, username: listing?.seller?.username, avatar: listing?.seller?.avatar };
-  const displayName = other?.fullName || other?.username || (listing ? listing.title : `Chat ${listingId}`);
+  const displayName = other?.fullName || other?.username || listing?.title || `Chat ${listingId}`;
   const avatar = other?.avatar || listing?.images?.[0];
   return (
     <div className="card p-4 cursor-pointer hover:border-primary-200 transition-colors" onClick={onOpen}>

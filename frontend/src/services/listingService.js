@@ -8,6 +8,7 @@ export const CATEGORIES = [
   "FASHION",
   "BEAUTY_AND_PERSONAL_CARE",
   "SNACKS",
+  "CAKES",
   "GADGETS",
   "SERVICES",
   "BOOKS",
