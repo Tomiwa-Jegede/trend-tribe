@@ -96,16 +96,24 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     if (s?.connected) s.emit(isTyping ? "typing:start" : "typing:stop", { to: withUser.id, listingId });
   };
 
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
   const handleSend = async (e) => {
     e.preventDefault();
     const body = text.trim();
-    if (!body) return;
-    setText("");
+    if (!body || sending) return;
+    setSending(true);
+    setSendError("");
     sendTyping(false);
     try {
       const msg = await sendMessage({ listingId, body });
       setMsgs((p) => [...p, msg]);
-    } catch {}
+      setText("");
+    } catch (err) {
+      setSendError(err.response?.data?.error || "Failed to send — tap to retry");
+    } finally {
+      setSending(false);
+    }
   };
 
   const ticks = (m) => {
@@ -119,7 +127,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
   if (loading) {
     return (
-      <div className="flex flex-col h-[70vh] max-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white animate-pulse">
+      <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-[500px] border border-gray-200 rounded-2xl overflow-hidden bg-white animate-pulse">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
           <div className="w-9 h-9 rounded-full bg-gray-200" />
           <div className="flex-1 space-y-2">
@@ -147,7 +155,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     );
   }
   return (
-    <div className="flex flex-col h-[70vh] max-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white">
+    <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-[500px] border border-gray-200 rounded-2xl overflow-hidden bg-white">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700 overflow-hidden">
@@ -189,6 +197,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         })}
         {typing && <div className="text-xs text-gray-500 italic">typing...</div>}
       </div>
+      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100">{sendError}</p>}
       <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white">
         <input
           value={text}
@@ -196,8 +205,9 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           onBlur={() => sendTyping(false)}
           placeholder="Type a message"
           className="flex-1 input-field !py-2.5"
+          disabled={sending}
         />
-        <button type="submit" className="btn-primary px-4 flex items-center gap-1"><FiSend className="w-4 h-4" /> Send</button>
+        <button type="submit" disabled={sending} className="btn-primary px-4 flex items-center gap-1 disabled:opacity-50"><FiSend className="w-4 h-4" /> {sending ? "..." : "Send"}</button>
       </form>
     </div>
   );
