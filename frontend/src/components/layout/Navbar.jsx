@@ -549,8 +549,6 @@ const Navbar = () => {
             >
               <MobileNavLink path="/" label="Home" index={0} />
               <MobileNavLink path="/marketplace" label="Marketplace" index={1} />
-              <MobileNavLink path="/inbox" label="Inbox" index={1} />
-              <MobileNavLink path="/chat" label="Chats" index={1} />
               <div ref={gigsMenuMobileRef}>
                 <motion.div custom={1} variants={reducedMotion ? {} : mobileItemVariants} initial="hidden" animate="visible">
                   <button
