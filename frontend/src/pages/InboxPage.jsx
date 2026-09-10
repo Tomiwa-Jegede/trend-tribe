@@ -15,6 +15,9 @@ const InboxPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [savedChats, setSavedChats] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("tt_saved_chats") || "[]"); } catch { return []; }
+  });
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(() => new Set());
@@ -32,7 +35,17 @@ const InboxPage = () => {
       const threadParam = searchParams.get("thread");
       if (threadParam) {
         const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
-        if (!isNaN(lid) && !isNaN(withId)) setExpanded(`thread-${lid}-${withId}`);
+        if (!isNaN(lid) && !isNaN(withId)) {
+          const key = `thread-${lid}-${withId}`;
+          setExpanded(key);
+          // save chat so Close just collapses, not deletes — can come back via Chats list
+          setSavedChats((prev) => {
+            if (prev.some((c) => c.key === key) || convos?.some((c) => c.key === key)) return prev;
+            const next = [...prev, { key, listing: { id: lid }, otherUser: { id: withId }, lastMessage: null, unreadCount: 0, isPending: true }];
+            localStorage.setItem("tt_saved_chats", JSON.stringify(next));
+            return next;
+          });
+        }
       } else if (msgData.messages?.some((m) => !m.read)) {
         markAllMessagesRead().catch(() => {});
         setMessages((prev) => prev.map((x) => ({ ...x, read: true })));
@@ -154,8 +167,27 @@ const InboxPage = () => {
         (() => {
           const threadParam = searchParams.get("thread");
           const pendingKey = threadParam ? `thread-${threadParam}` : null;
-          const hasPending = pendingKey && !conversations.some((c) => c.key === pendingKey);
-          if (conversations.length === 0 && !hasPending) {
+          const hasPending = pendingKey && !conversations.some((c) => c.key === pendingKey) && !savedChats.some((c) => c.key === pendingKey);
+          if (hasPending) {
+            // ensure pending is also in savedChats for persistence after close
+            const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
+            if (!isNaN(lid) && !isNaN(withId) && !savedChats.some((c) => c.key === pendingKey)) {
+              const pending = { key: pendingKey, listing: { id: lid }, otherUser: { id: withId }, lastMessage: null, unreadCount: 0, isPending: true };
+              // don't call setState during render — schedule
+              setTimeout(() => {
+                setSavedChats((prev) => {
+                  if (prev.some((c) => c.key === pendingKey)) return prev;
+                  const next = [pending, ...prev];
+                  localStorage.setItem("tt_saved_chats", JSON.stringify(next));
+                  return next;
+                });
+              }, 0);
+            }
+          }
+          const displayConvos = [...savedChats.filter((s) => !conversations.some((c) => c.key === s.key)), ...conversations];
+          // also include current pending if not yet saved (immediate)
+          const finalConvos = hasPending ? [{ key: pendingKey, listing: { id: parseInt(threadParam.split("-")[0], 10) }, otherUser: { id: parseInt(threadParam.split("-")[1], 10) }, lastMessage: null, unreadCount: 0, isPending: true }, ...displayConvos] : displayConvos;
+          if (finalConvos.length === 0) {
             return (
               <div className="card p-10 text-center">
                 <FiMessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
@@ -166,17 +198,8 @@ const InboxPage = () => {
           }
           return (
             <>
-              {hasPending && (() => {
-                const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
-                if (isNaN(lid) || isNaN(withId)) return null;
-                return (
-                  <div className="card p-4 mb-3 border-primary-200">
-                    <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />
-                  </div>
-                );
-              })()}
               <div className="flex flex-col gap-3">
-                {conversations.map((c) => {
+                {finalConvos.map((c) => {
               // reuse conversations as chat rooms — flat messages list removed for split inbox
               const key = c.key;
               const isOpen = expanded === key;
@@ -203,7 +226,7 @@ const InboxPage = () => {
             })}
           </div>
           <div className="mt-6 flex items-center justify-between gap-2 border-t border-gray-100 pt-4 flex-wrap">
-            <span className="text-xs text-gray-400">{conversations.length} chats · {conversations.reduce((a, c) => a + (c.unreadCount || 0), 0)} unread</span>
+            <span className="text-xs text-gray-400">{finalConvos.length} chats · {finalConvos.reduce((a, c) => a + (c.unreadCount || 0), 0)} unread</span>
             <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete all</button>
           </div>
         </>
