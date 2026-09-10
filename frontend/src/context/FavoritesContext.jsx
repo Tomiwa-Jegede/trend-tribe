@@ -51,9 +51,12 @@ export const FavoritesProvider = ({ children }) => {
   }, [isAuthenticated, token, user?.id]);
 
   const isFavorited = (listingId) => favoriteIds.has(listingId);
+  const pendingRef = useState(() => new Set())[0];
 
   // ── Optimistic toggle: update UI immediately, revert on failure ──
   const toggleFavorite = async (listingId) => {
+    if (pendingRef.has(listingId)) return favoriteIds.has(listingId);
+    pendingRef.add(listingId);
     const wasFavorited = favoriteIds.has(listingId);
 
     setFavoriteIds((prev) => {
@@ -78,6 +81,8 @@ export const FavoritesProvider = ({ children }) => {
         return next;
       });
       throw err;
+    } finally {
+      pendingRef.delete(listingId);
     }
   };
 

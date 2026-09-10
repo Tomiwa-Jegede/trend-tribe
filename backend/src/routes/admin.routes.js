@@ -292,19 +292,28 @@ router.delete("/users/:id", protect, requireAdmin, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 router.get("/reports", protect, requireAdmin, async (req, res) => {
   try {
-    const reports = await prisma.report.findMany({
-      where: { status: "PENDING" },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        reason: true,
-        createdAt: true,
-        listing: { select: { id: true, title: true } },
-        reporter: { select: { username: true } },
-      },
-    });
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+    const [reports, totalCount] = await Promise.all([
+      prisma.report.findMany({
+        where: { status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limitNum,
+        select: {
+          id: true,
+          reason: true,
+          createdAt: true,
+          listing: { select: { id: true, title: true } },
+          reporter: { select: { username: true } },
+        },
+      }),
+      prisma.report.count({ where: { status: "PENDING" } }),
+    ]);
 
-    return res.status(200).json({ reports });
+    return res.status(200).json({ reports, pagination: { totalCount, totalPages: Math.ceil(totalCount / limitNum), currentPage: pageNum, limit: limitNum } });
   } catch (err) {
     console.error("[ADMIN GET REPORTS ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -483,12 +492,11 @@ router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
     const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
     if (recipientIds.length === 0) return res.status(200).json({ sent: 0 });
     const messagesData = recipientIds.map((rid) => ({ subject: subject?.trim() || null, body: text, senderId: req.user.id, recipientId: rid }));
-    await prisma.message.createMany({ data: messagesData });
+    for (let i = 0; i < messagesData.length; i += 800) await prisma.message.createMany({ data: messagesData.slice(i, i + 800) });
     // notifications with preview (first 80 chars)
     const preview = text.slice(0, 80) + (text.length > 80 ? "…" : "");
     const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: null }));
-    // store preview in notification via raw? For MVP, notifications will show generic text, inbox has full body
-    await prisma.notification.createMany({ data: notifs });
+    for (let i = 0; i < notifs.length; i += 800) await prisma.notification.createMany({ data: notifs.slice(i, i + 800) });
     // realtime: push to inbox + bell instantly + phone push (even when app closed)
     try {
       const { emitMessage, emitNotification } = require("../realtime");
@@ -565,9 +573,9 @@ router.post("/listings/:id/share", protect, requireAdmin, async (req, res) => {
     const users = await prisma.user.findMany({ select: { id: true } });
     const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
     const messagesData = recipientIds.map((rid) => ({ subject: null, body, senderId: req.user.id, recipientId: rid, listingId: id }));
-    await prisma.message.createMany({ data: messagesData });
+    for (let i = 0; i < messagesData.length; i += 800) await prisma.message.createMany({ data: messagesData.slice(i, i + 800) });
     const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: id }));
-    await prisma.notification.createMany({ data: notifs });
+    for (let i = 0; i < notifs.length; i += 800) await prisma.notification.createMany({ data: notifs.slice(i, i + 800) });
     return res.status(200).json({ sent: recipientIds.length });
   } catch (err) {
     console.error("[ADMIN SHARE ERROR]", err);
@@ -828,7 +836,11 @@ router.get("/profit-summary", protect, requireAdmin, async (req, res) => {
 // ─── Clear personal profit — restart, only non-admin going forward ──
 router.delete("/profit/clear", protect, requireAdmin, async (req, res) => {
   try {
+    if (req.body?.confirm !== "RESET" && req.query?.confirm !== "RESET") {
+      return res.status(400).json({ error: "Send {confirm: 'RESET'} to clear profit — irreversible" });
+    }
     const deleted = await prisma.platformProfit.deleteMany({});
+    console.log(`[PROFIT CLEAR] admin ${req.user.id} cleared ${deleted.count} records`);
     return res.json({ message: `Cleared ${deleted.count} profit records — restart complete. Future profits only for non-admin accounts.`, deleted: deleted.count });
   } catch (err) {
     console.error("[CLEAR PROFIT ERROR]", err.message);

@@ -244,16 +244,17 @@ const getAllListings = async (req, res) => {
       if (maxPrice) where.price.lte = parseFloat(maxPrice);
     }
 
-    // Random sort — shuffle across entire result set, not just latest page
+    // Random sort — shuffle across result set (capped to 2k to avoid OOM, DB RANDOM would be slower)
     if (sort === "random") {
-      const allIds = await prisma.listing.findMany({ where, select: { id: true } });
-      const totalCount = allIds.length;
-      // Fisher-Yates shuffle
+      const totalCount = await prisma.listing.count({ where });
+      const cap = Math.min(totalCount, 2000);
+      const allIds = await prisma.listing.findMany({ where, select: { id: true }, take: cap, orderBy: { id: "desc" } });
+      // Fisher-Yates shuffle on capped set
       for (let i = allIds.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [allIds[i], allIds[j]] = [allIds[j], allIds[i]];
       }
-      const pagedIds = allIds.slice(skip, skip + limitNum).map((o) => o.id);
+      const pagedIds = allIds.slice(skip % cap, (skip % cap) + limitNum).map((o) => o.id);
       let listings = [];
       if (pagedIds.length > 0) {
         const fetched = await prisma.listing.findMany({
@@ -833,15 +834,12 @@ const {
         .json({ error: "No valid fields provided for update" });
     }
 
-    // If images are being replaced, delete the old ones from Cloudinary
-    if (images !== undefined) {
-      const removedPublicIds = listing.imagePublicIds.filter(
-        (pid) => !(imagePublicIds || []).includes(pid),
-      );
-      await deleteFromCloudinary(removedPublicIds);
-    }
-
     updateData.editCount = { increment: 1 };
+
+    // defer Cloudinary delete until DB update succeeds — prevents orphan delete on failure
+    const removedPublicIds = images !== undefined
+      ? listing.imagePublicIds.filter((pid) => !(imagePublicIds || []).includes(pid))
+      : [];
 
     let updated;
     if (totalUpdateCost > 0 && !isAdmin) {
@@ -887,6 +885,10 @@ const {
       });
     }
 
+    // now safe to delete old images from Cloudinary (DB succeeded)
+    if (removedPublicIds.length > 0) {
+      deleteFromCloudinary(removedPublicIds).catch(() => {});
+    }
     try { const { emitListing } = require("../realtime"); emitListing("updated", updated); } catch {}
     return res.status(200).json({
       message: "Listing updated successfully ✅",

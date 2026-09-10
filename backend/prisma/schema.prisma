@@ -26,6 +26,8 @@ model User {
   resetToken           String?         @unique
   resetTokenExpiresAt  DateTime?
   matricNumber         String?         @unique
+  pendingSellerEmail   String?
+  pendingSellerMatric  String?
   avatarPublicId       String?
   whatsapp             String?
   role                 Role            @default(USER)
@@ -94,7 +96,7 @@ model TokenPurchase {
   reference                String   @unique // our tx_ref sent to Flutterwave
   flutterwaveTransactionId String?  @unique // Flutterwave's numeric transaction ID (received after redirect)
   quantity                 Int      // display tokens purchased (not raw units)
-  amount                   Int      // amount in kobo/subunit
+  amount                   Int      // amount in Naira (Flutterwave Naira, not kobo) — GigTokenPurchase is kobo
   status                   String   @default("PENDING") // PENDING | SUCCESS | FAILED
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt

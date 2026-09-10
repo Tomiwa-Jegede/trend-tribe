@@ -64,6 +64,8 @@ const registerRules = [
 // ─── Login Rules ──────────────────────────────────────────────
 const loginRules = [
   body("identifier")
+    .isString()
+    .withMessage("Email or username must be text")
     .trim()
     .notEmpty()
     .withMessage("Email or username is required"),

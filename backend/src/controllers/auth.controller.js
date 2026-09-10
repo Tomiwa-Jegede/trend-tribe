@@ -298,6 +298,7 @@ const verifyRegistration = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { identifier, password } = req.body;
+    if (typeof identifier !== "string") return res.status(400).json({ error: "Email or username must be text" });
 
     const user = await prisma.user.findFirst({
       where: {
@@ -487,10 +488,11 @@ const forgotPassword = async (req, res) => {
 
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { resetToken, resetTokenExpiresAt },
+      data: { resetToken: hashedToken, resetTokenExpiresAt },
     });
 
     // Use canonical clientUrl (single, not comma-separated) — fixed for email links
@@ -521,8 +523,9 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
-
-    const user = await prisma.user.findUnique({ where: { resetToken: token } });
+    if (!token || typeof token !== "string") return res.status(400).json({ error: "Reset token required" });
+    const hashed = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await prisma.user.findUnique({ where: { resetToken: hashed } });
     if (
       !user ||
       !user.resetTokenExpiresAt ||
@@ -639,10 +642,11 @@ const requestSellerUpgrade = async (req, res) => {
 
     const otpCode = generateOTP();
     const otpExpiresAt = getOTPExpiry();
+    const pendingMatric = req.body.matricNumber ? req.body.matricNumber.trim() : null;
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { otpCode, otpExpiresAt },
+      data: { otpCode, otpExpiresAt, pendingSellerEmail: runEmail.trim(), pendingSellerMatric: pendingMatric },
     });
 
     await sendOTPEmail(runEmail, user.fullName, otpCode);
@@ -680,15 +684,28 @@ const verifySellerUpgrade = async (req, res) => {
     if (otp !== user.otpCode) {
       return res.status(400).json({ error: "Incorrect verification code" });
     }
+    // verify runEmail matches the pending one that OTP was sent to (hijack fix)
+    if (!user.pendingSellerEmail || runEmail.trim() !== user.pendingSellerEmail) {
+      return res.status(400).json({ error: "RUN email does not match the one that received the code" });
+    }
+    const finalMatric = matricNumber ? matricNumber.trim() : user.pendingSellerMatric || user.matricNumber;
+    if (finalMatric) {
+      const existingMatric = await prisma.user.findUnique({ where: { matricNumber: finalMatric } });
+      if (existingMatric && existingMatric.id !== user.id) {
+        return res.status(409).json({ error: "This matric number is already registered" });
+      }
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         role: "SELLER",
-        email: runEmail.trim(),
-        matricNumber: matricNumber ? matricNumber.trim() : user.matricNumber,
+        email: user.pendingSellerEmail,
+        matricNumber: finalMatric || user.matricNumber,
         otpCode: null,
         otpExpiresAt: null,
+        pendingSellerEmail: null,
+        pendingSellerMatric: null,
       },
     });
 
