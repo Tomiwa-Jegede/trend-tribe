@@ -148,7 +148,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     if (!vv) return;
     const update = () => {
       setVvHeight(vv.height);
-      setVvOffset(vv.offsetTop);
+      setVvOffsetTop(vv.offsetTop);
     };
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
