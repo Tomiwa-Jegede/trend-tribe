@@ -11,13 +11,20 @@ import ChatThread from "../components/chat/ChatThread";
 
 const PendingChatRow = ({ listingId, otherId, onOpen }) => {
   const [listing, setListing] = useState(null);
+  const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getListingById(listingId).then((d) => { if (!cancelled) { setListing(d); setLoading(false); } }).catch(() => { if (!cancelled) setLoading(false); });
+    setNotFound(false);
+    getListingById(listingId).then((d) => { if (!cancelled) { setListing(d); setLoading(false); } }).catch((err) => {
+      if (!cancelled) {
+        if (err?.response?.status === 404) { setNotFound(true); setListing({ id: listingId, title: "Product no longer available", isAvailable: false, seller: { id: otherId } }); }
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
-  }, [listingId]);
+  }, [listingId, otherId]);
   if (loading) {
     return (
       <div className="card p-4 animate-pulse">

@@ -84,5 +84,7 @@ export const refreshSocketAuth = () => {
   if (socket) {
     socket.auth = { token: getToken() };
     socket.disconnect().connect();
+  } else if (getToken()) {
+    connectSocket();
   }
 };

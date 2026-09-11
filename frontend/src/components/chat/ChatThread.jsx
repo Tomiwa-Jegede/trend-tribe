@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { FiSend, FiCheck, FiCheckCircle } from "react-icons/fi";
-import { getThread, sendMessage, markMessageRead } from "../../services/messageService";
+import { getThread, sendMessage } from "../../services/messageService";
 import { getListingById } from "../../services/listingService";
 import { getSocket, connectSocket } from "../../services/socket";
 import useRealtime from "../../hooks/useRealtime";
@@ -29,9 +29,12 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         if (!withUser?.id) return;
         const data = await getThread(listingId, withUser.id).catch(() => []);
         setMsgs(data || []);
-        (data || []).filter((m) => m.recipientId === user?.id && !m.read).forEach((m) => markMessageRead(m.id).catch(() => {}));
+        // bulk read via socket (server does updateMany) — avoids N PATCH storm
         const s = getSocket();
         if (s?.connected) s.emit("message:read", { listingId });
+        else {
+          // fallback when socket not connected: mark via single bulk endpoint is covered by Inbox read-all
+        }
       })(),
     ]).finally(() => setLoading(false));
   }, [listingId, withUser?.id, user?.id]);
@@ -40,7 +43,6 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     if (!listingId || !withUser?.id) return;
     const data = await getThread(listingId, withUser.id);
     setMsgs(data);
-    data.filter((m) => m.recipientId === user?.id && !m.read).forEach((m) => markMessageRead(m.id).catch(() => {}));
     const s = getSocket();
     if (s?.connected) s.emit("message:read", { listingId });
   }, [listingId, withUser?.id, user?.id]);
