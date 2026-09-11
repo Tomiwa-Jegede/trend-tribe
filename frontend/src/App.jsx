@@ -117,9 +117,12 @@ const App = () => {
   const isDiscoverMode =
     location.pathname === "/marketplace" &&
     new URLSearchParams(location.search).get("view") === "discover";
+  const isChatThreadOpen =
+    location.pathname === "/chat" &&
+    new URLSearchParams(location.search).has("thread");
   return (
     <div className="min-h-screen flex flex-col">
-      {!isDiscoverMode && <Navbar />}
+      {!isDiscoverMode && !isChatThreadOpen && <Navbar />}
 
       <main className="flex-1">
         <PageTransition>
@@ -293,7 +296,7 @@ const App = () => {
         </PageTransition>
       </main>
 
-      {!isDiscoverMode && <Footer />}
+      {!isDiscoverMode && !isChatThreadOpen && <Footer />}
       <FrederickWidget />
       <PWARegister />
       <InstallPrompt />
