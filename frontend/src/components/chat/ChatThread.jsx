@@ -132,10 +132,30 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     return <FiCheck className="w-3 h-3 text-gray-400" title="Sent — recipient offline" />;
   };
 
+  const inputRef = useRef(null);
+  // keep latest message visible when keyboard opens (visualViewport resize) — WhatsApp/iMessage behavior
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      if (document.activeElement === inputRef.current) {
+        requestAnimationFrame(() => {
+          if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+        });
+      }
+    };
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+    };
+  }, []);
+
   const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
   if (loading) {
     return (
-      <div className="flex flex-col h-full flex-1 min-h-0 border border-gray-200 rounded-2xl overflow-hidden bg-white animate-pulse">
+      <div className="flex flex-col h-full flex-1 min-h-0 border border-gray-200 sm:rounded-2xl overflow-hidden bg-white animate-pulse">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
           <div className="w-9 h-9 rounded-full bg-gray-200" />
           <div className="flex-1 space-y-2">
@@ -188,7 +208,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           </div>
         </Link>
       )}
-      <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30">
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30 overscroll-contain scroll-smooth">
         {msgs.map((m) => {
           const mine = m.senderId === user?.id;
           return (
@@ -205,17 +225,20 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         })}
         {typing && <div className="text-xs text-gray-500 italic">typing...</div>}
       </div>
-      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100">{sendError}</p>}
-      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white">
+      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0">{sendError}</p>}
+      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white shrink-0 sticky bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <input
+          ref={inputRef}
           value={text}
           onChange={(e) => { setText(e.target.value); e.target.value ? sendTyping(true) : sendTyping(false); }}
+          onFocus={() => requestAnimationFrame(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; })}
           onBlur={() => sendTyping(false)}
           placeholder="Type a message"
           className="flex-1 input-field !py-2.5"
           disabled={sending}
+          enterKeyHint="send"
         />
-        <button type="submit" disabled={sending} className="btn-primary px-4 flex items-center gap-1 disabled:opacity-50"><FiSend className="w-4 h-4" /> {sending ? "..." : "Send"}</button>
+        <button type="submit" disabled={sending} className="btn-primary px-4 flex items-center gap-1 disabled:opacity-50 shrink-0"><FiSend className="w-4 h-4" /> {sending ? "..." : "Send"}</button>
       </form>
     </div>
   );
