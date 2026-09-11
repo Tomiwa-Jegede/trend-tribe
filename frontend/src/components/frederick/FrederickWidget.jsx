@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, animate } from "framer-motion";
 import { FiMessageCircle, FiX, FiSend, FiShoppingBag, FiPaperclip } from "react-icons/fi";
 import { askFrederick } from "../../services/frederickService";
 import { useAuth } from "../../context/AuthContext";
@@ -216,21 +216,24 @@ const FrederickWidget = () => {
     }
   };
 
-  const [pos, setPos] = useState(() => {
+  const initialPos = (() => {
     try { const v = localStorage.getItem("jegede-bubble-pos"); return v ? JSON.parse(v) : { x: 0, y: 0 }; } catch { return { x: 0, y: 0 }; }
-  });
+  })();
+  const motionX = useMotionValue(initialPos.x || 0);
+  const motionY = useMotionValue(initialPos.y || 0);
   const savePos = (next) => {
-    setPos(next);
     try { localStorage.setItem("jegede-bubble-pos", JSON.stringify(next)); } catch {}
   };
   // snap to edge on mount if was in center (old saves)
   useEffect(() => {
     const vw = window.innerWidth;
-    const curX = pos?.x || 0;
-    // if not already at an edge, snap to nearest edge
+    const curX = motionX.get();
     if (curX !== 0 && curX !== -vw + 80) {
       const snappedX = curX < -vw / 2 + 40 ? -vw + 80 : 0;
-      if (snappedX !== curX) savePos({ x: snappedX, y: pos?.y || 0 });
+      if (snappedX !== curX) {
+        animate(motionX, snappedX, { type: "spring", stiffness: 400, damping: 30 });
+        savePos({ x: snappedX, y: motionY.get() });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -239,14 +242,19 @@ const FrederickWidget = () => {
     const onResize = () => {
       const vw = window.innerWidth, vh = window.innerHeight;
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-      const clampedY = clamp(pos?.y || 0, -vh + 80, 0);
-      const snappedX = (pos?.x || 0) < -vw / 2 + 40 ? -vw + 80 : 0;
+      const clampedY = clamp(motionY.get(), -vh + 80, 0);
+      const snappedX = motionX.get() < -vw / 2 + 40 ? -vw + 80 : 0;
       const clampedX = clamp(snappedX, -vw + 80, 0);
-      if (clampedX !== pos?.x || clampedY !== pos?.y) savePos({ x: clampedX, y: clampedY });
+      if (clampedX !== motionX.get() || clampedY !== motionY.get()) {
+        motionX.set(clampedX);
+        motionY.set(clampedY);
+        savePos({ x: clampedX, y: clampedY });
+      }
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [pos?.x, pos?.y]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>
@@ -254,22 +262,19 @@ const FrederickWidget = () => {
         drag={!open}
         dragMomentum={false}
         dragElastic={0.15}
-        onDragEnd={(_, info) => {
-          const next = { x: (pos?.x || 0) + info.offset.x, y: (pos?.y || 0) + info.offset.y };
+        onDragEnd={() => {
           const vw = window.innerWidth, vh = window.innerHeight;
           const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-          // snap to nearest edge via pointer — whichever edge pointer is closest on release
-          const snappedX = (info.point?.x ?? vw / 2 + next.x) < vw / 2 ? -vw + 80 : 0;
-          const clamped = {
-            x: snappedX,
-            y: clamp(next.y, -vh + 80, 0),
-          };
-          savePos(clamped);
+          const snappedX = motionX.get() < -vw / 2 + 40 ? -vw + 80 : 0;
+          const clampedY = clamp(motionY.get(), -vh + 80, 0);
+          animate(motionX, snappedX, { type: "spring", stiffness: 400, damping: 30 });
+          animate(motionY, clampedY, { type: "spring", stiffness: 400, damping: 30 });
+          savePos({ x: snappedX, y: clampedY });
         }}
-        style={{ willChange: "transform, opacity", touchAction: "none" }}
+        style={{ x: motionX, y: motionY, willChange: "transform, opacity", touchAction: "none" }}
         onMouseEnter={() => setIdle(false)}
-        animate={{ opacity: idle && !open ? 0.62 : 1, x: pos?.x || 0, y: pos?.y || 0 }}
-        transition={{ opacity: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }, x: { type: "spring", stiffness: 400, damping: 30 }, y: { type: "spring", stiffness: 400, damping: 30 } }}
+        animate={{ opacity: idle && !open ? 0.62 : 1 }}
+        transition={{ opacity: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] } }}
         className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100 cursor-grab active:cursor-grabbing`}
       >
         <AnimatePresence>
