@@ -258,8 +258,8 @@ const FrederickWidget = () => {
           const next = { x: (pos?.x || 0) + info.offset.x, y: (pos?.y || 0) + info.offset.y };
           const vw = window.innerWidth, vh = window.innerHeight;
           const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-          // snap to nearest edge (left or right) — never stays in center
-          const snappedX = next.x < -vw / 2 + 40 ? -vw + 80 : 0;
+          // snap to nearest edge via pointer — whichever edge pointer is closest on release
+          const snappedX = (info.point?.x ?? vw / 2 + next.x) < vw / 2 ? -vw + 80 : 0;
           const clamped = {
             x: snappedX,
             y: clamp(next.y, -vh + 80, 0),
