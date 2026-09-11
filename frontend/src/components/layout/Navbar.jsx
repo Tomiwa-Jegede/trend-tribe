@@ -100,6 +100,8 @@ const Navbar = () => {
 
   useRealtime("message", fetchInbox, { enabled: isAuthenticated && !!token });
   useRealtime("message:unread", fetchInbox, { enabled: isAuthenticated && !!token });
+  useRealtime("message:read", fetchInbox, { enabled: isAuthenticated && !!token });
+  useRealtime("message:delivered", fetchInbox, { enabled: isAuthenticated && !!token });
   useRealtime("notification", fetchNotif, { enabled: isAuthenticated && !!token });
   useRealtime("notification:unread", fetchNotif, { enabled: isAuthenticated && !!token });
 
@@ -358,7 +360,7 @@ const Navbar = () => {
                     >
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Activity</p>
                       <Link to="/saved" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Favorites</Link>
-                      <Link to="/inbox" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Inbox</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
+                      <Link to="/inbox" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Inbox</Link>
                       <Link to="/chat" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Messages</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
                       <div className="border-t border-gray-100 my-1" />
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Explore</p>
@@ -377,7 +379,7 @@ const Navbar = () => {
                 <>
 
                   <div className="flex items-center gap-1 pl-3 border-l border-sage-100">
-                    <NotificationBell />
+                    <NotificationBell externalUnread={notifUnread} onExternalUnreadChange={setNotifUnread} />
                     <div className="relative" ref={accountMenuRef}>
                       <button
                         onClick={() => setShowAccountMenu((v) => !v)}
@@ -453,7 +455,7 @@ const Navbar = () => {
 
             {/* ── Mobile Bell + Menu Toggle (outside hamburger) ── */}
             <div className="md:hidden flex items-center gap-1">
-              <NotificationBell />
+              <NotificationBell externalUnread={notifUnread} onExternalUnreadChange={setNotifUnread} />
               <motion.button
                 className="relative p-2 rounded-lg text-gray-600 hover:bg-sage-50 transition-colors"
                 onClick={() => setMenuOpen((prev) => !prev)}
@@ -510,7 +512,7 @@ const Navbar = () => {
                       className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
                     >
                       <Link to="/saved" onClick={() => setMenuOpen(false)} className="block text-sm font-medium py-1 text-gray-600 hover:text-primary-600">Favorites</Link>
-                      <Link to="/inbox" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600"><span>Inbox</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
+                      <Link to="/inbox" onClick={() => setMenuOpen(false)} className="block text-sm font-medium py-1 text-gray-600 hover:text-primary-600">Inbox</Link>
                       <Link to="/chat" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600"><span>Messages</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
                     </motion.div>
                   )}

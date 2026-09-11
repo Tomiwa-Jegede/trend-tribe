@@ -6,10 +6,19 @@ import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 import useRealtime from "../../hooks/useRealtime";
 
-const NotificationBell = () => {
+const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
   const { isAuthenticated, user, token } = useAuth();
   const location = useLocation();
-  const [unread, setUnread] = useState(0);
+  const [unread, setUnread] = useState(externalUnread ?? 0);
+  // sync from single source in Navbar (avoids duplicate poll/drift) — only when parent pushes new value
+  useEffect(() => { if (typeof externalUnread === "number") setUnread(externalUnread); }, [externalUnread]);
+  const setUnreadSafe = (v) => {
+    if (typeof externalUnread === "number" && onExternalUnreadChange) {
+      onExternalUnreadChange(typeof v === "function" ? v(unread) : v);
+    } else {
+      setUnread(v);
+    }
+  };
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [selecting, setSelecting] = useState(false);
@@ -23,21 +32,22 @@ const NotificationBell = () => {
   };
 
   const fetchUnread = useCallback(async () => {
+    if (typeof externalUnread === "number") return; // single source in Navbar
     if (!isAuthenticated || !token) return;
     try {
       const { data } = await api.get("/notifications/unread-count");
-      setUnread(data.unreadCount);
+      setUnreadSafe(data.unreadCount);
     } catch (err) {
       if (import.meta.env.DEV) console.warn("[NotificationBell fetchUnread]", err?.response?.data || err.message);
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, externalUnread]);
 
   const fetchList = useCallback(async () => {
     if (!isAuthenticated || !token) return;
     try {
       const { data } = await api.get("/notifications", { params: { limit: 20 } });
       setItems(data.notifications);
-      setUnread(data.unreadCount);
+      setUnreadSafe(data.unreadCount);
     } catch (err) {
       if (import.meta.env.DEV) console.warn("[NotificationBell fetchList]", err?.response?.data || err.message);
     }
@@ -47,13 +57,13 @@ const NotificationBell = () => {
   useEffect(() => {
     if (!isAuthenticated || !token || !user?.id) {
       setItems([]);
-      setUnread(0);
+      setUnreadSafe(0);
       closeDropdown();
       return;
     }
     // user switched — wipe previous account's notifications immediately before fetching
     setItems([]);
-    setUnread(0);
+    setUnreadSafe(0);
     closeDropdown();
     fetchUnread();
   }, [isAuthenticated, token, user?.id, fetchUnread]);
@@ -92,7 +102,7 @@ const NotificationBell = () => {
     if (next) {
       await fetchList();
       // only marks bell notifications read — messages/inbox unread stays until opened in /chat or /inbox
-      try { await api.post("/notifications/read-all"); setUnread(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[read-all notif]", err?.response?.data || err.message); }
+      try { await api.post("/notifications/read-all"); setUnreadSafe(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[read-all notif]", err?.response?.data || err.message); }
     }
     if (!next) {
       setSelecting(false);
@@ -103,7 +113,7 @@ const NotificationBell = () => {
   const handleMarkAll = async () => {
     try {
       await api.post("/notifications/read-all");
-      setUnread(0);
+      setUnreadSafe(0);
       setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (err) { if (import.meta.env.DEV) console.warn("[handleMarkAll]", err?.response?.data || err.message); }
   };
@@ -115,7 +125,7 @@ const NotificationBell = () => {
     }
     try {
       if (!n.read) await api.patch(`/notifications/${n.slug || n.id}/read`);
-      setUnread((c) => Math.max(0, c - (n.read ? 0 : 1)));
+      setUnreadSafe((c) => Math.max(0, c - (n.read ? 0 : 1)));
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell mark read]", err?.response?.data || err.message); }
     // Close dropdown immediately — navigation happens via <Link to=...>
@@ -149,7 +159,7 @@ const NotificationBell = () => {
       });
       // adjust unread if deleted was unread
       const wasUnread = items.find((x) => x.id === id)?.read === false;
-      if (wasUnread) setUnread((c) => Math.max(0, c - 1));
+      if (wasUnread) setUnreadSafe((c) => Math.max(0, c - 1));
     } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell deleteOne]", err?.response?.data || err.message); }
   };
 
@@ -163,7 +173,7 @@ const NotificationBell = () => {
       setItems((prev) => prev.filter((x) => !toRemove.has(x.id)));
       setSelected(new Set());
       setSelecting(false);
-      if (removedUnread) setUnread((c) => Math.max(0, c - removedUnread));
+      if (removedUnread) setUnreadSafe((c) => Math.max(0, c - removedUnread));
     } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell bulk-delete]", err?.response?.data || err.message); }
   };
 
@@ -175,7 +185,7 @@ const NotificationBell = () => {
       setItems([]);
       setSelected(new Set());
       setSelecting(false);
-      setUnread(0);
+      setUnreadSafe(0);
     } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell deleteAll]", err?.response?.data || err.message); }
   };
 
