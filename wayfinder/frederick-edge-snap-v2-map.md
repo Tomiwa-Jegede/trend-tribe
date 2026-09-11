@@ -10,6 +10,7 @@ Frederick bubble is draggable anywhere within visible frame (never outside), but
 
 ## Decisions so far
 - [frederick-v2-01-measure-edge](tickets/frederick-v2-01-measure-edge.md): Pointer `info.point.x < vw/2` → nearest edge.
+- [frederick-v2-02-animate-snap](tickets/frederick-v2-02-animate-snap.md): Spring 400/30 via `animate`, re-grab interrupts, keep `dragElastic 0.15`.
 
 ## Not yet specified
 - How to animate snap — spring params, duration, and interrupt if user re-grabs mid-snap
