@@ -126,25 +126,41 @@ const RevealSection = ({ children, className = "", delay = 0 }) => {
 };
 
 // ── Main component ─────────────────────────────────────────────
+const STATS_CACHE_KEY = "trend-tribe:stats-cache";
+const readStatsCache = () => {
+  try {
+    const raw = localStorage.getItem(STATS_CACHE_KEY);
+    if (!raw) return null;
+    const { hero, updatedAt } = JSON.parse(raw);
+    if (!hero || !updatedAt) return null;
+    if (Date.now() - new Date(updatedAt).getTime() > 24 * 60 * 60 * 1000) return null;
+    return hero;
+  } catch { return null; }
+};
+const writeStatsCache = (hero) => {
+  try { localStorage.setItem(STATS_CACHE_KEY, JSON.stringify({ hero, updatedAt: new Date().toISOString() })); } catch {}
+};
+
 const HomePage = () => {
   const { isAuthenticated } = useAuth();
   const reduced = useReducedMotion();
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState(() => readStatsCache());
+  const [isStale, setIsStale] = useState(() => !!readStatsCache());
   useEffect(() => {
     let alive = true;
     const fetchStats = async () => {
       try {
         const { data } = await api.get("/stats");
-        if (alive) setStats(data);
+        if (alive) { setStats(data); setIsStale(false); writeStatsCache(data); }
       } catch {}
     };
     fetchStats();
     const id = setInterval(fetchStats, 30_000);
     return () => { alive = false; clearInterval(id); };
   }, []);
-  // realtime: listing create/delete or whatsapp manual update
-  useRealtime("listing:created", () => api.get("/stats").then(({data})=>setStats(data)).catch(()=>{}), { enabled: true });
-  useRealtime("stats:update", (data) => setStats((prev) => prev ? { ...prev, ...data } : data), { enabled: true });
+  // realtime: listing create/delete or whatsapp manual update — also update cache
+  useRealtime("listing:created", () => api.get("/stats").then(({data})=>{ setStats(data); setIsStale(false); writeStatsCache(data); }).catch(()=>{}), { enabled: true });
+  useRealtime("stats:update", (data) => setStats((prev) => { const next = prev ? { ...prev, ...data } : data; writeStatsCache(next); setIsStale(false); return next; }), { enabled: true });
   return (
     <div className="flex flex-col">
       <Helmet>
@@ -301,7 +317,7 @@ const HomePage = () => {
               {/* Live stats — same fadeIn + ping like Now open */}
               <motion.div
                 variants={reduced ? {} : fadeIn}
-                className="flex flex-wrap gap-3 mb-5"
+                className={`flex flex-wrap gap-3 mb-5 ${isStale ? "opacity-70" : ""}`}
                 aria-live="polite"
               >
                 <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm font-semibold text-white">

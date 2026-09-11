@@ -75,8 +75,8 @@ export default defineConfig({
             options: { cacheName: "cloudinary-images", expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 }, cacheableResponse: { statuses: [0, 200] } },
           },
           {
-            // Realtime-critical: never serve stale — must be NetworkOnly so socket refetch is instant in PWA
-            urlPattern: /\/api\/(listings|auth\/me|notifications|messages)(\/.*)?(\?.*)?$/i,
+            // Realtime-critical: never serve stale — must be NetworkOnly so socket refetch is instant in PWA (stats uses localStorage cache, not SW)
+            urlPattern: /\/api\/(listings|auth\/me|notifications|messages|stats)(\/.*)?(\?.*)?$/i,
             handler: "NetworkOnly",
           },
           {
