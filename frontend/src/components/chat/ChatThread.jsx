@@ -1,7 +1,7 @@
 // src/components/chat/ChatThread.jsx — WhatsApp-like thread per listing
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { FiSend, FiCheck, FiCheckCircle } from "react-icons/fi";
+import { FiSend, FiCheck, FiCheckCircle, FiArrowLeft } from "react-icons/fi";
 import { getThread, sendMessage } from "../../services/messageService";
 import { getListingById } from "../../services/listingService";
 import { getSocket, connectSocket } from "../../services/socket";
@@ -140,6 +140,43 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   };
 
   const inputRef = useRef(null);
+  // VisualViewport-driven height/offset — input tracks real visible area live (keyboard open/close)
+  const [vvHeight, setVvHeight] = useState(() => window.visualViewport?.height || window.innerHeight);
+  const [vvOffsetTop, setVvOffsetTop] = useState(() => window.visualViewport?.offsetTop || 0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      setVvHeight(vv.height);
+      setVvOffset(vv.offsetTop);
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  // scroll-lock body while chat (fixed overlay) is open — guaranteed cleanup on close/unmount
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    const prevPosition = document.body.style.position;
+    const prevTop = document.body.style.top;
+    const scrollY = window.scrollY;
+    document.body.style.overflow = "hidden";
+    // keep scroll position stable on iOS (prevent jump)
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.position = prevPosition;
+      document.body.style.top = prevTop;
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
   // keep latest message visible when keyboard opens (visualViewport resize) — WhatsApp/iMessage behavior
   useEffect(() => {
     const vv = window.visualViewport;
@@ -162,10 +199,15 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
   if (loading) {
     return (
-      <div className="flex flex-col h-full flex-1 min-h-0 border border-gray-200 sm:rounded-2xl overflow-hidden bg-white animate-pulse">
+      <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden animate-pulse" style={{ height: `${vvHeight}px`, top: `${vvOffsetTop}px` }}>
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
-          <div className="w-9 h-9 rounded-full bg-gray-200" />
-          <div className="flex-1 space-y-2">
+          {onClose && (
+            <button onClick={onClose} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-700 shrink-0" aria-label="Back to chats">
+              <FiArrowLeft className="w-4 h-4" /> Back
+            </button>
+          )}
+          <div className="w-9 h-9 rounded-full bg-gray-200 shrink-0" />
+          <div className="flex-1 space-y-2 min-w-0">
             <div className="h-3 bg-gray-200 rounded w-1/3" />
             <div className="h-2 bg-gray-200 rounded w-1/4" />
           </div>
@@ -190,21 +232,23 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     );
   }
   return (
-    <div className="flex flex-col h-full flex-1 min-h-0 border-0 sm:border border-gray-200 sm:rounded-2xl overflow-hidden bg-white">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700 overflow-hidden">
-            {displayUser?.avatar ? <img src={displayUser.avatar} alt={displayUser.username} className="w-full h-full object-cover" /> : <span>{displayUser?.fullName?.[0] || displayUser?.username?.[0] || "?"}</span>}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              {displayUser?.fullName || displayUser?.username || "Chat"}
-              <span className={`w-2 h-2 rounded-full ${presence.online ? "bg-green-500" : "bg-gray-300"}`} />
-            </p>
-            <p className="text-xs text-gray-500">{presence.online ? "Online" : presence.lastSeen ? `Last seen ${new Date(presence.lastSeen).toLocaleTimeString()}` : "Offline"} {typing && "· typing..."}</p>
-          </div>
+    <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden" style={{ height: `${vvHeight}px`, top: `${vvOffsetTop}px` }}>
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
+        {onClose && (
+          <button onClick={onClose} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-700 shrink-0" aria-label="Back to chats">
+            <FiArrowLeft className="w-4 h-4" /> Back
+          </button>
+        )}
+        <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700 overflow-hidden shrink-0">
+          {displayUser?.avatar ? <img src={displayUser.avatar} alt={displayUser.username} className="w-full h-full object-cover" /> : <span>{displayUser?.fullName?.[0] || displayUser?.username?.[0] || "?"}</span>}
         </div>
-        {onClose && <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">Close</button>}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-900 flex items-center gap-2 truncate">
+            {displayUser?.fullName || displayUser?.username || "Chat"}
+            <span className={`w-2 h-2 rounded-full ${presence.online ? "bg-green-500" : "bg-gray-300"} shrink-0`} />
+          </p>
+          <p className="text-xs text-gray-500 truncate">{presence.online ? "Online" : presence.lastSeen ? `Last seen ${new Date(presence.lastSeen).toLocaleTimeString()}` : "Offline"} {typing && "· typing..."}</p>
+        </div>
       </div>
       {product && (
         <Link to={`/listings/${product.slug || product.id}`} className="mx-4 mt-3 p-3 bg-white border border-gray-200 rounded-xl flex gap-3 items-center hover:border-primary-200 transition-colors">

@@ -339,22 +339,14 @@ const InboxPage = () => {
           if (expanded && expanded.startsWith("thread-")) {
             const open = finalConvos.find((c) => c.key === expanded);
             if (open) {
-              return (
-                <div className="fixed inset-0 z-50 bg-white flex flex-col h-[100dvh] supports-[height:100dvh]:h-[100dvh]">
-                  <ChatThread listingId={open.listing.id} withUser={open.otherUser} onClose={handleCloseChat} />
-                </div>
-              );
+              return <ChatThread listingId={open.listing.id} withUser={open.otherUser} onClose={handleCloseChat} />;
             }
             // pending new thread not yet in finalConvos (first open)
             const threadParam = searchParams.get("thread");
             if (threadParam) {
               const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
               if (!isNaN(lid) && !isNaN(withId)) {
-                return (
-                  <div className="fixed inset-0 z-50 bg-white flex flex-col h-[100dvh] supports-[height:100dvh]:h-[100dvh]">
-                    <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />
-                  </div>
-                );
+                return <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />;
               }
             }
           }
