@@ -73,6 +73,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [inboxUnread, setInboxUnread] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const moreRef = useRef(null);
   const [showMoreMobile, setShowMoreMobile] = useState(false);
@@ -92,18 +93,27 @@ const Navbar = () => {
     if (!isAuthenticated || !token) { setInboxUnread(0); return; }
     try { const { data } = await api.get("/messages/unread-count"); setInboxUnread(data.unreadCount); } catch (err) { if (import.meta.env.DEV) console.warn("[Navbar inbox unread]", err?.response?.data || err.message); }
   }, [isAuthenticated, token]);
+  const fetchNotif = useCallback(async () => {
+    if (!isAuthenticated || !token) { setNotifUnread(0); return; }
+    try { const { data } = await api.get("/notifications/unread-count"); setNotifUnread(data.unreadCount); } catch {}
+  }, [isAuthenticated, token]);
 
   useRealtime("message", fetchInbox, { enabled: isAuthenticated && !!token });
   useRealtime("message:unread", fetchInbox, { enabled: isAuthenticated && !!token });
+  useRealtime("notification", fetchNotif, { enabled: isAuthenticated && !!token });
+  useRealtime("notification:unread", fetchNotif, { enabled: isAuthenticated && !!token });
 
   useEffect(() => {
     if (!isAuthenticated || !token || !user?.id) {
       setInboxUnread(0);
+      setNotifUnread(0);
       return;
     }
     setInboxUnread(0);
+    setNotifUnread(0);
     fetchInbox();
-  }, [isAuthenticated, token, user?.id, fetchInbox]);
+    fetchNotif();
+  }, [isAuthenticated, token, user?.id, fetchInbox, fetchNotif]);
 
 
 
@@ -445,7 +455,7 @@ const Navbar = () => {
             <div className="md:hidden flex items-center gap-1">
               <NotificationBell />
               <motion.button
-                className="p-2 rounded-lg text-gray-600 hover:bg-sage-50 transition-colors"
+                className="relative p-2 rounded-lg text-gray-600 hover:bg-sage-50 transition-colors"
                 onClick={() => setMenuOpen((prev) => !prev)}
                 whileTap={reducedMotion ? {} : { scale: 0.9 }}
                 aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -455,6 +465,11 @@ const Navbar = () => {
                   <FiX className="w-5 h-5" />
                 ) : (
                   <FiMenu className="w-5 h-5" />
+                )}
+                {(inboxUnread + notifUnread) > 0 && !menuOpen && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {(inboxUnread + notifUnread) > 99 ? "99+" : inboxUnread + notifUnread}
+                  </span>
                 )}
               </motion.button>
             </div>
