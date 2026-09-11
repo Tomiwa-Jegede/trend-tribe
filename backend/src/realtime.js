@@ -6,13 +6,19 @@ const prisma = require("./db");
 let io = null;
 const onlineCounts = new Map(); // userId -> socket count
 const lastSeen = new Map(); // userId -> Date
+const lastActive = new Map(); // userId -> Date of last typing/message (2min window)
 
 function getIO() {
   if (!io) throw new Error("Socket.IO not initialized");
   return io;
 }
-function isOnline(userId) { return (onlineCounts.get(userId) || 0) > 0; }
-function getPresence(userId) { return { userId, online: isOnline(userId), lastSeen: lastSeen.get(userId) || null }; }
+function isOnline(userId) {
+  if ((onlineCounts.get(userId) || 0) > 0) return true;
+  const last = lastActive.get(userId);
+  if (last && Date.now() - last.getTime() < 2 * 60 * 1000) return true;
+  return false;
+}
+function getPresence(userId) { return { userId, online: isOnline(userId), lastSeen: lastSeen.get(userId) || null, lastActive: lastActive.get(userId) || null }; }
 
 function initRealtime(httpServer, allowedOrigins) {
   io = new Server(httpServer, {
@@ -61,24 +67,32 @@ function initRealtime(httpServer, allowedOrigins) {
     if (process.env.NODE_ENV !== "production") {
       console.log(`[SOCKET] ${socket.id} connected user:${socket.user?.id || "anon"}`);
     }
-    // presence: track online
+    // presence: track online (socket + 2min recent activity)
     if (socket.user?.id) {
       const c = (onlineCounts.get(socket.user.id) || 0) + 1;
       onlineCounts.set(socket.user.id, c);
-      lastSeen.set(socket.user.id, new Date());
-      io.emit("presence", { userId: socket.user.id, online: true, lastSeen: new Date() });
+      const now = new Date();
+      lastSeen.set(socket.user.id, now);
+      lastActive.set(socket.user.id, now);
+      io.emit("presence", { userId: socket.user.id, online: true, lastSeen: now });
       try { const { emitPresence } = require("./pusher"); emitPresence(socket.user.id, true); } catch {}
     }
-    // typing: ephemeral, no DB
+    // typing: ephemeral, no DB — also counts as active for 2min window
     socket.on("typing:start", ({ to, listingId }) => {
       if (!socket.user?.id || !to) return;
+      lastActive.set(socket.user.id, new Date());
       io.to(`user:${to}`).emit("typing", { from: socket.user.id, listingId, typing: true });
       try { const { emitTyping } = require("./pusher"); emitTyping(to, { from: socket.user.id, listingId, typing: true }); } catch {}
     });
     socket.on("typing:stop", ({ to, listingId }) => {
       if (!socket.user?.id || !to) return;
+      lastActive.set(socket.user.id, new Date());
       io.to(`user:${to}`).emit("typing", { from: socket.user.id, listingId, typing: false });
       try { const { emitTyping } = require("./pusher"); emitTyping(to, { from: socket.user.id, listingId, typing: false }); } catch {}
+    });
+    socket.on("presence:ping", () => {
+      if (!socket.user?.id) return;
+      lastActive.set(socket.user.id, new Date());
     });
     // delivered/read receipts
     socket.on("message:delivered", async ({ messageId }) => {
@@ -215,4 +229,8 @@ const emitRead = (userId, data) => {
   try { getIO().to(`user:${userId}`).emit("message:read", data); } catch {}
 };
 
-module.exports = { initRealtime, getIO, isOnline, getPresence, emitListing, emitFavorite, emitNotification, emitMessage, emitInboxBroadcast, emitListingView, emitListingShare, emitContactView, emitPresence, emitTyping, emitDelivered, emitRead };
+const touchActive = (userId) => {
+  if (userId) lastActive.set(userId, new Date());
+};
+
+module.exports = { initRealtime, getIO, isOnline, getPresence, touchActive, emitListing, emitFavorite, emitNotification, emitMessage, emitInboxBroadcast, emitListingView, emitListingShare, emitContactView, emitPresence, emitTyping, emitDelivered, emitRead };

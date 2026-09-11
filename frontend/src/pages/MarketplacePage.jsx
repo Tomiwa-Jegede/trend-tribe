@@ -190,11 +190,20 @@ const MarketplacePage = () => {
     if (JSON.stringify(curr) === JSON.stringify(params)) return;
     setSearchParams(params, { replace: true });
   }, [filters, currentPage, view, setSearchParams]);
-  // keep currentPage in sync when user navigates back/forward
+  // keep filters + currentPage in sync when user navigates via Browse by Category or back/forward (URL truth)
   useEffect(() => {
     const p = parseInt(searchParams.get("page"), 10);
-    const next = Number.isInteger(p) && p > 0 ? p : 1;
-    if (next !== currentPage) setCurrentPage(next);
+    const nextPage = Number.isInteger(p) && p > 0 ? p : 1;
+    if (nextPage !== currentPage) setCurrentPage(nextPage);
+    const nextFilters = {
+      search: searchParams.get("search") || "",
+      category: searchParams.get("category") || "",
+      subcategory: searchParams.get("subcategory") || "",
+      condition: searchParams.get("condition") || "",
+      minPrice: searchParams.get("minPrice") || "",
+      maxPrice: searchParams.get("maxPrice") || "",
+    };
+    if (JSON.stringify(nextFilters) !== JSON.stringify(filters)) setFilters(nextFilters);
   }, [searchParams]);
 
   const handleFilterChange = (update) => {

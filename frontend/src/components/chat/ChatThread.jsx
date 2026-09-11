@@ -91,7 +91,14 @@ export default function ChatThread({ listingId, withUser, onClose }) {
 
   useEffect(() => {
     connectSocket();
-    // initial presence fetch via REST could be here, but socket presence will push
+    // keep presence alive while chat is open (visible + 2min window)
+    const s = getSocket();
+    const ping = () => { try { const sock = getSocket(); if (sock?.connected) sock.emit("presence:ping"); } catch {} };
+    ping();
+    const onVis = () => { if (document.visibilityState === "visible") ping(); };
+    document.addEventListener("visibilitychange", onVis);
+    const id = setInterval(ping, 60 * 1000);
+    return () => { document.removeEventListener("visibilitychange", onVis); clearInterval(id); };
   }, []);
 
   useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [msgs, typing]);

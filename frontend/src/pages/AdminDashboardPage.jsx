@@ -10,6 +10,7 @@ import api from "../api/axios";
 import useRealtime from "../hooks/useRealtime";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import InfoModal from "../components/ui/InfoModal";
 
@@ -67,6 +68,8 @@ const AdminDashboardPage = () => {
   const [notifying, setNotifying] = useState(false);
   const [pwaStats, setPwaStats] = useState(null);
   const [pwaError, setPwaError] = useState("");
+  const { user: authUser } = useAuth();
+  const isTopAdmin = authUser?.username === "Jegede01";
   const [heroStats, setHeroStats] = useState(cachedHero?.data || null);
   const [heroUpdatedAt, setHeroUpdatedAt] = useState(cachedHero?.updatedAt || null);
   const [heroLoading, setHeroLoading] = useState(!cachedHero);
@@ -240,17 +243,19 @@ const AdminDashboardPage = () => {
     api.get("/stats").then((r) => { setHeroStats(r.data); setHeroUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.hero, r.data); setWhatsappInput(String(r.data.whatsappMembers)); }).catch(() => {}).finally(()=> setHeroLoading(false));
   }, []);
   useEffect(() => {
+    if (!isTopAdmin) return;
     api.get("/admin/treasury").then(r=> setTreasury(r.data)).catch(e=> setTreasuryError(e.response?.data?.error||"Could not load treasury"));
     api.get("/admin/profit-summary").then(r=> setProfit(r.data)).catch(e=> setProfitError(e.response?.data?.error||"Could not load profit"));
-  }, []);
+  }, [isTopAdmin]);
   // Real-time: admin dashboard refreshes instantly (only admin)
   const refreshStats = useCallback(async () => {
     try { const d = await getAdminStats(); setStats(d); setStatsUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.stats, d); } catch {}
     try { const r = await api.get("/pwa/stats"); setPwaStats(r.data); } catch {}
     try { const h = await api.get("/stats"); setHeroStats(h.data); setHeroUpdatedAt(new Date().toISOString()); writeCache(CACHE_KEYS.hero, h.data); } catch {}
+    if (!isTopAdmin) return;
     try { const t = await api.get("/admin/treasury"); setTreasury(t.data); } catch {}
     try { const p = await api.get("/admin/profit-summary"); setProfit(p.data); } catch {}
-  }, []);
+  }, [isTopAdmin]);
   useRealtime("admin:listing", refreshStats, { enabled: true });
   useRealtime("admin:favorite", refreshStats, { enabled: true });
   useRealtime("listing", refreshStats, { enabled: true });
@@ -294,7 +299,13 @@ const AdminDashboardPage = () => {
           {(statsLoading || heroLoading) && <p className="text-xs text-gray-400 mb-3 flex items-center gap-1.5"><MiniSpinner size={12} /> Updating from database — showing last values until fresh data arrives {statsUpdatedAt ? `· last update ${new Date(statsUpdatedAt).toLocaleTimeString()}` : ""}</p>}
           {!statsLoading && statsUpdatedAt && <p className="text-xs text-gray-400 mb-3">Live · updated {new Date(statsUpdatedAt).toLocaleTimeString()}</p>}
 
-          {/* Treasury — Flutter available vs pending */}
+          {/* Treasury — Flutter available vs pending — Top Admin only */}
+          {!isTopAdmin ? (
+            <div className="mb-6 bg-white border border-sage-100 rounded-xl p-5 opacity-60">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Treasury — Available bal</p>
+              <p className="text-sm text-gray-500 mt-2">🔒 Treasury access — Top Admin only (Jegede01).</p>
+            </div>
+          ) : (
           <div className="mb-6 bg-white border border-sage-100 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Treasury — Available bal</p>
@@ -309,8 +320,15 @@ const AdminDashboardPage = () => {
               </div>
             ) : treasuryError ? <p className="text-sm text-red-500">{treasuryError}</p> : <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14}/> Loading treasury…</div>}
           </div>
+          )}
 
-          {/* Profit — personal profit from fees */}
+          {/* Profit — personal profit from fees — Top Admin only */}
+          {!isTopAdmin ? (
+            <div className="mb-6 bg-white border border-sage-100 rounded-xl p-5 opacity-60">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Personal profit — fees</p>
+              <p className="text-sm text-gray-500 mt-2">🔒 Personal profit — Top Admin only (Jegede01).</p>
+            </div>
+          ) : (
           <div className="mb-6 bg-white border border-sage-100 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -351,6 +369,7 @@ const AdminDashboardPage = () => {
               </>
             ) : profitError ? <p className="text-sm text-red-500">{profitError}</p> : <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14}/> Loading profit…</div>}
           </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {STAT_CONFIG.map(({ key, label, to }) => {

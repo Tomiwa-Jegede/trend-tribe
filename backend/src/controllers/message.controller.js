@@ -43,6 +43,7 @@ const createMessage = async (req, res) => {
       include: { sender: { select: { id: true, username: true, fullName: true } }, listing: { select: { id: true, title: true } } },
     });
     console.log(`[CREATE MESSAGE] id=${msg.id} conv=${conversationId} listing=${lid} from=${req.user.id} to=${recipientId} bodyLen=${text.length}`);
+    try { const { touchActive } = require("../realtime"); touchActive(req.user.id); } catch {}
     if (conversationId) {
       prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date() } }).catch(() => {});
     }

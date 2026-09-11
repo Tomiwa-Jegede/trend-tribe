@@ -2,7 +2,7 @@
 
 const express = require("express");
 const { protect } = require("../middleware/auth.middleware");
-const { requireAdmin } = require("../middleware/admin.middleware");
+const { requireAdmin, requireTopAdmin } = require("../middleware/admin.middleware");
 const prisma = require("../db");
 const cloudinary = require("../config/cloudinary");
 const config = require("../config/env");
@@ -744,8 +744,8 @@ router.post("/send-weekly-email", async (req, res) => {
 
 // ─── Gig withdrawals — admin approve → Flutterwave transfer ──
 const { listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal } = require("../controllers/gig.controller");
-router.get("/gig-withdrawals", protect, requireAdmin, listGigWithdrawals);
-router.get("/gig-withdrawals/export", protect, requireAdmin, async (req, res) => {
+router.get("/gig-withdrawals", protect, requireTopAdmin, listGigWithdrawals);
+router.get("/gig-withdrawals/export", protect, requireTopAdmin, async (req, res) => {
   try {
     const status = (req.query.status || "PENDING").toUpperCase();
     const where = status === "ALL" ? {} : { status };
@@ -777,11 +777,11 @@ router.get("/gig-withdrawals/export", protect, requireAdmin, async (req, res) =>
     return res.status(500).json({ error: "Could not generate CSV" });
   }
 });
-router.post("/gig-withdrawals/:id/approve", protect, requireAdmin, approveGigWithdrawal);
-router.post("/gig-withdrawals/:id/reject", protect, requireAdmin, rejectGigWithdrawal);
+router.post("/gig-withdrawals/:id/approve", protect, requireTopAdmin, approveGigWithdrawal);
+router.post("/gig-withdrawals/:id/reject", protect, requireTopAdmin, rejectGigWithdrawal);
 
 // ─── Admin treasury + profit — personal profit from fees ──
-router.get("/treasury", protect, requireAdmin, async (req, res) => {
+router.get("/treasury", protect, requireTopAdmin, async (req, res) => {
   try {
     const config = require("../config/env");
     let flutterAvailableKobo = null;
@@ -804,7 +804,7 @@ router.get("/treasury", protect, requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/profit-summary", protect, requireAdmin, async (req, res) => {
+router.get("/profit-summary", protect, requireTopAdmin, async (req, res) => {
   try {
     const now = new Date();
     const startOfDay = new Date(now); startOfDay.setHours(0,0,0,0);
@@ -834,7 +834,7 @@ router.get("/profit-summary", protect, requireAdmin, async (req, res) => {
 });
 
 // ─── Clear personal profit — restart, only non-admin going forward ──
-router.delete("/profit/clear", protect, requireAdmin, async (req, res) => {
+router.delete("/profit/clear", protect, requireTopAdmin, async (req, res) => {
   try {
     if (req.body?.confirm !== "RESET" && req.query?.confirm !== "RESET") {
       return res.status(400).json({ error: "Send {confirm: 'RESET'} to clear profit — irreversible" });

@@ -10,4 +10,16 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { requireAdmin };
+const TOP_ADMIN_USERNAME = "Jegede01";
+const isTopAdmin = (user) => user && user.username === TOP_ADMIN_USERNAME;
+const requireTopAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    return res.status(403).json({ error: "Access denied. Admin privileges required." });
+  }
+  if (!isTopAdmin(req.user)) {
+    return res.status(403).json({ error: "Treasury access denied — Top Admin only." });
+  }
+  next();
+};
+
+module.exports = { requireAdmin, requireTopAdmin, isTopAdmin, TOP_ADMIN_USERNAME };
