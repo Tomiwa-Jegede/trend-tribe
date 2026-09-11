@@ -6,7 +6,8 @@ export const uploadImages = async (files) => {
   files.forEach((file) => formData.append("images", file));
 
   const { data } = await api.post("/upload/images", formData, {
-    timeout: 60000, // 60s for uploads — let browser set boundary
+    headers: { "Content-Type": undefined }, // let browser set multipart boundary (was application/json -> req.files empty)
+    timeout: 60000,
   });
 
   return { urls: data.urls, publicIds: data.publicIds };
