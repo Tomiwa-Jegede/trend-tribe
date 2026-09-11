@@ -25,9 +25,12 @@ function trigger(channel, event, data) {
   try {
     const p = getPusher();
     if (!p) return;
-    p.trigger(channel, event, data, (err) => {
-      if (err && process.env.NODE_ENV !== "production") console.warn("[PUSHER trigger error]", err.message);
-    });
+    const maybePromise = p.trigger(channel, event, data);
+    if (maybePromise && typeof maybePromise.catch === "function") {
+      maybePromise.catch((err) => {
+        if (process.env.NODE_ENV !== "production") console.warn("[PUSHER trigger error]", err?.message || err);
+      });
+    }
   } catch (e) {
     if (process.env.NODE_ENV !== "production") console.warn("[PUSHER error]", e.message);
   }

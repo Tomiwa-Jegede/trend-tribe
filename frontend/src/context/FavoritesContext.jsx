@@ -31,9 +31,11 @@ export const FavoritesProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated || !token || !user?.id) {
       setFavoriteIds(new Set());
+      pendingRef.clear();
       return;
     }
     setFavoriteIds(new Set());
+    pendingRef.clear();
     refreshFavoriteIds();
   }, [isAuthenticated, token, user?.id, refreshFavoriteIds]);
 

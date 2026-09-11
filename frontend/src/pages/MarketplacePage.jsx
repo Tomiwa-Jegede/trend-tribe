@@ -177,16 +177,25 @@ const MarketplacePage = () => {
     return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVis); };
   }, [fetchListings]);
 
-  // ── Sync filters + page to URL — preserve view=discover ──
+  // ── Sync filters + page to URL — preserve view=discover (avoid loop: compare before set, use view not searchParams object)
   useEffect(() => {
     const params = {};
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params[key] = value;
     });
-    if (currentPage > 1) params.page = currentPage;
-    if (searchParams.get("view") === "discover") params.view = "discover";
+    if (currentPage > 1) params.page = String(currentPage);
+    if (view === "discover") params.view = "discover";
+    const curr = Object.fromEntries(searchParams.entries());
+    // normalize: remove empty view, compare
+    if (JSON.stringify(curr) === JSON.stringify(params)) return;
     setSearchParams(params, { replace: true });
-  }, [filters, currentPage, searchParams]);
+  }, [filters, currentPage, view, setSearchParams]);
+  // keep currentPage in sync when user navigates back/forward
+  useEffect(() => {
+    const p = parseInt(searchParams.get("page"), 10);
+    const next = Number.isInteger(p) && p > 0 ? p : 1;
+    if (next !== currentPage) setCurrentPage(next);
+  }, [searchParams]);
 
   const handleFilterChange = (update) => {
     setFilters((prev) => ({ ...prev, ...update }));

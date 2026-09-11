@@ -104,6 +104,14 @@ const ListingDetailPage = () => {
   useEffect(() => {
     fetchListing(true);
   }, [fetchListing]);
+  // keep ghost-pruned / sold state in sync when user returns from background
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === "visible") fetchListing(false); };
+    const onFocus = () => fetchListing(false);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", onFocus); };
+  }, [fetchListing]);
 
 
 
@@ -498,12 +506,16 @@ const ListingDetailPage = () => {
             <div className="flex flex-col gap-2">
                         <button
                 onClick={async () => {
+                  if (!listing.isAvailable) { toast.error("Product no longer available"); fetchListing(false); return; }
                   if (!isAuthenticated) { navigate("/login", { state: { from: `/chat?thread=${listing.id}-${listing.seller.id}` } }); return; }
                   if (listing.seller.id === user?.id) { toast.info("This is your listing"); return; }
                   try {
                     const api = (await import("../api/axios")).default;
                     await api.post("/messages/conversations", { listingId: listing.id });
-                  } catch {}
+                  } catch (err) {
+                    const msg = err?.response?.data?.error || "";
+                    if (/no longer available/i.test(msg)) { toast.error(msg); fetchListing(false); return; }
+                  }
                   navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
                 }}
                 disabled={!listing.isAvailable || contactLoading}

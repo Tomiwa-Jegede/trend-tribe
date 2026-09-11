@@ -4,6 +4,7 @@ import config from "../config/env";
 
 let pusher = null;
 let channels = new Map();
+let channelRefCounts = new Map(); // channelName -> number of bindings
 
 const getPusher = () => {
   if (pusher) return pusher;
@@ -34,8 +35,17 @@ export const subscribePusher = (channelName, event, cb) => {
     channels.set(channelName, ch);
   }
   ch.bind(event, cb);
+  channelRefCounts.set(channelName, (channelRefCounts.get(channelName) || 0) + 1);
   return () => {
     try { ch.unbind(event, cb); } catch {}
+    const next = (channelRefCounts.get(channelName) || 1) - 1;
+    if (next <= 0) {
+      channelRefCounts.delete(channelName);
+      try { p.unsubscribe(channelName); } catch {}
+      channels.delete(channelName);
+    } else {
+      channelRefCounts.set(channelName, next);
+    }
   };
 };
 

@@ -91,9 +91,8 @@ const NotificationBell = () => {
     setOpen(next);
     if (next) {
       await fetchList();
-      // requirement: opening notification marks all as read (both bell and inbox)
+      // only marks bell notifications read — messages/inbox unread stays until opened in /chat or /inbox
       try { await api.post("/notifications/read-all"); setUnread(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[read-all notif]", err?.response?.data || err.message); }
-      try { await api.post("/messages/read-all"); } catch (err) { if (import.meta.env.DEV) console.warn("[read-all messages]", err?.response?.data || err.message); }
     }
     if (!next) {
       setSelecting(false);

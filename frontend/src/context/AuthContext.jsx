@@ -11,9 +11,8 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true); // true on first load
 
-  // ── On app load: restore cached session instantly, then sync
-  // with the server in the background (handles balance/data
-  // changes made on another device or tab) ────────────────────
+  // ── On app load: restore cached session, validate token before marking ready
+  // avoids flash of protected page with stale/invalid token (AuthContext loading)
   useEffect(() => {
     const savedToken = localStorage.getItem("tt_token");
     const savedUser = localStorage.getItem("tt_user");
@@ -22,10 +21,36 @@ export const AuthProvider = ({ children }) => {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
       } catch {
-        // Corrupted data — clear it
         localStorage.removeItem("tt_token");
         localStorage.removeItem("tt_user");
+        setLoading(false);
+        return;
       }
+      // keep loading true until /auth/me validates token
+      api.get("/auth/me").then(({ data }) => {
+        setUser(data.user);
+        localStorage.setItem("tt_user", JSON.stringify(data.user));
+      }).catch((err) => {
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("tt_token");
+          localStorage.removeItem("tt_user");
+          setToken(null);
+          setUser(null);
+        }
+      }).finally(() => setLoading(false));
+      return;
+    }
+    if (savedToken) {
+      // token without user (edge) — validate
+      setToken(savedToken);
+      api.get("/auth/me").then(({ data }) => {
+        setUser(data.user);
+        localStorage.setItem("tt_user", JSON.stringify(data.user));
+      }).catch(() => {
+        localStorage.removeItem("tt_token");
+        setToken(null);
+      }).finally(() => setLoading(false));
+      return;
     }
     setLoading(false);
   }, []);

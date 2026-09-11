@@ -29,14 +29,16 @@ api.interceptors.response.use(
   (error) => {
     if (error?.response?.status === 401) {
       const hasToken = localStorage.getItem("tt_token");
-      const isMeRequest = error?.config?.url?.includes("/auth/me");
-      // Clear stale token on any 401 when token exists — fixes expired token showing as authed
-      // Keep /auth/login 401 from clearing (invalid credentials shouldn't log out)
-      const isLoginAttempt = error?.config?.url?.includes("/auth/login");
-      if (hasToken && (isMeRequest || !isLoginAttempt)) {
+      const url = error?.config?.url || "";
+      const isMeRequest = url.includes("/auth/me");
+      const isLoginAttempt = url.includes("/auth/login");
+      // isMeRequest 401 is definitive token invalid even if body empty; otherwise only clear on explicit token signals
+      if (hasToken && isMeRequest) {
+        localStorage.removeItem("tt_token");
+        localStorage.removeItem("tt_user");
+      } else if (hasToken && !isLoginAttempt) {
         const errCode = error?.response?.data?.error || "";
-        // Only clear on token-related 401s, not validation
-        if (/token|expired|jwt|unauthorized|invalid/i.test(errCode) || isMeRequest || error?.config?.url?.includes("/auth/")) {
+        if (/token|expired|jwt|session/i.test(errCode)) {
           localStorage.removeItem("tt_token");
           localStorage.removeItem("tt_user");
         }
