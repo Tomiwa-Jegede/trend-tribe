@@ -254,7 +254,7 @@ const getAllListings = async (req, res) => {
         const j = Math.floor(Math.random() * (i + 1));
         [allIds[i], allIds[j]] = [allIds[j], allIds[i]];
       }
-      const pagedIds = allIds.slice(skip % cap, (skip % cap) + limitNum).map((o) => o.id);
+      const pagedIds = allIds.slice(skip, skip + limitNum).map((o) => o.id);
       let listings = [];
       if (pagedIds.length > 0) {
         const fetched = await prisma.listing.findMany({
@@ -279,7 +279,8 @@ const getAllListings = async (req, res) => {
       // Cold start fake views for old listings (deterministic, boost-aware, within totalUsers)
       const totalUsersForFake = await prisma.user.count();
       listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsersForFake) }));
-      const totalPages = Math.ceil(totalCount / limitNum);
+      const effectiveTotal = Math.min(totalCount, cap);
+      const totalPages = Math.ceil(effectiveTotal / limitNum);
       if (search?.trim()) {
         prisma.searchLog.create({
           data: {
