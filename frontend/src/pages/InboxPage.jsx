@@ -64,6 +64,9 @@ const InboxPage = () => {
   const [selected, setSelected] = useState(() => new Set());
   const [selecting, setSelecting] = useState(false);
   const [expanded, setExpanded] = useState(null); // id or thread-...
+  // delete race: tombstone ids that were just deleted so 5s poll doesn't resurrect them if replica lags / poll wins race
+  const pendingDeletesRef = useRef(new Set());
+  const pendingDeleteAllRef = useRef(false);
 
   const threadParam = searchParams.get("thread");
   // Bug 2 fix: keep callback stable but read latest thread via ref (searchParams object changes every navigation but /chat instance is reused)
@@ -74,8 +77,17 @@ const InboxPage = () => {
     if (showLoader) setLoading(true);
     try {
       const [msgData, convos] = await Promise.all([getMyMessages({ limit: 20 }), getConversations().catch(() => [])]);
-      setMessages(msgData.messages);
-      setConversations(convos || []);
+      let nextMessages = msgData.messages;
+      // filter tombstones so optimistic delete isn't undone by stale replica
+      if (pendingDeletesRef.current.size > 0) {
+        nextMessages = nextMessages.filter((m) => !pendingDeletesRef.current.has(m.id));
+      }
+      if (pendingDeleteAllRef.current) nextMessages = [];
+      setMessages(nextMessages);
+      // conversations come from separate endpoint — if we just bulk-deleted chats, keep empty
+      let nextConvos = convos || [];
+      if (pendingDeleteAllRef.current && isChat) nextConvos = [];
+      setConversations(nextConvos);
       setPagination(msgData.pagination);
       const tp = searchParamsRef.current.get("thread");
       if (tp) {
@@ -172,26 +184,68 @@ const InboxPage = () => {
 
   const handleDeleteOne = async (e, id) => {
     e.stopPropagation();
-    try { await deleteMessage(id); setMessages((prev) => prev.filter((x) => x.id !== id)); setSelected((p) => { const n = new Set(p); n.delete(id); return n; }); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage deleteOne]", err?.response?.data || err.message); }
+    pendingDeletesRef.current.add(id);
+    try {
+      await deleteMessage(id);
+      setMessages((prev) => prev.filter((x) => x.id !== id));
+      setSelected((p) => { const n = new Set(p); n.delete(id); return n; });
+      // keep tombstone for 10s to survive replica lag / poll race
+      setTimeout(() => pendingDeletesRef.current.delete(id), 10000);
+    } catch (err) {
+      pendingDeletesRef.current.delete(id);
+      if (import.meta.env.DEV) console.warn("[InboxPage deleteOne]", err?.response?.data || err.message);
+      alert(err?.response?.data?.error || "Delete failed — please try again");
+    }
   };
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
     if (!window.confirm(`Delete ${selected.size} message${selected.size !== 1 ? "s" : ""}?`)) return;
-    try { await deleteMessagesBulk(Array.from(selected)); setMessages((prev) => prev.filter((x) => !selected.has(x.id))); setSelected(new Set()); setSelecting(false); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage bulkDelete]", err?.response?.data || err.message); }
+    const ids = Array.from(selected);
+    ids.forEach((id) => pendingDeletesRef.current.add(id));
+    try {
+      await deleteMessagesBulk(ids);
+      setMessages((prev) => prev.filter((x) => !selected.has(x.id)));
+      setSelected(new Set()); setSelecting(false);
+      setTimeout(() => ids.forEach((id) => pendingDeletesRef.current.delete(id)), 10000);
+    } catch (err) {
+      ids.forEach((id) => pendingDeletesRef.current.delete(id));
+      if (import.meta.env.DEV) console.warn("[InboxPage bulkDelete]", err?.response?.data || err.message);
+      alert(err?.response?.data?.error || "Bulk delete failed — please try again");
+    }
   };
   const handleDeleteAll = async () => {
     if (isChat) {
       if (!window.confirm(`Delete all ${conversations.length + savedChats.length} chats?`)) return;
-      try { await deleteAllMessages(); } catch {}
-      setSavedChats([]);
-      try { localStorage.removeItem("tt_saved_chats"); } catch {}
-      setConversations([]);
-      setMessages([]);
-      setSelected(new Set()); setSelecting(false);
+      pendingDeleteAllRef.current = true;
+      const prevConvos = conversations.length;
+      try {
+        await deleteAllMessages();
+        setSavedChats([]);
+        try { localStorage.removeItem("tt_saved_chats"); } catch {}
+        setConversations([]);
+        setMessages([]);
+        setSelected(new Set()); setSelecting(false);
+        setTimeout(() => { pendingDeleteAllRef.current = false; }, 10000);
+      } catch (err) {
+        pendingDeleteAllRef.current = false;
+        if (import.meta.env.DEV) console.warn("[InboxPage deleteAll chats]", err?.response?.data || err.message);
+        alert(err?.response?.data?.error || "Delete all failed");
+        // refetch to restore if we cleared optimistically before await — re-fetch
+        if (prevConvos) fetchMessages(false);
+      }
       return;
     }
     if (!window.confirm(`Delete all ${messages.length} messages?`)) return;
-    try { await deleteAllMessages(); setMessages([]); setSelected(new Set()); setSelecting(false); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage deleteAll]", err?.response?.data || err.message); }
+    pendingDeleteAllRef.current = true;
+    try {
+      await deleteAllMessages();
+      setMessages([]); setSelected(new Set()); setSelecting(false);
+      setTimeout(() => { pendingDeleteAllRef.current = false; }, 10000);
+    } catch (err) {
+      pendingDeleteAllRef.current = false;
+      if (import.meta.env.DEV) console.warn("[InboxPage deleteAll]", err?.response?.data || err.message);
+      alert(err?.response?.data?.error || "Delete all failed");
+    }
   };
   const handleMarkAllRead = async () => {
     try { await markAllMessagesRead(); setMessages((prev) => prev.map((x) => ({ ...x, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage markAllRead]", err?.response?.data || err.message); }
