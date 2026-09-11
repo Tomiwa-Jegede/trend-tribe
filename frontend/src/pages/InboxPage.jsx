@@ -1,5 +1,5 @@
 // src/pages/InboxPage.jsx — User inbox for Trend Tribe messages
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FiMail, FiTrash2, FiCheckSquare, FiSquare, FiEye, FiMessageCircle } from "react-icons/fi";
@@ -66,6 +66,9 @@ const InboxPage = () => {
   const [expanded, setExpanded] = useState(null); // id or thread-...
 
   const threadParam = searchParams.get("thread");
+  // Bug 2 fix: keep callback stable but read latest thread via ref (searchParams object changes every navigation but /chat instance is reused)
+  const searchParamsRef = useRef(searchParams);
+  useEffect(() => { searchParamsRef.current = searchParams; }, [searchParams]);
   const fetchMessages = useCallback(async (showLoader = true) => {
     if (!isAuthenticated || !token) return;
     if (showLoader) setLoading(true);
@@ -74,12 +77,12 @@ const InboxPage = () => {
       setMessages(msgData.messages);
       setConversations(convos || []);
       setPagination(msgData.pagination);
-      const tp = searchParams.get("thread");
+      const tp = searchParamsRef.current.get("thread");
       if (tp) {
         const [lid, withId] = tp.split("-").map((v) => parseInt(v, 10));
         if (!isNaN(lid) && !isNaN(withId)) {
-          // resolve to real per-person conversation key if exists, else keep pending key
-          const real = (convos || []).find((c) => c.otherUser?.id === withId);
+          // Bug 1 fix: per-listing — match otherUser AND listing (backend is per-listing: getThread(listingId,withId))
+          const real = (convos || []).find((c) => c.otherUser?.id === withId && c.listing?.id === lid);
           const key = real ? real.key : `thread-${lid}-${withId}`;
           setExpanded((prev) => prev === key ? prev : key);
           // save chat so Close just collapses, not deletes — can come back via Chats list
@@ -97,7 +100,7 @@ const InboxPage = () => {
       }
     } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage fetchMessages]", err?.response?.data || err.message); }
     finally { if (showLoader) setLoading(false); }
-  }, [isAuthenticated, token, user?.id]); // threadParam intentionally not a dep — read inside to keep callback stable
+  }, [isAuthenticated, token, user?.id]);
 
   // Clear stale inbox on logout or account switch, then fetch for new account
   useEffect(() => {
@@ -210,21 +213,21 @@ const InboxPage = () => {
     const pendingKey = `thread-${tp}`;
     const [lid, withId] = tp.split("-").map((v) => parseInt(v, 10));
     if (isNaN(lid) || isNaN(withId)) return;
-    // per-person dedup: if a real conversation with same otherUser exists, don't add pending
-    if (conversations.some((c) => c.otherUser?.id === withId) || savedChats.some((c) => c.otherUser?.id === withId)) return;
+    // per-listing dedup: listing+seller (backend is per-listing)
+    if (conversations.some((c) => c.otherUser?.id === withId && c.listing?.id === lid) || savedChats.some((c) => c.otherUser?.id === withId && c.listing?.id === lid)) return;
     const pending = { key: pendingKey, listing: { id: lid }, otherUser: { id: withId }, lastMessage: null, unreadCount: 0, isPending: true };
     setSavedChats((prev) => {
-      if (prev.some((c) => c.otherUser?.id === withId)) return prev;
+      if (prev.some((c) => c.otherUser?.id === withId && c.listing?.id === lid)) return prev;
       const next = [pending, ...prev];
       try { localStorage.setItem("tt_saved_chats", JSON.stringify(next)); } catch {}
       return next;
     });
   }, [searchParams, isChat, conversations, savedChats]);
 
-  // cleanup saved pending once real conversation appears (avoid duplicate) — match by otherUser
+  // cleanup saved pending once real conversation appears (avoid duplicate) — match by listing+otherUser
   useEffect(() => {
     if (!isChat || savedChats.length === 0 || conversations.length === 0) return;
-    const filtered = savedChats.filter((s) => !conversations.some((c) => c.otherUser?.id === s.otherUser?.id));
+    const filtered = savedChats.filter((s) => !conversations.some((c) => c.otherUser?.id === s.otherUser?.id && c.listing?.id === s.listing?.id));
     if (filtered.length !== savedChats.length) {
       setSavedChats(filtered);
       try { localStorage.setItem("tt_saved_chats", JSON.stringify(filtered)); } catch {}
@@ -257,9 +260,9 @@ const InboxPage = () => {
         (() => {
           const tp2 = searchParams.get("thread");
           const pendingKey = tp2 ? `thread-${tp2}` : null;
-          const otherId2 = tp2 ? parseInt(tp2.split("-")[1], 10) : null;
-          const hasPending = pendingKey && otherId2 && !conversations.some((c) => c.otherUser?.id === otherId2) && !savedChats.some((c) => c.otherUser?.id === otherId2);
-          const displayConvos = [...savedChats.filter((s) => !conversations.some((c) => c.otherUser?.id === s.otherUser?.id)), ...conversations];
+          const [lid2, otherId2] = tp2 ? tp2.split("-").map((v) => parseInt(v, 10)) : [null, null];
+          const hasPending = pendingKey && otherId2 && lid2 && !conversations.some((c) => c.otherUser?.id === otherId2 && c.listing?.id === lid2) && !savedChats.some((c) => c.otherUser?.id === otherId2 && c.listing?.id === lid2);
+          const displayConvos = [...savedChats.filter((s) => !conversations.some((c) => c.otherUser?.id === s.otherUser?.id && c.listing?.id === s.listing?.id)), ...conversations];
           const finalConvos = hasPending ? [{ key: pendingKey, listing: { id: parseInt(tp2.split("-")[0], 10) }, otherUser: { id: otherId2 }, lastMessage: null, unreadCount: 0, isPending: true }, ...displayConvos] : displayConvos;
           if (finalConvos.length === 0) {
             return (
