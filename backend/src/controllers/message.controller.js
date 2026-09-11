@@ -76,13 +76,14 @@ const createMessage = async (req, res) => {
 };
 
 // GET /api/messages — my inbox (both sent and received, so buyer sees his canned first contact)
+// soft-delete: each side hides via senderDeleted/recipientDeleted
 const getMyMessages = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * limitNum;
-    const where = { OR: [{ recipientId: req.user.id }, { senderId: req.user.id }] };
+    const where = { OR: [{ recipientId: req.user.id, recipientDeleted: false }, { senderId: req.user.id, senderDeleted: false }] };
     const [messages, totalCount, unreadCount] = await Promise.all([
       prisma.message.findMany({
         where,
@@ -95,8 +96,8 @@ const getMyMessages = async (req, res) => {
           listing: { select: { id: true, slug: true, title: true, images: true, price: true } },
         },
       }),
-      prisma.message.count({ where: { recipientId: req.user.id } }),
-      prisma.message.count({ where: { recipientId: req.user.id, read: false } }),
+      prisma.message.count({ where: { recipientId: req.user.id, recipientDeleted: false } }),
+      prisma.message.count({ where: { recipientId: req.user.id, recipientDeleted: false, read: false } }),
     ]);
     return res.status(200).json({ messages, unreadCount, pagination: { totalCount, totalPages: Math.ceil(totalCount / limitNum), currentPage: pageNum, limit: limitNum } });
   } catch (err) {
@@ -148,7 +149,7 @@ const getUnreadCount = async (req, res) => {
   try {
     // chat only — exclude system/admin messages (those belong to Notifications inbox)
     const count = await prisma.message.count({
-      where: { recipientId: req.user.id, read: false, listingId: { not: null }, sender: { role: { not: "ADMIN" } } },
+      where: { recipientId: req.user.id, recipientDeleted: false, read: false, listingId: { not: null }, sender: { role: { not: "ADMIN" } } },
     });
     return res.status(200).json({ unreadCount: count });
   } catch (err) {
@@ -207,7 +208,10 @@ const getThread = async (req, res) => {
         ],
       };
     }
-    const messages = await prisma.message.findMany({ where, orderBy: { createdAt: "asc" }, take: 100, include: { sender: { select: { id: true, username: true, fullName: true } } } });
+    // soft-delete visibility: only messages not deleted for this user
+    const visibility = { OR: [{ senderId: req.user.id, senderDeleted: false }, { recipientId: req.user.id, recipientDeleted: false }] };
+    const whereWithVisibility = { AND: [where, visibility] };
+    const messages = await prisma.message.findMany({ where: whereWithVisibility, orderBy: { createdAt: "asc" }, take: 100, include: { sender: { select: { id: true, username: true, fullName: true } } } });
     // mark delivered when fetched by recipient
     const toMark = messages.filter((m) => m.recipientId === req.user.id && !m.deliveredAt).map((m) => m.id);
     if (toMark.length) {
@@ -293,14 +297,14 @@ const getConversations = async (req, res) => {
     const filtered = convos.filter((c) => c.buyer.role !== "ADMIN" && c.seller.role !== "ADMIN");
     const conversations = await Promise.all(filtered.map(async (c) => {
       const otherUser = c.buyerId === req.user.id ? c.seller : c.buyer;
-      const unreadCount = await prisma.message.count({ where: { conversationId: c.id, recipientId: req.user.id, read: false } });
+      const unreadCount = await prisma.message.count({ where: { conversationId: c.id, recipientId: req.user.id, recipientDeleted: false, read: false } });
       const lastMessage = c.messages[0] || null;
       const key = `thread-${c.buyerId}-${c.sellerId}`;
       return { key, id: c.id, listing: c.listing, otherUser, lastMessage, unreadCount, updatedAt: c.lastMessageAt, buyerId: c.buyerId, sellerId: c.sellerId };
     }));
     // also include legacy per-listing threads not yet migrated (from Message without conversationId)
     const legacy = await prisma.message.findMany({
-      where: { OR: [{ senderId: req.user.id }, { recipientId: req.user.id }], listingId: { not: null }, conversationId: null },
+      where: { OR: [{ senderId: req.user.id, senderDeleted: false }, { recipientId: req.user.id, recipientDeleted: false }], listingId: { not: null }, conversationId: null },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
@@ -339,8 +343,18 @@ const deleteOne = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
     const msg = await prisma.message.findUnique({ where: { id } });
-    if (!msg || msg.recipientId !== req.user.id) return res.status(404).json({ error: "Not found" });
-    await prisma.message.delete({ where: { id } });
+    if (!msg || (msg.senderId !== req.user.id && msg.recipientId !== req.user.id)) return res.status(404).json({ error: "Not found" });
+    const isSender = msg.senderId === req.user.id;
+    const isRecipient = msg.recipientId === req.user.id;
+    const data = {};
+    if (isSender) data.senderDeleted = true;
+    if (isRecipient) data.recipientDeleted = true;
+    await prisma.message.update({ where: { id }, data });
+    // hard delete only when both sides have deleted (no one needs it)
+    const updated = await prisma.message.findUnique({ where: { id }, select: { senderDeleted: true, recipientDeleted: true } });
+    if (updated?.senderDeleted && updated?.recipientDeleted) {
+      await prisma.message.delete({ where: { id } }).catch(() => {});
+    }
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("[DELETE MESSAGE ERROR]", err);
@@ -353,7 +367,11 @@ const deleteMany = async (req, res) => {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "No ids" });
     const nums = ids.map((v) => parseInt(v, 10)).filter((n) => !isNaN(n));
-    await prisma.message.deleteMany({ where: { id: { in: nums }, recipientId: req.user.id } });
+    // soft-delete for this user's side
+    await prisma.message.updateMany({ where: { id: { in: nums }, senderId: req.user.id }, data: { senderDeleted: true } });
+    await prisma.message.updateMany({ where: { id: { in: nums }, recipientId: req.user.id }, data: { recipientDeleted: true } });
+    // clean up fully deleted
+    await prisma.message.deleteMany({ where: { id: { in: nums }, senderDeleted: true, recipientDeleted: true } }).catch(() => {});
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("[DELETE MANY MESSAGE ERROR]", err);
@@ -363,7 +381,9 @@ const deleteMany = async (req, res) => {
 
 const deleteAll = async (req, res) => {
   try {
-    await prisma.message.deleteMany({ where: { recipientId: req.user.id } });
+    await prisma.message.updateMany({ where: { senderId: req.user.id }, data: { senderDeleted: true } });
+    await prisma.message.updateMany({ where: { recipientId: req.user.id }, data: { recipientDeleted: true } });
+    await prisma.message.deleteMany({ where: { senderDeleted: true, recipientDeleted: true } }).catch(() => {});
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("[DELETE ALL MESSAGE ERROR]", err);

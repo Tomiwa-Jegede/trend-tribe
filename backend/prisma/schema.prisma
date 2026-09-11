@@ -245,20 +245,22 @@ model Conversation {
 }
 
 model Message {
-  id             Int      @id @default(autoincrement())
-  subject        String?
-  body           String
-  senderId       Int
-  recipientId    Int
-  listingId      Int?
-  conversationId String?
-  read           Boolean  @default(false)
-  deliveredAt    DateTime?
-  createdAt      DateTime @default(now())
-  sender         User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient      User     @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
-  listing        Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id               Int      @id @default(autoincrement())
+  subject          String?
+  body             String
+  senderId         Int
+  recipientId      Int
+  listingId        Int?
+  conversationId   String?
+  read             Boolean  @default(false)
+  deliveredAt      DateTime?
+  senderDeleted    Boolean  @default(false)
+  recipientDeleted Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  sender           User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient        User     @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  listing          Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  conversation     Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, read])
   @@index([recipientId, createdAt])
