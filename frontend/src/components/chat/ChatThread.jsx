@@ -158,22 +158,39 @@ export default function ChatThread({ listingId, withUser, onClose }) {
       vv.removeEventListener("scroll", update);
     };
   }, []);
-  // scroll-lock body while chat (fixed overlay) is open — guaranteed cleanup on close/unmount
+  // scroll-lock body + html while chat (fixed overlay) is open — guaranteed cleanup on close/unmount
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    const prevPosition = document.body.style.position;
-    const prevTop = document.body.style.top;
+    const html = document.documentElement;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyPosition = document.body.style.position;
+    const prevBodyTop = document.body.style.top;
+    const prevBodyWidth = document.body.style.width;
+    const prevBodyOverscroll = document.body.style.overscrollBehavior;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevHtmlOverscroll = html.style.overscrollBehavior;
     const scrollY = window.scrollY;
     document.body.style.overflow = "hidden";
-    // keep scroll position stable on iOS (prevent jump)
     document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
     document.body.style.width = "100%";
+    document.body.style.overscrollBehavior = "none";
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    // iOS fallback: block touch-scroll outside the chat's own message list
+    const blockOutsideTouch = (e) => {
+      if (listRef.current && listRef.current.contains(e.target)) return;
+      e.preventDefault();
+    };
+    document.addEventListener("touchmove", blockOutsideTouch, { passive: false });
     return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.position = prevPosition;
-      document.body.style.top = prevTop;
-      document.body.style.width = "";
+      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.position = prevBodyPosition;
+      document.body.style.top = prevBodyTop;
+      document.body.style.width = prevBodyWidth;
+      document.body.style.overscrollBehavior = prevBodyOverscroll;
+      html.style.overflow = prevHtmlOverflow;
+      html.style.overscrollBehavior = prevHtmlOverscroll;
+      document.removeEventListener("touchmove", blockOutsideTouch);
       window.scrollTo(0, scrollY);
     };
   }, []);
