@@ -47,8 +47,8 @@ const createMessage = async (req, res) => {
     if (conversationId) {
       prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date() } }).catch(() => {});
     }
-    // track as contact view for social proof (fire-and-forget)
-    if (lid) {
+    // track as contact view for social proof (fire-and-forget) — admin excluded
+    if (lid && req.user.role !== "ADMIN") {
       prisma.listing.update({ where: { id: lid }, data: { contactViews: { increment: 1 } } }).then((u) => {
         try { const { emitContactView } = require("../realtime"); emitContactView(u.id, u.contactViews); } catch {}
       }).catch(() => {});

@@ -6,12 +6,12 @@ const { requireAdmin } = require("../middleware/admin.middleware");
 
 const router = express.Router();
 
-// GET /api/stats — public, cached 60s, real-time via socket
+// GET /api/stats — public, cached 60s, real-time via socket — admin excluded (testing)
 router.get("/", async (req, res) => {
   try {
     const [activeListings, totalUsers, siteConfig] = await Promise.all([
-      prisma.listing.count({ where: { isAvailable: true, archivedAt: null } }),
-      prisma.user.count(),
+      prisma.listing.count({ where: { isAvailable: true, archivedAt: null, seller: { role: { not: "ADMIN" } } } }),
+      prisma.user.count({ where: { role: { not: "ADMIN" } } }),
       prisma.siteConfig.findUnique({ where: { id: 1 } }).catch(() => null),
     ]);
     res.set("Cache-Control", "public, max-age=60");

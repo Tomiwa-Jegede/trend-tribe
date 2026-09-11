@@ -12,6 +12,7 @@ const getPlatform = (ua = "") => {
 
 const logInstall = async (req, res) => {
   try {
+    if (req.user?.role === "ADMIN") return res.json({ ok: true, skipped: true }); // admin testing — not counted
     const { platform, displayMode, source } = req.body || {};
     const ua = req.headers["user-agent"] || "";
     const derivedPlatform = platform || getPlatform(ua);
@@ -46,17 +47,21 @@ const logInstall = async (req, res) => {
 
 const getStats = async (req, res) => {
   try {
-    const total = await prisma.pWAInstall.count();
-    const byPlatform = await prisma.pWAInstall.groupBy({ by: ["platform"], _count: { platform: true } });
-    const bySource = await prisma.pWAInstall.groupBy({ by: ["source"], _count: { source: true } });
-    const last7 = await prisma.pWAInstall.count({ where: { createdAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } });
+    // exclude admin installs (testing) — filter where user is null or non-admin
+    const adminIds = (await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })).map(u=>u.id);
+    const notAdminWhere = adminIds.length ? { NOT: { userId: { in: adminIds } } } : {};
+    const total = await prisma.pWAInstall.count({ where: notAdminWhere });
+    const byPlatform = await prisma.pWAInstall.groupBy({ by: ["platform"], _count: { platform: true }, where: notAdminWhere });
+    const bySource = await prisma.pWAInstall.groupBy({ by: ["source"], _count: { source: true }, where: notAdminWhere });
+    const last7 = await prisma.pWAInstall.count({ where: { ...notAdminWhere, createdAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } });
     const byDay = await prisma.$queryRaw`
       SELECT to_char("createdAt"::date, 'YYYY-MM-DD') as day, COUNT(*)::int as count
       FROM "pwa_installs"
       WHERE "createdAt" > NOW() - INTERVAL '30 days'
+      AND ("userId" IS NULL OR "userId" NOT IN (SELECT id FROM "users" WHERE role = 'ADMIN'))
       GROUP BY day ORDER BY day DESC LIMIT 14
     `;
-    const uniqueUsers = await prisma.pWAInstall.groupBy({ by: ["userId"], _count: { userId: true }, where: { userId: { not: null } } });
+    const uniqueUsers = await prisma.pWAInstall.groupBy({ by: ["userId"], _count: { userId: true }, where: { userId: { not: null }, ...notAdminWhere } });
     return res.json({
       total,
       last7Days: last7,
