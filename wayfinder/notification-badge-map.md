@@ -9,9 +9,9 @@ Hamburger shows single total unread badge (sum of all sections); when opened, ea
 - Stack: React 19 + `useRealtime` (Pusher/Socket) + `api.get("/messages/unread-count", "/notifications/unread-count", "/gigs/available", "/bookings")`, `AuthContext`, Workbox
 
 ## Decisions so far
+- [badge-01-total-composition](tickets/badge-01-total-composition.md): Hamburger total = `messages unread (chat, listingId not null, role != ADMIN)` + `notifications unread` only. Gigs `availableCount` and `bookings pending` are not unread — they are availability, not personal inbox — excluded. Admin support unread counts as `notifications` already (support emits `notification`); no extra top-level sum.
 
 ## Not yet specified
-- Exact badge composition for total — which counts sum (messages vs notifications vs gigs vs bookings)?
 - Single source of unread counts to avoid N polls and sync drift
 - Per-item badge mapping for hamburger rows and dropdown children
 - When badges clear (on open vs on read vs on navigation)
