@@ -49,6 +49,8 @@ const BookingProviderPage = lazy(() => import("./pages/BookingProviderPage"));
 const BookingMinePage = lazy(() => import("./pages/BookingMinePage"));
 const AdminWithdrawalsPage = lazy(() => import("./pages/AdminWithdrawalsPage"));
 const AdminDisputesPage = lazy(() => import("./pages/AdminDisputesPage"));
+const SupportPage = lazy(() => import("./pages/SupportPage"));
+const AdminSupportPage = lazy(() => import("./pages/AdminSupportPage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -269,6 +271,8 @@ const App = () => {
             <Route path="/features" element={<FeaturesPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/coming-soon" element={<ComingSoonPage />} />
+            <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+            <Route path="/admin/support" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
             <Route path="/messages" element={<Navigate to="/inbox" replace />} />
             <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />

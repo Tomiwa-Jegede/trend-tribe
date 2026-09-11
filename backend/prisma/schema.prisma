@@ -68,6 +68,8 @@ model User {
   conversationsAsSeller Conversation[] @relation("ConvSeller")
   pushSubscriptions    PushSubscription[]
   pwaInstalls          PWAInstall[]
+  supportThread        SupportThread? @relation("SupportUser")
+  supportClaims        SupportThread[] @relation("SupportClaimer")
 
   @@map("users")
 }
@@ -334,6 +336,19 @@ model PWAInstall {
   @@index([createdAt])
   @@index([platform])
   @@map("pwa_installs")
+}
+
+model SupportThread {
+  userId    Int      @id
+  claimedBy Int?
+  claimedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User  @relation("SupportUser", fields: [userId], references: [id], onDelete: Cascade)
+  claimer User? @relation("SupportClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
+
+  @@map("support_threads")
 }
 
 model SiteConfig {

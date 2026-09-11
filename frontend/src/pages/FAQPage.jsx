@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
   motion,
@@ -297,13 +298,20 @@ const FAQPage = () => {
             Our team is happy to help. Reach out and we'll respond within 24
             hours.
           </motion.p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <motion.a
             variants={reduced ? {} : fadeUp}
             href="mailto:hello@trendtribe.ng"
-            className="btn-primary inline-flex items-center gap-2 px-8 py-3 rounded-xl font-semibold"
+            className="btn-secondary inline-flex items-center gap-2 px-8 py-3 rounded-xl font-semibold"
           >
             Email Us
           </motion.a>
+          <motion.div variants={reduced ? {} : fadeUp}>
+            <Link to="/support" className="btn-primary inline-flex items-center gap-2 px-8 py-3 rounded-xl font-semibold">
+              Contact Us
+            </Link>
+          </motion.div>
+          </div>
         </Section>
       </div>
     </div>

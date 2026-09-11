@@ -33,6 +33,7 @@ const statsRoutes = require("./routes/stats.routes");
 const jegedeRoutes = require("./routes/jegede.routes");
 const gigRoutes = require("./routes/gig.routes");
 const serviceBookingRoutes = require("./routes/serviceBooking.routes");
+const { userRouter: supportUserRouter, adminRouter: supportAdminRouter } = require("./routes/support.routes");
 const { handleWebhook } = require("./controllers/payment.controller");
 const { handleGigWebhook } = require("./controllers/gigPayment.controller");
 
@@ -114,6 +115,8 @@ app.use("/api/stats", statsRoutes);
 app.use("/api/jegede", jegedeRoutes);
 app.use("/api/gigs", gigRoutes);
 app.use("/api/services", serviceBookingRoutes);
+app.use("/api/support", supportUserRouter);
+app.use("/api/admin/support", supportAdminRouter);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {
