@@ -216,14 +216,36 @@ const FrederickWidget = () => {
     }
   };
 
+  const [pos, setPos] = useState(() => {
+    try { const v = localStorage.getItem("jegede-bubble-pos"); return v ? JSON.parse(v) : { x: 0, y: 0 }; } catch { return { x: 0, y: 0 }; }
+  });
+  const savePos = (next) => {
+    setPos(next);
+    try { localStorage.setItem("jegede-bubble-pos", JSON.stringify(next)); } catch {}
+  };
+
   return (
     <>
       <motion.div
+        drag={!open}
+        dragMomentum={false}
+        dragElastic={0.15}
+        onDragEnd={(_, info) => {
+          const next = { x: (pos?.x || 0) + info.offset.x, y: (pos?.y || 0) + info.offset.y };
+          // clamp so bubble never leaves viewport (approx 56px size + 24px margin)
+          const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+          const vw = window.innerWidth, vh = window.innerHeight;
+          const clamped = {
+            x: clamp(next.x, -vw + 80, 0),
+            y: clamp(next.y, -vh + 80, 0),
+          };
+          savePos(clamped);
+        }}
+        style={{ x: pos?.x || 0, y: pos?.y || 0, willChange: "transform, opacity", touchAction: "none" }}
         onMouseEnter={() => setIdle(false)}
         animate={{ opacity: idle && !open ? 0.62 : 1 }}
         transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100`}
-        style={{ willChange: "opacity" }}
+        className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100 cursor-grab active:cursor-grabbing`}
       >
         <AnimatePresence>
           {!open && !idle && (
