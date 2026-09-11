@@ -284,6 +284,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="/contact" element={<Navigate to="/support" replace />} />
             <Route path="/notifications" element={<ComingSoonPage />} />
             <Route
               path="/my-listings"
