@@ -295,11 +295,12 @@ const InboxPage = () => {
     }
   }, [isChat, conversations, savedChats]);
 
+  const inboxCount = messages.filter((m) => !m.listingId).length;
   return (
     <div className="container-app py-6 sm:py-10">
       <Helmet><title>{isChat ? "Chats — Trend Tribe" : "Inbox — Trend Tribe"}</title></Helmet>
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">{isChat ? <FiMessageCircle className="w-6 h-6" /> : <FiMail className="w-6 h-6" />} {isChat ? "Chats" : "Inbox"} {isChat ? conversations.length > 0 && <span className="text-sm font-normal text-gray-500">({conversations.length} chats)</span> : pagination && <span className="text-sm font-normal text-gray-500">({pagination.totalCount})</span>}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">{isChat ? <FiMessageCircle className="w-6 h-6" /> : <FiMail className="w-6 h-6" />} {isChat ? "Chats" : "Inbox"} {isChat ? conversations.length > 0 && <span className="text-sm font-normal text-gray-500">({conversations.length} chats)</span> : inboxCount > 0 && <span className="text-sm font-normal text-gray-500">({inboxCount})</span>}</h1>
         <div className="flex items-center gap-2 flex-wrap">
           {!selecting ? (
             <>
