@@ -223,6 +223,19 @@ const FrederickWidget = () => {
     setPos(next);
     try { localStorage.setItem("jegede-bubble-pos", JSON.stringify(next)); } catch {}
   };
+  // keep bubble inside viewport on resize/rotate and re-snap to edge
+  useEffect(() => {
+    const onResize = () => {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+      const clampedY = clamp(pos?.y || 0, -vh + 80, 0);
+      const snappedX = (pos?.x || 0) < -vw / 2 + 40 ? -vw + 80 : 0;
+      const clampedX = clamp(snappedX, -vw + 80, 0);
+      if (clampedX !== pos?.x || clampedY !== pos?.y) savePos({ x: clampedX, y: clampedY });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [pos?.x, pos?.y]);
 
   return (
     <>
@@ -232,19 +245,20 @@ const FrederickWidget = () => {
         dragElastic={0.15}
         onDragEnd={(_, info) => {
           const next = { x: (pos?.x || 0) + info.offset.x, y: (pos?.y || 0) + info.offset.y };
-          // clamp so bubble never leaves viewport (approx 56px size + 24px margin)
-          const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
           const vw = window.innerWidth, vh = window.innerHeight;
+          const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+          // snap to nearest edge (left or right) — never stays in center
+          const snappedX = next.x < -vw / 2 + 40 ? -vw + 80 : 0;
           const clamped = {
-            x: clamp(next.x, -vw + 80, 0),
+            x: snappedX,
             y: clamp(next.y, -vh + 80, 0),
           };
           savePos(clamped);
         }}
-        style={{ x: pos?.x || 0, y: pos?.y || 0, willChange: "transform, opacity", touchAction: "none" }}
+        style={{ willChange: "transform, opacity", touchAction: "none" }}
         onMouseEnter={() => setIdle(false)}
-        animate={{ opacity: idle && !open ? 0.62 : 1 }}
-        transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+        animate={{ opacity: idle && !open ? 0.62 : 1, x: pos?.x || 0, y: pos?.y || 0 }}
+        transition={{ opacity: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }, x: { type: "spring", stiffness: 400, damping: 30 }, y: { type: "spring", stiffness: 400, damping: 30 } }}
         className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100 cursor-grab active:cursor-grabbing`}
       >
         <AnimatePresence>
