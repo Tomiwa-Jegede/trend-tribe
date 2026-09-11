@@ -1,0 +1,22 @@
+# Wayfinder Map — Frederick Snap to Nearest Edge (Constrained Drag)
+
+## Destination
+Frederick bubble is draggable anywhere within visible frame (never outside), but on drag release always animates smoothly to nearest edge (left or right) — never stays in center — without breaking existing drag, idle, open/close, or persisted position.
+
+## Notes
+- Domain: `FrederickWidget.jsx` drag
+- Skills every session should consult: `ui-ux-pro-max` for drag/edge snap UX, `ponytail` for minimal fix
+- Stack: React 19 + `framer-motion` `drag` + `localStorage jegede-bubble-pos`, viewport clamp, spring snap
+
+## Decisions so far
+
+## Not yet specified
+- How to measure nearest edge — center of bubble vs pointer vs bubble edge, and threshold (vw/2 vs bubble mid)
+- How to animate snap — spring params, duration, and interrupt if user re-grabs mid-snap
+- How to constrain drag — `dragConstraints` ref vs manual `clamp` vs `dragElastic` + bounds, and handling safe-area/insets
+- How persisted pos interacts with snap — store raw drop vs snapped, and mount snap for old center saves
+- Interaction with open/close and idle opacity — drag disabled when open, snap not interfering with open animation
+
+## Out of scope
+- Chat input fixed (separate map)
+- Auto-hide after idle
