@@ -9,13 +9,14 @@ Live stats (active listings, total users/students, WhatsApp group, community) ne
 - Stack: React 19 + `api.get("/stats")` 30s poll + `useRealtime` + `localStorage`/`sessionStorage`, VitePWA Workbox
 
 ## Decisions so far
+- [stats-01-storage-choice](tickets/stats-01-storage-choice.md): `localStorage` `trend-tribe:stats-cache` `{hero, updatedAt}` (<5KB, public only).
+- [stats-02-stats-scope](tickets/stats-02-stats-scope.md): Cache hero `GET /api/stats` (`activeListings/totalUsers/whatsappMembers`) single key.
+- [stats-03-placeholder-ux](tickets/stats-03-placeholder-ux.md): Cached at 0.85 opacity + pulse; no cache → `—`; fade to fresh, no flicker.
+- [stats-04-update-invalidation](tickets/stats-04-update-invalidation.md): Write only on 200 + realtime; `>24h` ignore; error keeps stale; stale-while-revalidate.
+- [stats-05-pwa-share](tickets/stats-05-pwa-share.md): `localStorage` shared browser/PWA; `NetworkOnly` for `/api/stats`, no Workbox stale.
 
 ## Not yet specified
-- Which storage holds last known figures and how long is a cached value still safe to show?
-- What exactly counts as “live stats” — which fields from which endpoints, and should they share one cache key or separate?
-- How to show stale placeholder vs fresh without flicker or misleading users when cache is very old or first visit has no cache?
-- When and how does cache get updated and invalidated (on success, on error, on realtime event)?
-- How to handle PWA standalone vs browser tab cache sharing and first-load blank when SW not yet installed?
+<!-- all tickets closed — way clear, ready to build -->
 
 ## Out of scope
 - Push badge counts (separate)
