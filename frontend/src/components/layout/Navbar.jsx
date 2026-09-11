@@ -103,7 +103,7 @@ const Navbar = () => {
     }
     setInboxUnread(0);
     fetchInbox();
-  }, [isAuthenticated, token, user?.id, fetchInbox, location.pathname]);
+  }, [isAuthenticated, token, user?.id, fetchInbox]);
 
 
 

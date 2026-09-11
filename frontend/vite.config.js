@@ -78,18 +78,17 @@ export default defineConfig({
             // Realtime-critical: never serve stale — must be NetworkOnly so socket refetch is instant in PWA
             urlPattern: /\/api\/(listings|auth\/me|notifications|messages)(\/.*)?(\?.*)?$/i,
             handler: "NetworkOnly",
-            options: { cacheName: "api-realtime" },
           },
           {
             urlPattern: /^https:\/\/trendtribe\.app\/api\/.*/i,
             handler: "NetworkFirst",
-            options: { cacheName: "api-cache", networkTimeoutSeconds: 2, expiration: { maxEntries: 50, maxAgeSeconds: 30 } },
+            options: { cacheName: "api-cache", networkTimeoutSeconds: 2, expiration: { maxEntries: 50, maxAgeSeconds: 30 }, cacheableResponse: { statuses: [0, 200] } },
           },
           {
             // local dev/api proxy fallback — short TTL so PWA doesn't hide ghost-prune
             urlPattern: /\/api\/.*/i,
             handler: "NetworkFirst",
-            options: { cacheName: "api-cache-local", networkTimeoutSeconds: 2, expiration: { maxEntries: 50, maxAgeSeconds: 30 } },
+            options: { cacheName: "api-cache-local", networkTimeoutSeconds: 2, expiration: { maxEntries: 50, maxAgeSeconds: 30 }, cacheableResponse: { statuses: [0, 200] } },
           },
         ],
       },
