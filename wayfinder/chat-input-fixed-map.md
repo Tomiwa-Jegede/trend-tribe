@@ -9,12 +9,12 @@ Chat `ChatThread` message input stays locked fixed directly above the keyboard a
 - Stack: React 19 + Tailwind, `h-[100dvh]` `interactive-widget=resizes-content`, `position: fixed/sticky`, `visualViewport`
 
 ## Decisions so far
+- [chat-input-01-position-strategy](tickets/chat-input-01-position-strategy.md): Sticky bottom-0 inside flex h-[100dvh] + interactive-widget, not fixed JS calc.
+- [chat-input-02-list-resize](tickets/chat-input-02-list-resize.md): List flex-1 min-h-0 overflow-y-auto, scroll to bottom on visualViewport resize/onFocus.
+- [chat-input-03-ios-android](tickets/chat-input-03-ios-android.md): viewport-fit=cover + interactive-widget + env(safe-area), visualViewport fallback.
 
 ## Not yet specified
-- Whether input should be `position: fixed` bottom + `bottom: env(keyboard-inset)` vs `position: sticky` inside flex vs `visualViewport` height JS
-- How list resizing should work — `flex-1 min-h-0` vs `height: calc(100dvh - input - header)` vs `visualViewport.height` JS
-- iOS vs Android keyboard differences (`interactive-widget` support, `safe-area-inset`)
-- How to prevent page scroll from moving input when `fixed inset-0` overlay already exists
+<!-- all tickets closed — way clear -->
 
 ## Out of scope
 - Desktop keyboard (no virtual keyboard)

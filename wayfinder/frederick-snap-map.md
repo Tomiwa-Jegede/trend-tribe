@@ -9,12 +9,12 @@ Frederick/Jegede bubble is draggable but on release always snaps to nearest edge
 - Stack: React 19 + `framer-motion` `drag`, `localStorage` pos, viewport clamp
 
 ## Decisions so far
+- [frederick-01-snap-threshold](tickets/frederick-01-snap-threshold.md): Spring stiffness 400 to nearest edge via vw/2.
+- [frederick-02-clamp-bounds](tickets/frederick-02-clamp-bounds.md): Manual clamp -vw+80,0 + resize listener.
+- [frederick-03-persist-snap](tickets/frederick-03-persist-snap.md): Store snapped pos, drag disabled when open.
 
 ## Not yet specified
-- Snap animation (spring vs instant) and threshold (nearest edge vs 50% center line)
-- Clamp bounds — full viewport minus bubble size + safe margin, handling resize/rotation
-- Persisted pos vs reset on snap (should stored pos be snapped pos)
-- Interaction with `open` state (drag disabled when chat open)
+<!-- all tickets closed — way clear -->
 
 ## Out of scope
 - Chat input fixed (separate map)
