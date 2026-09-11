@@ -10,6 +10,7 @@ Chat has two independent scroll zones: message list `flex-1 overflow-y-auto` scr
 
 ## Decisions so far
 - [chat-two-01-input-position](tickets/chat-two-01-input-position.md): Input `shrink-0` flex sibling at bottom of `flex flex-col h-[100dvh]` — not fixed/absolute — never scrolls with messages, stays above keyboard via `dvh` resize.
+- [chat-two-02-list-scroll](tickets/chat-two-02-list-scroll.md): List `flex-1 min-h-0 overflow-y-auto overscroll-contain` with input outside scroll — no `calc`.
 
 ## Not yet specified
 - How list resizing should work — `flex-1 min-h-0` vs `height: calc(100dvh - input - header)` vs `visualViewport.height` JS
