@@ -8,6 +8,7 @@ import { getListingById } from "../services/listingService";
 import useRealtime from "../hooks/useRealtime";
 import { useAuth } from "../context/AuthContext";
 import ChatThread from "../components/chat/ChatThread";
+import api from "../api/axios";
 
 const PendingChatRow = ({ listingId, otherId, onOpen }) => {
   const [listing, setListing] = useState(null);
@@ -267,7 +268,7 @@ const InboxPage = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  // persist pending new-chat (first Contact Seller) so Close just collapses, not deletes — can reopen from Chats list
+  // persist pending new-chat so it survives logout/new device — local fast + DB durable
   useEffect(() => {
     const tp = searchParams.get("thread");
     if (!tp || !isChat) return;
@@ -283,6 +284,8 @@ const InboxPage = () => {
       try { localStorage.setItem("tt_saved_chats", JSON.stringify(next)); } catch {}
       return next;
     });
+    // also create real Conversation row so new device sees it via GET /messages/conversations
+    api.post("/messages/conversations", { listingId: lid }).catch(() => {});
   }, [searchParams, isChat, conversations, savedChats]);
 
   // cleanup saved pending once real conversation appears (avoid duplicate) — match by listing+otherUser
