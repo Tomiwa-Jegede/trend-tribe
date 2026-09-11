@@ -12,11 +12,13 @@ Six TrendTribe changes shippable without bugs or security holes: category ↔ Br
 ## Decisions so far
 - [01-category-sync](tickets/six-01-category-sync.md): URL `?category=`/`?subcategory=` + `?page=` is truth; `Browse by Category` → `navigate(/marketplace?category=VALUE)` pre-fills `FilterBar`; `FilterBar` change → `setSearchParams({category,subcategory,page:1})` with `replace:true` and equality guard to avoid loop; `Discover` (`?view=discover`) disables category sync (stays `sort=random`); back/forward syncs `FilterBar` state from URL via `useEffect([searchParams])`; single source avoids `FilterBar` ↔ `Browse` drift.
 - [02-chat-input-pinned](tickets/six-02-chat-input-pinned.md): `viewport-fit=cover, interactive-widget=resizes-content`, overlay `fixed inset-0 h-[100dvh]` + `ChatThread h-full flex-1 min-h-0`, list `flex-1 overscroll-contain`, input `sticky bottom-0 pb-[env(safe-area)]`, `visualViewport` resize + `onFocus` scroll — shipped `7b64280`.
+- [03-presence-online](tickets/six-03-presence-online.md): All signals `socket>0` OR `visible` OR `lastActive<2min` = Online; `realtime.js` `lastActiveAt` Map on `typing`/`message`, `isOnline` checks 120s; ticks `✓` offline, `✓✓ grey` delivered/online, `✓✓ blue` read.
+- [04-new-message-indicator](tickets/six-04-new-message-indicator.md): `InboxPage` `unreadCount` pill → tap opens `?thread=listingId-otherId`, `Navbar` hamburger badge `inbox+notif` via `useRealtime` + tombstones, no poll race.
+- [05-admin-tiers](tickets/six-05-admin-tiers.md): Keep `Role.ADMIN`, `isTopAdmin=user.username==="Jegede01"`; `requireTopAdmin` middleware 403 on Treasury (PlatformProfit/GigWithdrawals/Fees/TokenPurchase/wallet), UI hides Treasury.
+- [06-contact-us](tickets/six-06-contact-us.md): Reuse `Message`/`Conversation` `listingId=null`, per-user thread, `/admin/support` queue, `POST /admin/support/:id/confirm` CAS `First wins` + auto `Hi, my name is X`, `3/day` limit, `30d` TTL, `Require login`.
 
 ## Not yet specified
-- Exact Treasury route/API list for “all money” (PlatformProfit, GigWithdrawals, Fees, TokenPurchase, wallet) — needs enumeration
-- Contact Us `listingId=null` vs new `SupportTicket` model — needs model decision
-- Presence multi-instance (Redis vs DB) for `isOnline` — needs infra choice
+<!-- all tickets closed — way clear, ready to build -->
 
 ## Out of scope
 - Email notification for Contact Us (future)
