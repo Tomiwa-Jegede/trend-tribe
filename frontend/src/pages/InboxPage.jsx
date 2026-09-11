@@ -296,6 +296,21 @@ const InboxPage = () => {
   }, [isChat, conversations, savedChats]);
 
   const inboxCount = messages.filter((m) => !m.listingId).length;
+  // When chat thread is open, don't render InboxPage content at all — ChatThread is fixed and covers whole screen
+  if (isChat && expanded && expanded.startsWith("thread-")) {
+    const tp2 = searchParams.get("thread");
+    const pendingKey = tp2 ? `thread-${tp2}` : null;
+    const [lid2, otherId2] = tp2 ? tp2.split("-").map((v) => parseInt(v, 10)) : [null, null];
+    const hasPending = pendingKey && otherId2 && lid2 && !conversations.some((c) => c.otherUser?.id === otherId2 && c.listing?.id === lid2) && !savedChats.some((c) => c.otherUser?.id === otherId2 && c.listing?.id === lid2);
+    const displayConvos = [...savedChats.filter((s) => !conversations.some((c) => c.otherUser?.id === s.otherUser?.id && c.listing?.id === s.listing?.id)), ...conversations];
+    const finalConvos = hasPending ? [{ key: pendingKey, listing: { id: parseInt(tp2.split("-")[0], 10) }, otherUser: { id: otherId2 }, lastMessage: null, unreadCount: 0, isPending: true }, ...displayConvos] : displayConvos;
+    const open = finalConvos.find((c) => c.key === expanded);
+    if (open) return <ChatThread listingId={open.listing.id} withUser={open.otherUser} onClose={handleCloseChat} />;
+    if (tp2) {
+      const [lid, withId] = tp2.split("-").map((v) => parseInt(v, 10));
+      if (!isNaN(lid) && !isNaN(withId)) return <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />;
+    }
+  }
   return (
     <div className="container-app py-6 sm:py-10">
       <Helmet><title>{isChat ? "Chats — Trend Tribe" : "Inbox — Trend Tribe"}</title></Helmet>
@@ -339,24 +354,14 @@ const InboxPage = () => {
           if (expanded && expanded.startsWith("thread-")) {
             const open = finalConvos.find((c) => c.key === expanded);
             if (open) {
-              return (
-                <>
-                  <div className="fixed inset-0 z-40 bg-white" style={{ height: "100dvh" }} />
-                  <ChatThread listingId={open.listing.id} withUser={open.otherUser} onClose={handleCloseChat} />
-                </>
-              );
+              return <ChatThread listingId={open.listing.id} withUser={open.otherUser} onClose={handleCloseChat} />;
             }
             // pending new thread not yet in finalConvos (first open)
             const threadParam = searchParams.get("thread");
             if (threadParam) {
               const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
               if (!isNaN(lid) && !isNaN(withId)) {
-                return (
-                  <>
-                    <div className="fixed inset-0 z-40 bg-white" style={{ height: "100dvh" }} />
-                    <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />
-                  </>
-                );
+                return <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />;
               }
             }
           }
