@@ -223,6 +223,17 @@ const FrederickWidget = () => {
     setPos(next);
     try { localStorage.setItem("jegede-bubble-pos", JSON.stringify(next)); } catch {}
   };
+  // snap to edge on mount if was in center (old saves)
+  useEffect(() => {
+    const vw = window.innerWidth;
+    const curX = pos?.x || 0;
+    // if not already at an edge, snap to nearest edge
+    if (curX !== 0 && curX !== -vw + 80) {
+      const snappedX = curX < -vw / 2 + 40 ? -vw + 80 : 0;
+      if (snappedX !== curX) savePos({ x: snappedX, y: pos?.y || 0 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // keep bubble inside viewport on resize/rotate and re-snap to edge
   useEffect(() => {
     const onResize = () => {
