@@ -158,8 +158,30 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   };
 
   const inputRef = useRef(null);
-
-  const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
+  const [kbOffset, setKbOffset] = useState(0);
+  // h-[100dvh] handles toolbar + Chrome keyboard; VisualViewport follows iOS keyboard only while focused
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      if (document.activeElement !== inputRef.current) {
+        setKbOffset(0);
+        return;
+      }
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKbOffset(offset);
+      requestAnimationFrame(() => {
+        if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+      });
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden animate-pulse h-[100dvh]">
@@ -222,7 +244,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           </div>
         </Link>
       )}
-      <div ref={listRef} className={`flex-1 min-h-0 p-4 space-y-3 bg-[#ECE5DD]/30 scroll-smooth ${canScroll ? "overflow-y-auto overscroll-contain" : "overflow-hidden"}`}>
+      <div ref={listRef} className={`flex-1 min-h-0 p-4 space-y-3 bg-[#ECE5DD]/30 scroll-smooth ${canScroll ? "overflow-y-auto overscroll-contain" : "overflow-hidden"}`} style={{ paddingBottom: kbOffset ? `calc(1rem + ${kbOffset + 72}px)` : undefined }}>
         {msgs.map((m) => {
           const mine = m.senderId === user?.id;
           return (
@@ -239,14 +261,14 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         })}
         {typing && <div className="text-xs text-gray-500 italic">typing...</div>}
       </div>
-      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0">{sendError}</p>}
-      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0" style={{ marginBottom: kbOffset ? `${kbOffset + 56}px` : undefined }}>{sendError}</p>}
+      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))] fixed left-0 right-0 z-10" style={{ bottom: kbOffset ? `${kbOffset}px` : "0px" }}>
         <input
           ref={inputRef}
           value={text}
           onChange={(e) => { setText(e.target.value); e.target.value ? sendTyping(true) : sendTyping(false); }}
           onFocus={() => requestAnimationFrame(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; })}
-          onBlur={() => sendTyping(false)}
+          onBlur={() => { sendTyping(false); setKbOffset(0); }}
           placeholder="Type a message"
           className="flex-1 input-field !py-2.5"
           disabled={sending}
