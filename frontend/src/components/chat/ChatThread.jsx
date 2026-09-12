@@ -146,32 +146,6 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   };
 
   const inputRef = useRef(null);
-  const [kbOffset, setKbOffset] = useState(0);
-  // VisualViewport-anchored input — tracks keyboard offset directly, decoupled from page scroll
-  // Only apply this as a keyboard offset while the input is actually focused — otherwise Safari's
-  // own address bar / bottom toolbar show-hide also shrinks the visual viewport and gets misread as a keyboard.
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => {
-      if (document.activeElement !== inputRef.current) {
-        setKbOffset(0);
-        return;
-      }
-      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      setKbOffset(offset);
-      requestAnimationFrame(() => {
-        if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-      });
-    };
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    update();
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-    };
-  }, []);
 
   const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
   if (loading) {
@@ -236,7 +210,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           </div>
         </Link>
       )}
-      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30 overscroll-contain scroll-smooth" style={{ paddingBottom: `calc(1rem + ${kbOffset ? kbOffset + 72 : 72}px)` }}>
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30 overscroll-contain scroll-smooth">
         {msgs.map((m) => {
           const mine = m.senderId === user?.id;
           return (
@@ -253,14 +227,14 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         })}
         {typing && <div className="text-xs text-gray-500 italic">typing...</div>}
       </div>
-      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0" style={{ marginBottom: kbOffset ? `${kbOffset + 56}px` : undefined }}>{sendError}</p>}
-      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))] fixed left-0 right-0 z-10" style={{ bottom: kbOffset ? `${kbOffset}px` : "0px" }}>
+      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0">{sendError}</p>}
+      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <input
           ref={inputRef}
           value={text}
           onChange={(e) => { setText(e.target.value); e.target.value ? sendTyping(true) : sendTyping(false); }}
           onFocus={() => requestAnimationFrame(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; })}
-          onBlur={() => { sendTyping(false); setKbOffset(0); }}
+          onBlur={() => sendTyping(false)}
           placeholder="Type a message"
           className="flex-1 input-field !py-2.5"
           disabled={sending}
