@@ -12,6 +12,7 @@ import FrederickWidget from "./components/frederick/FrederickWidget";
 import PageTransition from "./components/layout/PageTransition";
 import PWARegister from "./components/pwa/PWARegister";
 import InstallPrompt from "./components/pwa/InstallPrompt";
+import OfflineBanner from "./components/pwa/OfflineBanner";
 import HomePage from "./pages/HomePage";
 import MarketplacePage from "./pages/MarketplacePage";
 import ListingDetailPage from "./pages/ListingDetailPage";
@@ -319,6 +320,7 @@ const App = () => {
       <FrederickWidget />
       <PWARegister />
       <InstallPrompt />
+      <OfflineBanner />
     </div>
   );
 };
