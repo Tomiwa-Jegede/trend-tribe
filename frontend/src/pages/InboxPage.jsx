@@ -268,6 +268,12 @@ const InboxPage = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  const openThread = useCallback((listingId, otherId) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("thread", `${listingId}-${otherId}`);
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
   // persist pending new-chat so it survives logout/new device — local fast + DB durable
   useEffect(() => {
     const tp = searchParams.get("thread");
@@ -299,16 +305,10 @@ const InboxPage = () => {
   }, [isChat, conversations, savedChats]);
 
   const inboxCount = messages.filter((m) => !m.listingId).length;
-  // Tighten guard: URL is truth, not expanded (lags one render) — otherwise header/list renders for one frame behind fixed ChatThread and scrolls with it
+  // Single URL truth: thread open is always ?thread=listingId-otherId — no expanded inline path (see chat-scroll-03)
   const threadParamDirect = searchParams.get("thread");
   if (isChat && threadParamDirect) {
     const [lid, withId] = threadParamDirect.split("-").map((v) => parseInt(v, 10));
-    if (!isNaN(lid) && !isNaN(withId)) {
-      return <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />;
-    }
-  }
-  if (isChat && expanded && expanded.startsWith("thread-")) {
-    const [lid, withId] = expanded.replace("thread-", "").split("-").map((v) => parseInt(v, 10));
     if (!isNaN(lid) && !isNaN(withId)) {
       return <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />;
     }
@@ -352,37 +352,21 @@ const InboxPage = () => {
               </div>
             );
           }
-          // when a chat is open, cover whole screen (no nav/footer, fixed overlay)
-          if (expanded && expanded.startsWith("thread-")) {
-            const open = finalConvos.find((c) => c.key === expanded);
-            if (open) {
-              return <ChatThread listingId={open.listing.id} withUser={open.otherUser} onClose={handleCloseChat} />;
-            }
-            // pending new thread not yet in finalConvos (first open)
-            const threadParam = searchParams.get("thread");
-            if (threadParam) {
-              const [lid, withId] = threadParam.split("-").map((v) => parseInt(v, 10));
-              if (!isNaN(lid) && !isNaN(withId)) {
-                return <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />;
-              }
-            }
-          }
           return (
             <>
               <div className="flex flex-col gap-3">
                 {finalConvos.map((c) => {
               const key = c.key;
-              const isOpen = expanded === key;
               if (c.isPending) {
                 return (
-                  <div key={key} onClick={() => setExpanded(key)} className="cursor-pointer">
-                    <PendingChatRow listingId={c.listing.id} otherId={c.otherUser.id} onOpen={() => setExpanded(key)} />
+                  <div key={key} onClick={() => openThread(c.listing.id, c.otherUser.id)} className="cursor-pointer">
+                    <PendingChatRow listingId={c.listing.id} otherId={c.otherUser.id} onOpen={() => openThread(c.listing.id, c.otherUser.id)} />
                   </div>
                 );
               }
               return (
                 <div key={key} className="card p-4">
-                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => setExpanded(key)}>
+                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => openThread(c.listing.id, c.otherUser.id)}>
                     {c.otherUser?.avatar ? <img src={c.otherUser.avatar} alt={c.otherUser.username} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{c.otherUser?.fullName?.[0] || c.otherUser?.username?.[0] || "?"}</div>}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{c.otherUser?.fullName || c.otherUser?.username} · {c.listing?.title || "Chat"}</p>

@@ -140,60 +140,6 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   };
 
   const inputRef = useRef(null);
-  // VisualViewport-driven height/offset — input tracks real visible area live (keyboard open/close)
-  const [vvHeight, setVvHeight] = useState(() => window.visualViewport?.height || window.innerHeight);
-  const [vvOffsetTop, setVvOffsetTop] = useState(() => window.visualViewport?.offsetTop || 0);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => {
-      setVvHeight(vv.height);
-      setVvOffsetTop(vv.offsetTop);
-    };
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    update();
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-    };
-  }, []);
-  // scroll-lock body + html while chat (fixed overlay) is open — guaranteed cleanup on close/unmount
-  useEffect(() => {
-    const html = document.documentElement;
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevBodyPosition = document.body.style.position;
-    const prevBodyTop = document.body.style.top;
-    const prevBodyWidth = document.body.style.width;
-    const prevBodyOverscroll = document.body.style.overscrollBehavior;
-    const prevHtmlOverflow = html.style.overflow;
-    const prevHtmlOverscroll = html.style.overscrollBehavior;
-    const scrollY = window.scrollY;
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    document.body.style.overscrollBehavior = "none";
-    html.style.overflow = "hidden";
-    html.style.overscrollBehavior = "none";
-    // iOS fallback: block touch-scroll outside the chat's own message list
-    const blockOutsideTouch = (e) => {
-      if (listRef.current && listRef.current.contains(e.target)) return;
-      e.preventDefault();
-    };
-    document.addEventListener("touchmove", blockOutsideTouch, { passive: false });
-    return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      document.body.style.position = prevBodyPosition;
-      document.body.style.top = prevBodyTop;
-      document.body.style.width = prevBodyWidth;
-      document.body.style.overscrollBehavior = prevBodyOverscroll;
-      html.style.overflow = prevHtmlOverflow;
-      html.style.overscrollBehavior = prevHtmlOverscroll;
-      document.removeEventListener("touchmove", blockOutsideTouch);
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
   // keep latest message visible when keyboard opens (visualViewport resize) — WhatsApp/iMessage behavior
   useEffect(() => {
     const vv = window.visualViewport;
@@ -216,7 +162,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden animate-pulse" style={{ height: `${vvHeight}px`, top: `${vvOffsetTop}px` }}>
+      <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden animate-pulse h-[100dvh]">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
           {onClose && (
             <button onClick={onClose} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-700 shrink-0" aria-label="Back to chats">
@@ -249,7 +195,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     );
   }
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden" style={{ height: `${vvHeight}px`, top: `${vvOffsetTop}px` }}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden h-[100dvh]">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
         {onClose && (
           <button onClick={onClose} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-700 shrink-0" aria-label="Back to chats">
