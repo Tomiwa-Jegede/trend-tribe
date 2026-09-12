@@ -294,8 +294,8 @@ const getConversations = async (req, res) => {
         messages: { orderBy: { createdAt: "desc" }, take: 1 },
       },
     });
-    // filter out system/admin (should not happen for Conversation, but safe)
-    const filtered = convos.filter((c) => c.buyer.role !== "ADMIN" && c.seller.role !== "ADMIN");
+    // include admin's own chats (e.g., Jegede01) — only filter pure system if both are ADMIN (not marketplace)
+    const filtered = convos;
     const conversations = await Promise.all(filtered.map(async (c) => {
       const otherUser = c.buyerId === req.user.id ? c.seller : c.buyer;
       const unreadCount = await prisma.message.count({ where: { conversationId: c.id, recipientId: req.user.id, recipientDeleted: false, read: false } });
@@ -314,7 +314,7 @@ const getConversations = async (req, res) => {
         listing: { select: { id: true, slug: true, title: true, images: true, price: true } },
       },
     });
-    const legacyFiltered = legacy.filter((m) => m.sender?.role !== "ADMIN" && m.recipient?.role !== "ADMIN");
+    const legacyFiltered = legacy;
     const map = new Map(conversations.map((c) => [c.key, c]));
     for (const m of legacyFiltered) {
       const other = m.senderId === req.user.id ? m.recipient : m.sender;
