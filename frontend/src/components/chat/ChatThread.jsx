@@ -201,6 +201,10 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     const vv = window.visualViewport;
     if (!vv) return;
     const update = () => {
+      // Safari repositions the layout viewport to bring a focused input into view — this drags
+      // position:fixed elements (header, input) along with it even though body scroll is locked.
+      // Snapping back to (0,0) every time neutralizes that native repositioning.
+      if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
       if (document.activeElement !== inputRef.current) {
         setKbOffset(0);
         return;
