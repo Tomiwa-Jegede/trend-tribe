@@ -109,6 +109,18 @@ export default function ChatThread({ listingId, withUser, onClose }) {
 
   useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [msgs, typing]);
 
+  // only allow scroll when messages actually overflow — prevents empty-list rubber-band/bounce
+  const [canScroll, setCanScroll] = useState(false);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const check = () => setCanScroll(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [msgs, typing, product]);
+
   const sendTyping = (isTyping) => {
     const now = Date.now();
     if (isTyping && now - lastTypingSent.current < 800) return;
@@ -210,7 +222,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           </div>
         </Link>
       )}
-      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30 overscroll-contain scroll-smooth">
+      <div ref={listRef} className={`flex-1 min-h-0 p-4 space-y-3 bg-[#ECE5DD]/30 scroll-smooth ${canScroll ? "overflow-y-auto overscroll-contain" : "overflow-hidden"}`}>
         {msgs.map((m) => {
           const mine = m.senderId === user?.id;
           return (
