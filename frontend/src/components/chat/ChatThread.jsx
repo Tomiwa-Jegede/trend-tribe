@@ -219,6 +219,9 @@ export default function ChatThread({ listingId, withUser, onClose }) {
       vv.removeEventListener("scroll", update);
     };
   }, []);
+
+  const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
+
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden animate-pulse h-[100dvh]">
