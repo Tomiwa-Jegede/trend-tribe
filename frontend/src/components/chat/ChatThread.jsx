@@ -146,22 +146,27 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   };
 
   const inputRef = useRef(null);
-  // keep latest message visible when keyboard opens (visualViewport resize) — WhatsApp/iMessage behavior
+  const [kbOffset, setKbOffset] = useState(0);
+  // VisualViewport-anchored input — tracks keyboard offset directly, decoupled from page scroll
+  // Header stays pinned via shrink-0 sticky top-0 inside fixed overlay; input is fixed to visual viewport
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-    const onResize = () => {
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKbOffset(offset);
       if (document.activeElement === inputRef.current) {
         requestAnimationFrame(() => {
           if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
         });
       }
     };
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
     };
   }, []);
 
@@ -228,7 +233,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           </div>
         </Link>
       )}
-      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30 overscroll-contain scroll-smooth">
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD]/30 overscroll-contain scroll-smooth" style={{ paddingBottom: `calc(1rem + ${kbOffset ? kbOffset + 72 : 72}px)` }}>
         {msgs.map((m) => {
           const mine = m.senderId === user?.id;
           return (
@@ -245,8 +250,8 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         })}
         {typing && <div className="text-xs text-gray-500 italic">typing...</div>}
       </div>
-      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0">{sendError}</p>}
-      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white shrink-0 sticky bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0" style={{ marginBottom: kbOffset ? `${kbOffset + 56}px` : undefined }}>{sendError}</p>}
+      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))] fixed left-0 right-0 z-10" style={{ bottom: kbOffset ? `${kbOffset}px` : "0px" }}>
         <input
           ref={inputRef}
           value={text}
