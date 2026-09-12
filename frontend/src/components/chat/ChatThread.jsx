@@ -148,18 +148,21 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   const inputRef = useRef(null);
   const [kbOffset, setKbOffset] = useState(0);
   // VisualViewport-anchored input — tracks keyboard offset directly, decoupled from page scroll
-  // Header stays pinned via shrink-0 sticky top-0 inside fixed overlay; input is fixed to visual viewport
+  // Only apply this as a keyboard offset while the input is actually focused — otherwise Safari's
+  // own address bar / bottom toolbar show-hide also shrinks the visual viewport and gets misread as a keyboard.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const update = () => {
+      if (document.activeElement !== inputRef.current) {
+        setKbOffset(0);
+        return;
+      }
       const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       setKbOffset(offset);
-      if (document.activeElement === inputRef.current) {
-        requestAnimationFrame(() => {
-          if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-        });
-      }
+      requestAnimationFrame(() => {
+        if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+      });
     };
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
@@ -257,7 +260,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           value={text}
           onChange={(e) => { setText(e.target.value); e.target.value ? sendTyping(true) : sendTyping(false); }}
           onFocus={() => requestAnimationFrame(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; })}
-          onBlur={() => sendTyping(false)}
+          onBlur={() => { sendTyping(false); setKbOffset(0); }}
           placeholder="Type a message"
           className="flex-1 input-field !py-2.5"
           disabled={sending}
