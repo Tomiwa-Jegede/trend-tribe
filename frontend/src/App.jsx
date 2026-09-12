@@ -97,6 +97,20 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+const TopAdminRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== "ADMIN" || user?.username !== "Jegede01") return <Navigate to="/admin" replace />;
+  return children;
+};
+
 // ─── Analytics: track pageviews on route change (SPA navigation
 // doesn't trigger a full reload, so GA4's base snippet only fires
 // once on first load without this) ──────────────────────────────
@@ -242,9 +256,9 @@ const App = () => {
             <Route
               path="/admin/withdrawals"
               element={
-                <AdminRoute>
+                <TopAdminRoute>
                   <AdminWithdrawalsPage />
-                </AdminRoute>
+                </TopAdminRoute>
               }
             />
             <Route

@@ -279,6 +279,10 @@ router.delete("/users/:id", protect, requireAdmin, async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role === "ADMIN") {
+      const { isTopAdmin } = require("../middleware/admin.middleware");
+      if (!isTopAdmin(req.user)) return res.status(403).json({ error: "Only Top Admin can delete another admin." });
+    }
 
     await prisma.user.delete({ where: { id } });
 

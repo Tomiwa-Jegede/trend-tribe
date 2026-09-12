@@ -474,10 +474,10 @@ const getListingById = async (req, res) => {
 
     if (!listing) return res.status(404).json({ error: "Listing not found" });
 
-    // ── Detail view count: 1 per authenticated non-owner per day — realtime — admin excluded (testing)
+    // ── Detail view count: 1 per authenticated non-owner per day — realtime
     const viewerId = req.user?.id;
     const isOwner = viewerId && listing.sellerId === viewerId;
-    if (viewerId && !isOwner && req.user?.role !== "ADMIN") {
+    if (viewerId && !isOwner) {
       const date = new Date().toISOString().slice(0, 10);
       // fire-and-forget, deduped by @@unique([listingId, viewerId, date])
       prisma.listingView

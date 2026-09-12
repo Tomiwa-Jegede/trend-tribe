@@ -177,22 +177,24 @@ const getThread = async (req, res) => {
     }
     let where;
     if (conversation) {
-      // include both conversation-linked and legacy per-listing messages for this pair (covers first message before migration)
-      where = {
-        OR: [
-          { conversationId: conversation.id },
-          {
-            listingId: listingId || undefined,
-            conversationId: null,
-            OR: [
-              { senderId: req.user.id, recipientId: withId },
-              { senderId: withId, recipientId: req.user.id },
-            ],
-          },
-        ],
-      };
-      // if listingId is null (per-person view), just use conversationId
-      if (!listingId) where = { conversationId: conversation.id };
+      // per-listing isolation when listingId provided — prevents cross-listing leakage for same buyer/seller pair
+      if (listingId) {
+        where = {
+          OR: [
+            { AND: [{ conversationId: conversation.id }, { listingId }] },
+            {
+              listingId,
+              conversationId: null,
+              OR: [
+                { senderId: req.user.id, recipientId: withId },
+                { senderId: withId, recipientId: req.user.id },
+              ],
+            },
+          ],
+        };
+      } else {
+        where = { conversationId: conversation.id };
+      }
     } else if (listingId) {
       where = {
         listingId,
@@ -392,4 +394,34 @@ const deleteAll = async (req, res) => {
   }
 };
 
-module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, createMessage, getThread, markDelivered, getPresence, getConversations, createConversation };
+const deleteConversationsBulk = async (req, res) => {
+  try {
+    const { keys } = req.body;
+    if (!Array.isArray(keys) || keys.length === 0) return res.status(400).json({ error: "No keys" });
+    for (const key of keys) {
+      if (typeof key !== "string" || !key.startsWith("thread-")) continue;
+      const parts = key.replace("thread-", "").split("-").map((v) => parseInt(v, 10));
+      if (parts.length !== 2 || parts.some(isNaN)) continue;
+      const [a, b] = parts;
+      // try per-person conversation first (buyer/seller)
+      let convo = await prisma.conversation.findFirst({ where: { OR: [{ buyerId: a, sellerId: b }, { buyerId: b, sellerId: a }] } });
+      if (convo && (convo.buyerId === req.user.id || convo.sellerId === req.user.id)) {
+        await prisma.message.updateMany({ where: { conversationId: convo.id, OR: [{ senderId: req.user.id }, { recipientId: req.user.id }] }, data: { senderDeleted: true, recipientDeleted: true } });
+        await prisma.message.deleteMany({ where: { conversationId: convo.id } }).catch(() => {});
+        await prisma.conversation.delete({ where: { id: convo.id } }).catch(() => {});
+      } else {
+        // fallback per-listing: a=listingId, b=otherId
+        const listingId = a, otherId = b;
+        await prisma.message.updateMany({ where: { listingId, OR: [{ senderId: req.user.id, recipientId: otherId }, { senderId: otherId, recipientId: req.user.id }] }, data: { senderDeleted: true, recipientDeleted: true } });
+        await prisma.message.deleteMany({ where: { listingId, OR: [{ senderId: req.user.id, recipientId: otherId }, { senderId: otherId, recipientId: req.user.id }] } }).catch(() => {});
+      }
+    }
+    await prisma.message.deleteMany({ where: { senderDeleted: true, recipientDeleted: true } }).catch(() => {});
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("[DELETE CONVERSATIONS BULK ERROR]", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+module.exports = { getMyMessages, getMessageById, markRead, markAllRead, getUnreadCount, deleteOne, deleteMany, deleteAll, deleteConversationsBulk, createMessage, getThread, markDelivered, getPresence, getConversations, createConversation };

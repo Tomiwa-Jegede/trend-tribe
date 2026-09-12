@@ -29,7 +29,11 @@ const navItems = [
   { label: "Disputes", path: "/admin/disputes", icon: FiAlertTriangle },
 ];
 
-const SidebarContent = ({ location, onNavigate }) => (
+const SidebarContent = ({ location, onNavigate }) => {
+  const { user } = useAuth();
+  const isTopAdmin = user?.username === "Jegede01";
+  const filtered = navItems.filter((i) => isTopAdmin || i.path !== "/admin/withdrawals");
+  return (
   <>
     <div className="h-16 flex items-center px-6 border-b border-sage-100">
       <span className="font-bold text-lg text-navy-900">
@@ -39,7 +43,7 @@ const SidebarContent = ({ location, onNavigate }) => (
     </div>
 
     <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-      {navItems.map(({ label, path, icon: Icon }) => {
+      {filtered.map(({ label, path, icon: Icon }) => {
         const active = location.pathname === path;
         return (
           <Link
@@ -59,7 +63,8 @@ const SidebarContent = ({ location, onNavigate }) => (
       })}
     </nav>
   </>
-);
+  );
+};
 
 const AdminLayout = ({ children }) => {
   const { user, logout } = useAuth();

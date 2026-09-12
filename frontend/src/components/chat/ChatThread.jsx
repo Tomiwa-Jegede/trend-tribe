@@ -49,8 +49,14 @@ export default function ChatThread({ listingId, withUser, onClose }) {
 
   // realtime: new message in thread — handles both full socket/pusher payload and SW push fallback
   const handleRealtimeMsg = useCallback((msg) => {
-    // SW push fallback sends {title, body, url} not full message — trigger refetch instead
+    // SW push fallback sends {title, body, url} not full message — trigger refetch only if URL matches this thread
     if (!msg || (!msg.listingId && !msg.senderId)) {
+      try {
+        if (msg?.url) {
+          const u = new URL(msg.url, window.location.origin);
+          if (u.searchParams.get("thread") !== `${listingId}-${withUser?.id}`) return;
+        } else return;
+      } catch { return; }
       // eslint-disable-next-line react-hooks/preserve-manual-memoization -- fetchThread stable via ref
       fetchThread();
       return;
@@ -163,7 +169,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden animate-pulse h-[100dvh]">
-        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50 shrink-0 sticky top-0 z-10">
           {onClose && (
             <button onClick={onClose} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-700 shrink-0" aria-label="Back to chats">
               <FiArrowLeft className="w-4 h-4" /> Back
@@ -196,7 +202,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   }
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden h-[100dvh]">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50 shrink-0 sticky top-0 z-10">
         {onClose && (
           <button onClick={onClose} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-700 shrink-0" aria-label="Back to chats">
             <FiArrowLeft className="w-4 h-4" /> Back
@@ -214,7 +220,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         </div>
       </div>
       {product && (
-        <Link to={`/listings/${product.slug || product.id}`} className="mx-4 mt-3 p-3 bg-white border border-gray-200 rounded-xl flex gap-3 items-center hover:border-primary-200 transition-colors">
+        <Link to={`/listings/${product.slug || product.id}`} className="mx-4 mt-3 p-3 bg-white border border-gray-200 rounded-xl flex gap-3 items-center hover:border-primary-200 transition-colors shrink-0">
           {product.images?.[0] ? <img src={product.images[0]} alt={product.title} className="w-14 h-14 rounded-lg object-cover" /> : <div className="w-14 h-14 bg-gray-100 rounded-lg" />}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{product.title}</p>

@@ -71,9 +71,12 @@ const InboxPage = () => {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(() => new Set());
   const [selecting, setSelecting] = useState(false);
+  const [selectedConvos, setSelectedConvos] = useState(() => new Set());
+  const [selectingChats, setSelectingChats] = useState(false);
   const [expanded, setExpanded] = useState(null); // id or thread-...
   // delete race: tombstone ids that were just deleted so 5s poll doesn't resurrect them if replica lags / poll wins race
   const pendingDeletesRef = useRef(new Set());
+  const pendingChatDeletesRef = useRef(new Set());
   const pendingDeleteAllRef = useRef(false);
 
   const threadParam = searchParams.get("thread");
@@ -95,6 +98,7 @@ const InboxPage = () => {
       // conversations come from separate endpoint — if we just bulk-deleted chats, keep empty
       let nextConvos = convos || [];
       if (pendingDeleteAllRef.current && isChat) nextConvos = [];
+      if (pendingChatDeletesRef.current.size > 0) nextConvos = nextConvos.filter((c) => !pendingChatDeletesRef.current.has(c.key));
       setConversations(nextConvos);
       setPagination(msgData.pagination);
       const tp = searchParamsRef.current.get("thread");
@@ -129,6 +133,8 @@ const InboxPage = () => {
       setPagination(null);
       setSelected(new Set());
       setSelecting(false);
+      setSelectedConvos(new Set());
+      setSelectingChats(false);
       setExpanded(null);
       setLoading(false);
       return;
@@ -137,6 +143,8 @@ const InboxPage = () => {
     setPagination(null);
     setSelected(new Set());
     setSelecting(false);
+    setSelectedConvos(new Set());
+    setSelectingChats(false);
     setExpanded(null);
     fetchMessages(true);
   }, [isAuthenticated, token, user?.id]); // fetchMessages stable — don't retrigger on thread change
@@ -179,6 +187,39 @@ const InboxPage = () => {
   const toggleSelectAll = () => {
     if (selected.size === messages.length) setSelected(new Set());
     else setSelected(new Set(messages.map((m) => m.id)));
+  };
+  const toggleChatSelect = (key) => {
+    setSelectedConvos((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const toggleChatSelectAll = (convos) => {
+    if (selectedConvos.size === convos.length) setSelectedConvos(new Set());
+    else setSelectedConvos(new Set(convos.map((c) => c.key)));
+  };
+  const handleDeleteSelectedChats = async (convos) => {
+    if (selectedConvos.size === 0) return;
+    if (!window.confirm(`Delete ${selectedConvos.size} chat${selectedConvos.size !== 1 ? "s" : ""}?`)) return;
+    const keys = Array.from(selectedConvos);
+    keys.forEach((k) => pendingChatDeletesRef.current.add(k));
+    try {
+      await api.post("/messages/conversations/bulk-delete", { keys });
+      setConversations((prev) => prev.filter((c) => !selectedConvos.has(c.key)));
+      setSavedChats((prev) => {
+        const next = prev.filter((c) => !selectedConvos.has(c.key));
+        try { localStorage.setItem("tt_saved_chats", JSON.stringify(next)); } catch {}
+        return next;
+      });
+      setSelectedConvos(new Set()); setSelectingChats(false);
+      setTimeout(() => keys.forEach((k) => pendingChatDeletesRef.current.delete(k)), 10000);
+    } catch (err) {
+      keys.forEach((k) => pendingChatDeletesRef.current.delete(k));
+      if (import.meta.env.DEV) console.warn("[InboxPage bulkDelete chats]", err?.response?.data || err.message);
+      alert(err?.response?.data?.error || "Bulk delete failed");
+    }
   };
 
   const handleOpen = async (m) => {
@@ -233,6 +274,7 @@ const InboxPage = () => {
         setConversations([]);
         setMessages([]);
         setSelected(new Set()); setSelecting(false);
+        setSelectedConvos(new Set()); setSelectingChats(false);
         setTimeout(() => { pendingDeleteAllRef.current = false; }, 10000);
       } catch (err) {
         pendingDeleteAllRef.current = false;
@@ -319,7 +361,22 @@ const InboxPage = () => {
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">{isChat ? <FiMessageCircle className="w-6 h-6" /> : <FiMail className="w-6 h-6" />} {isChat ? "Chats" : "Inbox"} {isChat ? conversations.length > 0 && <span className="text-sm font-normal text-gray-500">({conversations.length} chats)</span> : inboxCount > 0 && <span className="text-sm font-normal text-gray-500">({inboxCount})</span>}</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          {!selecting ? (
+          {isChat ? (
+            !selectingChats ? (
+              <>
+                {(conversations.length + savedChats.length) > 0 && <button onClick={() => setSelectingChats(true)} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-full border border-gray-200">Select</button>}
+                <button onClick={handleMarkAllRead} className="text-sm text-primary-600 font-semibold hover:underline">Mark all read</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => {
+                  const displayConvos = [...savedChats.filter((s) => !conversations.some((c) => c.otherUser?.id === s.otherUser?.id && c.listing?.id === s.listing?.id)), ...conversations];
+                  toggleChatSelectAll(displayConvos);
+                }} className="text-sm font-semibold text-primary-600 hover:underline">{selectedConvos.size > 0 ? "Deselect all" : "Select all"}</button>
+                <button onClick={() => { setSelectingChats(false); setSelectedConvos(new Set()); }} className="text-sm text-gray-500">Cancel</button>
+              </>
+            )
+          ) : !selecting ? (
             <>
               {messages.length > 0 && <button onClick={() => setSelecting(true)} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-full border border-gray-200">Select</button>}
               <button onClick={handleMarkAllRead} className="text-sm text-primary-600 font-semibold hover:underline">Mark all read</button>
@@ -357,22 +414,29 @@ const InboxPage = () => {
               <div className="flex flex-col gap-3">
                 {finalConvos.map((c) => {
               const key = c.key;
+              const isSelected = selectedConvos.has(key);
               if (c.isPending) {
                 return (
-                  <div key={key} onClick={() => openThread(c.listing.id, c.otherUser.id)} className="cursor-pointer">
-                    <PendingChatRow listingId={c.listing.id} otherId={c.otherUser.id} onOpen={() => openThread(c.listing.id, c.otherUser.id)} />
+                  <div key={key} onClick={() => selectingChats ? toggleChatSelect(key) : openThread(c.listing.id, c.otherUser.id)} className={`cursor-pointer ${isSelected ? "ring-2 ring-primary-200 rounded-xl" : ""}`}>
+                    <div className="flex gap-2 items-center">
+                      {selectingChats && (isSelected ? <FiCheckSquare className="w-5 h-5 text-primary-600 shrink-0" /> : <FiSquare className="w-5 h-5 text-gray-300 shrink-0" />)}
+                      <div className="flex-1">
+                        <PendingChatRow listingId={c.listing.id} otherId={c.otherUser.id} onOpen={() => selectingChats ? toggleChatSelect(key) : openThread(c.listing.id, c.otherUser.id)} />
+                      </div>
+                    </div>
                   </div>
                 );
               }
               return (
-                <div key={key} className="card p-4">
-                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => openThread(c.listing.id, c.otherUser.id)}>
+                <div key={key} className={`card p-4 ${isSelected ? "ring-2 ring-primary-200" : ""}`}>
+                  <div className="flex gap-3 items-center cursor-pointer" onClick={() => selectingChats ? toggleChatSelect(key) : openThread(c.listing.id, c.otherUser.id)}>
+                    {selectingChats && (isSelected ? <FiCheckSquare className="w-5 h-5 text-primary-600 shrink-0" /> : <FiSquare className="w-5 h-5 text-gray-300 shrink-0" />)}
                     {c.otherUser?.avatar ? <img src={c.otherUser.avatar} alt={c.otherUser.username} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{c.otherUser?.fullName?.[0] || c.otherUser?.username?.[0] || "?"}</div>}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{c.otherUser?.fullName || c.otherUser?.username} · {c.listing?.title || "Chat"}</p>
                       <p className="text-xs text-gray-500 truncate">{c.lastMessage?.body?.slice(0, 60) || "No messages"} {c.unreadCount > 0 && <span className="ml-2 bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{c.unreadCount} new</span>}</p>
                     </div>
-                    <span className="text-xs text-primary-600 font-semibold">Open chat →</span>
+                    {!selectingChats && <span className="text-xs text-primary-600 font-semibold">Open chat →</span>}
                   </div>
                 </div>
               );
@@ -380,7 +444,11 @@ const InboxPage = () => {
           </div>
           <div className="mt-6 flex items-center justify-between gap-2 border-t border-gray-100 pt-4 flex-wrap">
             <span className="text-xs text-gray-400">{finalConvos.length} chats · {finalConvos.reduce((a, c) => a + (c.unreadCount || 0), 0)} unread</span>
-            <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete all</button>
+            {selectingChats ? (
+              <button onClick={() => handleDeleteSelectedChats(finalConvos)} disabled={selectedConvos.size === 0} className="text-sm font-semibold text-red-600 hover:text-red-700 disabled:opacity-40 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete selected ({selectedConvos.size})</button>
+            ) : (
+              <button onClick={handleDeleteAll} className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"><FiTrash2 className="w-4 h-4" /> Delete all</button>
+            )}
           </div>
         </>
       );
