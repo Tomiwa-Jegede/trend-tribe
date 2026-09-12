@@ -107,6 +107,43 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     return () => { document.removeEventListener("visibilitychange", onVis); clearInterval(id); };
   }, []);
 
+  // scroll-lock body + html while chat (fixed overlay) is open — keeps header truly fixed,
+  // prevents iOS from scrolling the page to bring the focused input into view
+  useEffect(() => {
+    const html = document.documentElement;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyPosition = document.body.style.position;
+    const prevBodyTop = document.body.style.top;
+    const prevBodyWidth = document.body.style.width;
+    const prevBodyOverscroll = document.body.style.overscrollBehavior;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevHtmlOverscroll = html.style.overscrollBehavior;
+    const scrollY = window.scrollY;
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    document.body.style.overscrollBehavior = "none";
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    const blockOutsideTouch = (e) => {
+      if (listRef.current && listRef.current.contains(e.target)) return;
+      e.preventDefault();
+    };
+    document.addEventListener("touchmove", blockOutsideTouch, { passive: false });
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.position = prevBodyPosition;
+      document.body.style.top = prevBodyTop;
+      document.body.style.width = prevBodyWidth;
+      document.body.style.overscrollBehavior = prevBodyOverscroll;
+      html.style.overflow = prevHtmlOverflow;
+      html.style.overscrollBehavior = prevHtmlOverscroll;
+      document.removeEventListener("touchmove", blockOutsideTouch);
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [msgs, typing]);
 
   // only allow scroll when messages actually overflow — prevents empty-list rubber-band/bounce
