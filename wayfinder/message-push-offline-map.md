@@ -14,7 +14,7 @@ Message delivery is loophole-free: `POST /api/messages` (and bulk `createMessage
 - [msg-push-02-payload-mechanism](tickets/msg-push-02-payload-mechanism.md): Reuse `sendPushToUser` with chat shape `title/body 80/url deep-link/tag chat-${id}/badgeCount` (fixed `recipientDeleted + listingId not null + sender role`).
 - [msg-push-03-threshold](tickets/msg-push-03-threshold.md): Reuse 2-min `isOnline` threshold, no new env.
 - [msg-push-04-timing-save](tickets/msg-push-04-timing-save.md): Fire-and-forget `if (!isOnline) sendPush` after `201` + `emitMessage`, never blocks save, 410 cleans sub.
-- [msg-push-05-frontend-permission](tickets/msg-push-05-frontend-permission.md): Auto Enable on first `/chat` if `default` → `requestPermission+subscribePush` (default is Enable), independent frontend half.
+- [msg-push-05-frontend-permission](tickets/msg-push-05-frontend-permission.md): Soft `Enable` banner on first `/chat` before real permission, dismiss forever, not cold subscribe.
 
 ## Not yet specified
 - Exact storage for last activity timestamp (realtime presence map vs `User.lastSeen` vs Socket `lastSeen`)

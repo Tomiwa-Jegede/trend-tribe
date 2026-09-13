@@ -151,18 +151,14 @@ const InboxPage = () => {
     fetchMessages(true);
   }, [isAuthenticated, token, user?.id]); // fetchMessages stable — don't retrigger on thread change
 
-  // Frontend half of Web Push: auto-enable on first /chat if permission default (msg-push-05 — default should be Enable)
+  // Frontend half of Web Push: soft prompt before real permission (msg-push-05 expanded — do not call cold)
   useEffect(() => {
-    if (!isChat || !isAuthenticated) return;
+    if (!isChat || !isAuthenticated) { setShowPushBanner(false); return; }
     try {
-      if (!isPushSupported() || Notification.permission !== "default") return;
-      if (localStorage.getItem("tt_push_prompt_dismissed")) return;
-      (async () => {
-        const p = await requestPermission();
-        if (p === "granted") try { await subscribePush(); } catch {}
-        localStorage.setItem("tt_push_prompt_dismissed", "1");
-      })();
-    } catch {}
+      if (!isPushSupported() || Notification.permission !== "default") { setShowPushBanner(false); return; }
+      if (localStorage.getItem("tt_push_prompt_dismissed")) { setShowPushBanner(false); return; }
+      setShowPushBanner(true);
+    } catch { setShowPushBanner(false); }
   }, [isChat, isAuthenticated]);
 
   // realtime inbox refresh — stable handler via ref, fetches immediately on push/socket
