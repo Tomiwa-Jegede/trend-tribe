@@ -345,9 +345,14 @@ const Navbar = () => {
               <div className="relative" ref={moreRef}>
                 <button
                   onClick={() => setShowMore((v) => !v)}
-                  className="flex items-center gap-1 text-sm font-medium pb-1 text-gray-600 hover:text-primary-600"
+                  className="relative flex items-center gap-1 text-sm font-medium pb-1 text-gray-600 hover:text-primary-600"
                 >
                   More <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
+                  {inboxUnread > 0 && (
+                    <span className="absolute -top-2 -right-5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {inboxUnread > 99 ? "99+" : inboxUnread}
+                    </span>
+                  )}
                 </button>
                 <AnimatePresence>
                   {showMore && (
@@ -468,9 +473,9 @@ const Navbar = () => {
                 ) : (
                   <FiMenu className="w-5 h-5" />
                 )}
-                {(inboxUnread + notifUnread) > 0 && !menuOpen && (
+                {inboxUnread > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] aspect-square flex items-center justify-center px-1">
-                    {(inboxUnread + notifUnread) > 99 ? "99+" : inboxUnread + notifUnread}
+                    {inboxUnread > 99 ? "99+" : inboxUnread}
                   </span>
                 )}
               </motion.button>
