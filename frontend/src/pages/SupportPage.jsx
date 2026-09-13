@@ -12,6 +12,7 @@ export default function SupportPage() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const listRef = useRef(null);
+  const inputRef = useRef(null);
 
   const fetchThread = useCallback(async () => {
     setLoading(true);
@@ -33,6 +34,7 @@ export default function SupportPage() {
     e.preventDefault();
     const body = text.trim(); if (!body) return;
     setText("");
+    if (inputRef.current) inputRef.current.style.height='auto';
     try {
       const msg = await contactSupport(body);
       setMsgs(p=>[...p, msg]);
@@ -61,9 +63,9 @@ export default function SupportPage() {
             );
           })}
         </div>
-        <form onSubmit={handleSend} className="p-3 border-t flex gap-2">
-          <input value={text} onChange={e=>setText(e.target.value)} placeholder="Describe what you need..." className="flex-1 input-field !py-2.5" />
-          <button type="submit" className="btn-primary px-4 flex items-center gap-1"><FiSend /> Send</button>
+        <form onSubmit={handleSend} className="p-3 border-t flex gap-2 items-end">
+          <textarea ref={inputRef} value={text} onChange={e=>{setText(e.target.value); e.target.style.height='auto'; e.target.style.height=Math.min(e.target.scrollHeight,120)+'px';}} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault(); handleSend(e);}}} placeholder="Describe what you need..." className="flex-1 input-field !py-2.5 resize-none overflow-y-auto max-h-[120px] min-h-[42px] leading-5 whitespace-pre-wrap break-words" rows={1} />
+          <button type="submit" className="btn-primary px-4 py-2.5 flex items-center gap-1 self-end"><FiSend /> Send</button>
         </form>
       </div>
     </div>

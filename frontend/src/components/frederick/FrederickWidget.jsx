@@ -85,6 +85,7 @@ const FrederickWidget = () => {
     e.target.value = ""; // allow re-selecting the same file later
   };
 
+  const frederickInputRef = useRef(null);
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
@@ -94,6 +95,7 @@ const FrederickWidget = () => {
     if (isUpdateCmd) {
       setMessages((prev) => [...prev, { role: "user", text: trimmed, products: [] }]);
       setInput("");
+      if (frederickInputRef.current) frederickInputRef.current.style.height='auto';
       setPendingImage(null);
       if (pendingImagePreview) URL.revokeObjectURL(pendingImagePreview);
       setPendingImagePreview(null);
@@ -142,6 +144,7 @@ const FrederickWidget = () => {
       { role: "user", text: trimmed, products: [], imagePreview: imagePreviewToSend },
     ]);
     setInput("");
+    if (frederickInputRef.current) frederickInputRef.current.style.height='auto';
     setPendingImage(null);
     setPendingImagePreview(null); // don't revoke — the message list now owns this URL
     setLoading(true);
@@ -491,7 +494,7 @@ const FrederickWidget = () => {
               </div>
             )}
 
-            <div className="border-t border-sage-100 p-2 flex items-center gap-2">
+            <div className="border-t border-sage-100 p-2 flex items-end gap-2">
               <input
                 type="file"
                 accept="image/*"
@@ -507,13 +510,14 @@ const FrederickWidget = () => {
               >
                 <FiPaperclip className="w-4 h-4" />
               </button>
-              <input
+              <textarea
+                ref={frederickInputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => { setInput(e.target.value); e.target.style.height='auto'; e.target.style.height=Math.min(e.target.scrollHeight, 100)+'px'; }}
                 onKeyDown={handleKeyDown}
                 placeholder={isAdmin ? "Type 'update' for briefing..." : "What are you looking for?"}
-                className="flex-1 text-sm px-3 py-2 rounded-full border border-sage-200
-                           focus:outline-none focus:border-primary-400"
+                className="flex-1 text-sm px-3 py-2 rounded-2xl border border-sage-200 focus:outline-none focus:border-primary-400 resize-none overflow-y-auto max-h-[100px] min-h-[38px] leading-5 whitespace-pre-wrap break-words"
+                rows={1}
               />
               <button
                 onClick={handleSend}

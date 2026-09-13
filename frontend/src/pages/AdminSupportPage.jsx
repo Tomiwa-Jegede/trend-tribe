@@ -1,5 +1,5 @@
 // AdminSupportPage — admin queue for Contact Us (per-user listingId=null)
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { listSupportThreads, confirmSupport, replySupport, getSupportThread } from "../services/supportService";
 import useRealtime from "../hooks/useRealtime";
@@ -11,6 +11,7 @@ export default function AdminSupportPage() {
   const [selected, setSelected] = useState(null);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
+  const inputRef = useRef(null);
 
   const fetchThreads = useCallback(async () => {
     try { const t = await listSupportThreads(); setThreads(t || []); } catch {}
@@ -40,6 +41,7 @@ export default function AdminSupportPage() {
     e.preventDefault();
     const body = text.trim(); if (!body || !selected) return;
     setText("");
+    if (inputRef.current) inputRef.current.style.height='auto';
     try { const msg = await replySupport(selected, body); setMsgs(p=>[...p, msg]); } catch (err) { alert(err?.response?.data?.error || "Reply failed"); setText(body); }
   };
 
@@ -74,9 +76,9 @@ export default function AdminSupportPage() {
                   </div>
                 ))}
               </div>
-              <form onSubmit={handleReply} className="p-3 border-t flex gap-2">
-                <input value={text} onChange={e=>setText(e.target.value)} placeholder="Reply..." className="flex-1 input-field !py-2.5" />
-                <button type="submit" className="btn-primary px-4"><FiSend /> Send</button>
+              <form onSubmit={handleReply} className="p-3 border-t flex gap-2 items-end">
+                <textarea ref={inputRef} value={text} onChange={e=>{setText(e.target.value); e.target.style.height='auto'; e.target.style.height=Math.min(e.target.scrollHeight,120)+'px';}} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault(); handleReply(e);}}} placeholder="Reply..." className="flex-1 input-field !py-2.5 resize-none overflow-y-auto max-h-[120px] min-h-[42px] leading-5 whitespace-pre-wrap break-words" rows={1} />
+                <button type="submit" className="btn-primary px-4 py-2.5 self-end"><FiSend /> Send</button>
               </form>
             </>
           )}

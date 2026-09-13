@@ -179,6 +179,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
       const msg = await sendMessage({ listingId, body, recipientId: withUser.id });
       setMsgs((p) => [...p, msg]);
       setText("");
+      if (inputRef.current) inputRef.current.style.height = 'auto';
     } catch (err) {
       setSendError(err.response?.data?.error || "Failed to send — tap to retry");
     } finally {
@@ -320,19 +321,21 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         {typing && <div className="text-xs text-gray-500 italic">typing...</div>}
       </div>
       {sendError && <p className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0" style={{ marginBottom: kbOffset ? `${kbOffset + 56}px` : undefined }}>{sendError}</p>}
-      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))] fixed left-0 right-0 z-10" style={{ bottom: kbOffset ? `${kbOffset}px` : "0px" }}>
-        <input
+      <form onSubmit={handleSend} className="p-3 border-t border-gray-100 flex gap-2 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))] fixed left-0 right-0 z-10 items-end" style={{ bottom: kbOffset ? `${kbOffset}px` : "0px" }}>
+        <textarea
           ref={inputRef}
           value={text}
-          onChange={(e) => { setText(e.target.value); e.target.value ? sendTyping(true) : sendTyping(false); }}
+          onChange={(e) => { setText(e.target.value); e.target.value ? sendTyping(true) : sendTyping(false); e.target.style.height='auto'; e.target.style.height=Math.min(e.target.scrollHeight, 120)+'px'; }}
           onFocus={() => requestAnimationFrame(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; })}
           onBlur={() => { sendTyping(false); setKbOffset(0); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }}
           placeholder="Type a message"
-          className="flex-1 input-field !py-2.5"
+          className="flex-1 input-field !py-2.5 resize-none overflow-y-auto max-h-[120px] min-h-[42px] leading-5 whitespace-pre-wrap break-words"
+          rows={1}
           disabled={sending}
           enterKeyHint="send"
         />
-        <button type="submit" disabled={sending} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()} className="btn-primary px-4 flex items-center gap-1 disabled:opacity-50 shrink-0"><FiSend className="w-4 h-4" /> {sending ? "..." : "Send"}</button>
+        <button type="submit" disabled={sending} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()} className="btn-primary px-4 py-2.5 flex items-center gap-1 disabled:opacity-50 shrink-0 self-end"><FiSend className="w-4 h-4" /> {sending ? "..." : "Send"}</button>
       </form>
     </div>
   );
