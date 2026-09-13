@@ -53,16 +53,7 @@ export default function PWARegister() {
   useEffect(() => {
     if (!("setAppBadge" in navigator) && !("clearAppBadge" in navigator)) return;
     let timer;
-    let lastHiddenAt = 0;
-    const markAllSeen = async () => {
-      try {
-        await Promise.all([
-          api.post("/notifications/read-all").catch(() => {}),
-          api.post("/messages/read-all").catch(() => {}),
-        ]);
-      } catch {}
-    };
-    const syncBadge = async ({ markSeenOnOpen = false } = {}) => {
+    const syncBadge = async () => {
       if (!isAuthenticated) {
         clearBadge();
         return;
@@ -73,24 +64,16 @@ export default function PWARegister() {
           api.get("/messages/unread-count").then((r) => r.data.unreadCount).catch(() => 0),
         ]);
         const total = (n || 0) + (m || 0);
-        if (total > 0) {
-          // if app was hidden (push outside) and now visible, first open marks as seen
-          if (markSeenOnOpen && Date.now() - lastHiddenAt < 30_000) {
-            await markAllSeen();
-            clearBadge();
-            return;
-          }
-          setBadge(total);
-        } else clearBadge();
+        if (total > 0) setBadge(total);
+        else clearBadge();
       } catch {}
     };
     const onVis = () => {
-      if (document.visibilityState === "hidden") lastHiddenAt = Date.now();
-      else syncBadge({ markSeenOnOpen: true });
+      if (document.visibilityState === "visible") syncBadge();
     };
-    const onFocus = () => syncBadge({ markSeenOnOpen: true });
+    const onFocus = () => syncBadge();
     const onPushMsg = (e) => {
-      if (e.data?.type === "TRENDTRIBE_PUSH") syncBadge({ markSeenOnOpen: false });
+      if (e.data?.type === "TRENDTRIBE_PUSH") syncBadge();
     };
     syncBadge();
     timer = setInterval(() => { if (document.visibilityState === "visible") syncBadge(); }, 30_000);

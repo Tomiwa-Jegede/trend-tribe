@@ -120,11 +120,9 @@ const InboxPage = () => {
             return next;
           });
         }
-      } else if (msgData.messages?.some((m) => !m.read)) {
-        markAllMessagesRead().catch(() => {});
-        setMessages((prev) => prev.map((x) => ({ ...x, read: true })));
-        if ("clearAppBadge" in navigator) navigator.clearAppBadge().catch(() => {});
       }
+      // dot/badge stay until user actually opens the specific thread — no auto markAllRead here
+      // unread is cleared only via ChatThread socket message:read (listingId) or explicit handleOpen/handleMarkAllRead
     } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage fetchMessages]", err?.response?.data || err.message); }
     finally { if (showLoader) setLoading(false); }
   }, [isAuthenticated, token, user?.id]);
