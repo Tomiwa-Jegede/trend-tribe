@@ -38,8 +38,12 @@ const bookService = async (req, res) => {
     } catch {}
     try {
       await prisma.notification.create({ data: { userId: listing.sellerId, actorId: req.user.id, listingId, type: "SERVICE_BOOKING" } });
-      const { emitNotification } = require("../realtime");
+      const { emitNotification, isOnline } = require("../realtime");
       emitNotification(listing.sellerId, { type: "SERVICE_BOOKING", listingId });
+      if (!isOnline(listing.sellerId)) {
+        const { sendPushToUser } = require("../utils/push");
+        sendPushToUser(prisma, listing.sellerId, { title: "New service booking", body: `New booking for ${listing.title?.slice(0,60) || "service"} — tap to confirm`, url: "/bookings/provider", tag: `booking-${booking.id}` }).catch(()=>{});
+      }
     } catch {}
 
     return res.status(201).json({ booking, message: `Booked — ₦${(amountKobo/100).toLocaleString()} held from Gig wallet. Provider has 1 hour to confirm.` });
@@ -86,8 +90,12 @@ const confirmServiceBooking = async (req, res) => {
     const providerUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { whatsapp: true } });
     try {
       await prisma.notification.create({ data: { userId: booking.bookerId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_CONFIRMED" } });
-      const { emitNotification } = require("../realtime");
+      const { emitNotification, isOnline } = require("../realtime");
       emitNotification(booking.bookerId, { type: "SERVICE_CONFIRMED", listingId: booking.listingId });
+      if (!isOnline(booking.bookerId)) {
+        const { sendPushToUser } = require("../utils/push");
+        sendPushToUser(prisma, booking.bookerId, { title: "Service confirmed", body: `Provider confirmed booking #${id} — WhatsApp unlocked, service pending`, url: "/bookings/mine", tag: `confirm-${id}` }).catch(()=>{});
+      }
     } catch {}
 
     return res.json({ message: `Confirmed — escrow still held (₦${(booking.amount/100).toLocaleString()}), booker gets your WhatsApp. Mark as completed after service to release funds.`, whatsapp: providerUser?.whatsapp, feeKobo });
