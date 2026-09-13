@@ -39,16 +39,28 @@ async function sendPushToSubscription(subscription, payload) {
 }
 
 async function sendPushToUser(prisma, userId, payload) {
-  if (!ensureConfigured()) return 0;
+  if (!ensureConfigured()) {
+    console.warn(`[PUSH] VAPID not configured — skip user=${userId}`);
+    return 0;
+  }
   const subs = await prisma.pushSubscription.findMany({ where: { userId } });
-  if (!subs.length) return 0;
+  if (!subs.length) {
+    console.log(`[PUSH] No subscriptions for user=${userId} tag=${payload.tag || ""}`);
+    return 0;
+  }
   let sent = 0;
   for (const sub of subs) {
     const r = await sendPushToSubscription(sub, payload);
     if (r.shouldDelete) {
+      console.log(`[PUSH] Deleting expired sub id=${sub.id} user=${userId} status=${r.statusCode}`);
       await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
-    } else if (r.success) sent++;
+    } else if (r.success) {
+      sent++;
+    } else {
+      console.warn(`[PUSH] Failed sub id=${sub.id} user=${userId} status=${r.statusCode} err=${r.error}`);
+    }
   }
+  console.log(`[PUSH] User=${userId} sent=${sent}/${subs.length} tag=${payload.tag || ""}`);
   return sent;
 }
 

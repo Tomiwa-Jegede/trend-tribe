@@ -59,25 +59,26 @@ const createMessage = async (req, res) => {
       prisma.contactView.create({ data: { listingId: lid, viewerId: req.user.id } }).catch(() => {});
     }
     try { emitMessage(recipientId, msg); } catch {}
-    // Web Push only when recipient offline/inactive — uses same mechanism as bookings/withdrawals
-    // Reuse isOnline (onlineCounts>0 || lastActive<2m) as single source; fire-and-forget, never blocks 201
+    // Web Push — always send, SW suppresses visually when app foreground (push-handler.js hasVisibleClient)
+    // Previous isOnline guard caused silent skip when socket lingered <2m after app closed (realtime.js lastActive)
     try {
       const { isOnline } = require("../realtime");
-      if (!isOnline(recipientId)) {
-        prisma.message.count({ where: { recipientId, recipientDeleted: false, read: false, listingId: { not: null }, sender: { role: { not: "ADMIN" } } } }).then((unread) => {
-          const { sendPushToUser } = require("../utils/push");
-          sendPushToUser(prisma, recipientId, {
-            title: "Trend Tribe — New chat message",
-            body: `${msg.sender.fullName || msg.sender.username}: ${text.slice(0, 80)}`,
-            url: `/chat?thread=${lid}-${msg.senderId}`,
-            icon: "/icon-192.png",
-            badge: "/icon-192.png",
-            badgeCount: unread,
-            tag: `chat-${msg.id}`,
-          }).catch(() => {});
-        }).catch(() => {});
-      }
-    } catch {}
+      let isOnlineVal = false;
+      try { isOnlineVal = isOnline(recipientId); } catch {}
+      console.log(`[PUSH CHAT] recipient=${recipientId} isOnline=${isOnlineVal} msg=${msg.id} lid=${lid}`);
+      prisma.message.count({ where: { recipientId, recipientDeleted: false, read: false, listingId: { not: null }, sender: { role: { not: "ADMIN" } } } }).then((unread) => {
+        const { sendPushToUser } = require("../utils/push");
+        sendPushToUser(prisma, recipientId, {
+          title: "Trend Tribe — New chat message",
+          body: `${msg.sender.fullName || msg.sender.username}: ${text.slice(0, 80)}`,
+          url: `/chat?thread=${lid}-${msg.senderId}`,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          badgeCount: unread,
+          tag: `chat-${msg.id}`,
+        }).then((sent) => console.log(`[PUSH CHAT RESULT] recipient=${recipientId} sent=${sent}/${unread} unread msg=${msg.id}`)).catch((e) => console.error(`[PUSH CHAT ERROR] recipient=${recipientId} msg=${msg.id}`, e.message));
+      }).catch((e) => console.error(`[PUSH CHAT COUNT ERROR] recipient=${recipientId}`, e.message));
+    } catch (e) { console.error("[PUSH CHAT GUARD ERROR]", e.message); }
     return res.status(201).json({ message: msg });
   } catch (err) {
     console.error("[CREATE MESSAGE ERROR]", err);

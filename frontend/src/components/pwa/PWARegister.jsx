@@ -42,10 +42,21 @@ export default function PWARegister() {
   const { isAuthenticated } = useAuth();
 
   // Auto-resubscribe push if permission already granted (so push works when closed)
+  // Fixes orphan userId=null rows: re-links endpoint to authenticated user on every auth/visibility change
   useEffect(() => {
     if (!isAuthenticated) return;
     if (!isPushSupported() || Notification.permission !== "granted") return;
     subscribePush().catch(() => {});
+    const resync = () => {
+      if (Notification.permission === "granted") subscribePush().catch(() => {});
+    };
+    const onVis = () => { if (document.visibilityState === "visible") resync(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", resync);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", resync);
+    };
   }, [isAuthenticated]);
 
   // Keep app-icon badge in sync with unread notifications (where supported)
