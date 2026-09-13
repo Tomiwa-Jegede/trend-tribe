@@ -1,32 +1,18 @@
 // src/components/pwa/PWARegister.jsx — registers Workbox SW + handles updates + badge + push resync
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { isPushSupported, subscribePush, setBadge, clearBadge } from "../../services/push";
 import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 
 export default function PWARegister() {
+  const [swReg, setSwReg] = useState(null);
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(swUrl, r) {
-      // periodic check every hour + on visibility/focus so PWA picks up deploy on next open
-      if (r) {
-        const doUpdate = () => r.update().catch(() => {});
-        const id = setInterval(doUpdate, 60 * 60 * 1000);
-        const onVis = () => { if (document.visibilityState === "visible") doUpdate(); };
-        const onFocus = () => doUpdate();
-        document.addEventListener("visibilitychange", onVis);
-        window.addEventListener("focus", onFocus);
-        // cleanup if component unmounts (though it's root)
-        // store for HMR
-        if (import.meta.hot) import.meta.hot.dispose(() => {
-          clearInterval(id);
-          document.removeEventListener("visibilitychange", onVis);
-          window.removeEventListener("focus", onFocus);
-        });
-      }
+      if (r) setSwReg(r);
       console.log("[PWA] SW registered", swUrl);
     },
     onRegistered(r) {
@@ -37,6 +23,21 @@ export default function PWARegister() {
       console.warn("[PWA] SW error", e);
     },
   });
+
+  useEffect(() => {
+    if (!swReg) return;
+    const doUpdate = () => swReg.update().catch(() => {});
+    const id = setInterval(doUpdate, 60 * 60 * 1000);
+    const onVis = () => { if (document.visibilityState === "visible") doUpdate(); };
+    const onFocus = () => doUpdate();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [swReg]);
 
   const { isAuthenticated } = useAuth();
 
@@ -92,7 +93,7 @@ export default function PWARegister() {
       if (e.data?.type === "TRENDTRIBE_PUSH") syncBadge({ markSeenOnOpen: false });
     };
     syncBadge();
-    timer = setInterval(syncBadge, 30_000);
+    timer = setInterval(() => { if (document.visibilityState === "visible") syncBadge(); }, 30_000);
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onFocus);
     navigator.serviceWorker?.addEventListener("message", onPushMsg);

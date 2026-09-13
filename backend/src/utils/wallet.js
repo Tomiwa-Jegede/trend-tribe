@@ -50,12 +50,10 @@ async function recordWalletMovement({ userId, direction, amount, fee = 0, type, 
     } catch (e) { console.warn("[WALLET MSG FAIL]", e.message); }
     try {
       const { sendPushToUser } = require("./push");
-      const { emitNotification } = require("../realtime");
+      const { emitNotification, isOnline } = require("../realtime");
       const pushTitle = direction === "CREDIT" ? `Gig Wallet — Credit: ${formatNaira(amount)}` : `Gig Wallet — Debit: ${formatNaira(total)}`;
-      sendPushToUser(prisma, userId, { title: pushTitle, body: body.slice(0, 120), url: "/gigs/wallet", tag: `gig-wallet-${Date.now()}-${userId}` }).catch(() => {});
+      if (!isOnline(userId)) sendPushToUser(prisma, userId, { title: pushTitle, body: body.slice(0, 120), url: "/gigs/wallet", tag: `gig-wallet-${Date.now()}-${userId}` }).catch(() => {});
       try { emitNotification(userId, { type: specificType }); } catch {}
-      // also emit generic for bell count
-      try { emitNotification(userId, { type: notifType }); } catch {}
     } catch {}
   } catch (err) {
     console.error("[RECORD WALLET MOVEMENT ERROR]", err.message);

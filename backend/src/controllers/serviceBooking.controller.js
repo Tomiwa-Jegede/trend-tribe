@@ -170,11 +170,7 @@ const disputeServiceBooking = async (req, res) => {
     const updated = await prisma.serviceBooking.update({ where: { id }, data: { status: "DISPUTED", disputeReason: reason || null, disputeDescription: description || null } });
     try {
       const otherId = req.user.id === booking.bookerId ? booking.providerId : booking.bookerId;
-      await prisma.notification.createMany({ data: [
-        { userId: otherId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_DISPUTED" },
-        { userId: booking.bookerId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_DISPUTED" },
-        { userId: booking.providerId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_DISPUTED" },
-      ]});
+      await prisma.notification.create({ data: { userId: otherId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_DISPUTED" } });
       // admin notify
       const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
       for (const a of admins) {
@@ -185,8 +181,7 @@ const disputeServiceBooking = async (req, res) => {
         try { emitNotification(a.id, { type: "SERVICE_DISPUTED_ADMIN" }); } catch {}
       }
       const { emitNotification } = require("../realtime");
-      emitNotification(booking.bookerId, { type: "SERVICE_DISPUTED", listingId: booking.listingId });
-      emitNotification(booking.providerId, { type: "SERVICE_DISPUTED", listingId: booking.listingId });
+      emitNotification(otherId, { type: "SERVICE_DISPUTED", listingId: booking.listingId });
     } catch {}
     return res.json({ booking: updated, message: "Disputed — admin will review, escrow held, completion paused." });
   } catch (err) {

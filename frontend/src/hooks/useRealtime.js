@@ -25,15 +25,7 @@ export default function useRealtime(event, callback, opts = {}) {
     const mainChannel = channelForEvent(event);
     if (mainChannel) pusherOffs.push(subscribePusher(mainChannel, event, handler));
     if (user?.id && (event.startsWith("notification") || event.startsWith("message") || event === "listing:self" || event.startsWith("typing") || event.startsWith("presence"))) {
-      if (event.startsWith("message")) {
-        pusherOffs.push(subscribePusher(`user-${user.id}`, event, handler));
-        pusherOffs.push(subscribePusher("messages", event, handler));
-      } else if (event.startsWith("notification")) {
-        pusherOffs.push(subscribePusher(`user-${user.id}`, event, handler));
-        pusherOffs.push(subscribePusher("notifications", event, handler));
-      } else {
-        pusherOffs.push(subscribePusher(`user-${user.id}`, event, handler));
-      }
+      pusherOffs.push(subscribePusher(`user-${user.id}`, event, handler));
     }
     if (user?.role === "ADMIN" && event.startsWith("admin:")) {
       pusherOffs.push(subscribePusher("admin", event, handler));

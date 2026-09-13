@@ -299,18 +299,18 @@ const withdrawGig = async (req, res) => {
     } catch {}
     // inbox + push + notification for debit (red) — request received + admin push for pending
     try {
-      await prisma.notification.create({ data: { userId: req.user.id, type: "GIG_WITHDRAW_PENDING", listingId: null } });
+      await prisma.notification.create({ data: { userId: req.user.id, actorId: req.user.id, type: "GIG_WITHDRAW_PENDING", listingId: null } });
       await prisma.message.create({ data: { senderId: req.user.id, recipientId: req.user.id, subject: "Gig Withdrawal Requested — In review", body: `Withdrawal ₦${amt.toLocaleString()} (fee ₦${(feeKobo/100).toFixed(2)}) to ${bankName || cleanBank} • ${cleanAcc} — ref ${reference} — In review, awaiting admin approval. ₦${(totalKobo/100).toLocaleString()} debited from Gig wallet.` } });
       const { sendPushToUser } = require("../utils/push");
-      const { emitNotification } = require("../realtime");
-      sendPushToUser(prisma, req.user.id, { title: "Gig Wallet — Withdrawal in review", body: `₦${amt.toLocaleString()} to ${bankName || cleanBank} — in review, ₦${(totalKobo/100).toLocaleString()} debited`, url: "/gigs/wallet", tag: `gig-wd-${reference}` }).catch(()=>{});
+      const { emitNotification, isOnline } = require("../realtime");
+      if (!isOnline(req.user.id)) sendPushToUser(prisma, req.user.id, { title: "Gig Wallet — Withdrawal in review", body: `₦${amt.toLocaleString()} to ${bankName || cleanBank} — in review, ₦${(totalKobo/100).toLocaleString()} debited`, url: "/gigs/wallet", tag: `gig-wd-${reference}` }).catch(()=>{});
       try { emitNotification(req.user.id, { type: "GIG_WITHDRAW_PENDING" }); } catch {}
       // admin push for pending approval
       try {
         const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
         for (const a of admins) {
-          sendPushToUser(prisma, a.id, { title: "New withdrawal to approve", body: `₦${amt.toLocaleString()} from @${(await prisma.user.findUnique({where:{id:req.user.id}, select:{username:true}}))?.username} — In review`, url: "/admin/withdrawals", tag: `admin-wd-${reference}` }).catch(()=>{});
-          await prisma.notification.create({ data: { userId: a.id, type: "ADMIN_WITHDRAW_PENDING", listingId: null } }).catch(()=>{});
+          if (!isOnline(a.id)) sendPushToUser(prisma, a.id, { title: "New withdrawal to approve", body: `₦${amt.toLocaleString()} from @${(await prisma.user.findUnique({where:{id:req.user.id}, select:{username:true}}))?.username} — In review`, url: "/admin/withdrawals", tag: `admin-wd-${reference}` }).catch(()=>{});
+          await prisma.notification.create({ data: { userId: a.id, actorId: req.user.id, type: "ADMIN_WITHDRAW_PENDING", listingId: null } }).catch(()=>{});
           try { emitNotification(a.id, { type: "ADMIN_WITHDRAW_PENDING" }); } catch {}
         }
       } catch {}

@@ -673,24 +673,26 @@ const createListing = async (req, res) => {
         await prisma.notification.createMany({
           data: admins.map((a) => ({ userId: a.id, actorId: req.user.id, listingId: listing.id, type: "NEW_LISTING" })),
         });
-        // realtime admin bell + phone push
+        // realtime admin bell + phone push (push only when offline)
         try {
-          const { emitNotification } = require("../realtime");
+          const { emitNotification, isOnline } = require("../realtime");
           const { sendPushToUser } = require("../utils/push");
           for (const a of admins) {
             emitNotification(a.id, { type: "NEW_LISTING", listingId: listing.id, actorId: req.user.id });
-            // phone push for admin
-            prisma.notification.count({ where: { userId: a.id, read: false } }).then((unread) => {
-              sendPushToUser(prisma, a.id, {
-                title: "Trend Tribe — New listing",
-                body: listing.title.slice(0, 120),
-                url: `/listings/${listing.slug || listing.id}`,
-                icon: "/icon-192.png",
-                badge: "/icon-192.png",
-                badgeCount: unread,
-                tag: `new-listing-${listing.id}`,
+            // phone push only when admin offline
+            if (!isOnline(a.id)) {
+              prisma.notification.count({ where: { userId: a.id, read: false } }).then((unread) => {
+                sendPushToUser(prisma, a.id, {
+                  title: "Trend Tribe — New listing",
+                  body: listing.title.slice(0, 120),
+                  url: `/listings/${listing.slug || listing.id}`,
+                  icon: "/icon-192.png",
+                  badge: "/icon-192.png",
+                  badgeCount: unread,
+                  tag: `new-listing-${listing.id}`,
+                }).catch(() => {});
               }).catch(() => {});
-            }).catch(() => {});
+            }
           }
         } catch {}
       }
@@ -1327,18 +1329,21 @@ const toggleFavorite = async (req, res) => {
         await prisma.notification.create({
           data: { userId: listing.sellerId, actorId: req.user.id, listingId, type: "FAVORITE" },
         });
-        // Push even when PWA not open
+        // Push only when seller offline
         const { sendPushToUser } = require("../utils/push");
-        const unread = await prisma.notification.count({ where: { userId: listing.sellerId, read: false } }).catch(() => 1);
-        sendPushToUser(prisma, listing.sellerId, {
-          title: "Trend Tribe — New favorite ♥",
-          body: "Someone saved your listing",
-          url: "/notifications",
-          icon: "/icon-192.png",
-          badge: "/icon-192.png",
-          badgeCount: unread,
-          tag: `fav-${listingId}`,
-        }).catch(() => {});
+        const { isOnline } = require("../realtime");
+        if (!isOnline(listing.sellerId)) {
+          const unread = await prisma.notification.count({ where: { userId: listing.sellerId, read: false } }).catch(() => 1);
+          sendPushToUser(prisma, listing.sellerId, {
+            title: "Trend Tribe — New favorite ♥",
+            body: "Someone saved your listing",
+            url: "/notifications",
+            icon: "/icon-192.png",
+            badge: "/icon-192.png",
+            badgeCount: unread,
+            tag: `fav-${listingId}`,
+          }).catch(() => {});
+        }
         // badge update via push
         if ("setAppBadge" in globalThis) {}
         // realtime: notify seller instantly (favorite count already emitted with count above)

@@ -1,5 +1,5 @@
 // src/components/chat/ChatThread.jsx — WhatsApp-like thread per listing
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { FiSend, FiCheck, FiCheckCircle, FiArrowLeft } from "react-icons/fi";
 import { getThread, sendMessage } from "../../services/messageService";
@@ -224,7 +224,21 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     };
   }, []);
 
-  const displayUser = withUser?.fullName || withUser?.username ? withUser : product?.seller || withUser;
+  // derive other user from actual thread messages (backend now includes sender+recipient with avatar) — never guess from product.seller
+  const derivedOther = useMemo(() => {
+    if (!msgs?.length || !withUser?.id) return null;
+    const otherId = withUser.id;
+    const fromSender = msgs.find((m) => m.senderId === otherId)?.sender;
+    if (fromSender?.username || fromSender?.fullName || fromSender?.avatar) return fromSender;
+    const fromRecipient = msgs.find((m) => m.recipientId === otherId)?.recipient;
+    if (fromRecipient?.username || fromRecipient?.fullName || fromRecipient?.avatar) return fromRecipient;
+    return null;
+  }, [msgs, withUser?.id]);
+
+  const displayUser =
+    derivedOther ||
+    (withUser?.fullName || withUser?.username || withUser?.avatar ? withUser : null) ||
+    null;
 
   if (loading) {
     return (

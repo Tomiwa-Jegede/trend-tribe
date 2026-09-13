@@ -24,6 +24,8 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const ref = useRef(null);
+  const pendingDeletesRef = useRef(new Set());
+  const pendingReadsRef = useRef(new Set());
 
   const closeDropdown = () => {
     setOpen(false);
@@ -34,9 +36,10 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
   const fetchUnread = useCallback(async () => {
     if (typeof externalUnread === "number") return; // single source in Navbar
     if (!isAuthenticated || !token) return;
+    if (pendingReadsRef.current.size > 0 || pendingDeletesRef.current.size > 0) return; // tombstone guard
     try {
       const { data } = await api.get("/notifications/unread-count");
-      setUnreadSafe(data.unreadCount);
+      if (pendingReadsRef.current.size === 0 && pendingDeletesRef.current.size === 0) setUnreadSafe(data.unreadCount);
     } catch (err) {
       if (import.meta.env.DEV) console.warn("[NotificationBell fetchUnread]", err?.response?.data || err.message);
     }
@@ -46,8 +49,11 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
     if (!isAuthenticated || !token) return;
     try {
       const { data } = await api.get("/notifications", { params: { limit: 20 } });
-      setItems(data.notifications);
-      setUnreadSafe(data.unreadCount);
+      let notifs = data.notifications;
+      if (pendingDeletesRef.current.size > 0) notifs = notifs.filter((n) => !pendingDeletesRef.current.has(n.id));
+      if (pendingReadsRef.current.size > 0) notifs = notifs.map((n) => pendingReadsRef.current.has(n.id) ? { ...n, read: true } : n);
+      setItems(notifs);
+      if (pendingReadsRef.current.size === 0 && pendingDeletesRef.current.size === 0) setUnreadSafe(data.unreadCount);
     } catch (err) {
       if (import.meta.env.DEV) console.warn("[NotificationBell fetchList]", err?.response?.data || err.message);
     }
@@ -101,8 +107,10 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
     setOpen(next);
     if (next) {
       await fetchList();
-      // only marks bell notifications read — messages/inbox unread stays until opened in /chat or /inbox
-      try { await api.post("/notifications/read-all"); setUnreadSafe(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[read-all notif]", err?.response?.data || err.message); }
+      // mark bell read with tombstone to prevent poll resurrect
+      const ids = items.filter((n) => !n.read).map((n) => n.id);
+      ids.forEach((id) => pendingReadsRef.current.add(id));
+      try { await api.post("/notifications/read-all"); setUnreadSafe(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); setTimeout(() => ids.forEach((id) => pendingReadsRef.current.delete(id)), 10000); } catch (err) { ids.forEach((id) => pendingReadsRef.current.delete(id)); if (import.meta.env.DEV) console.warn("[read-all notif]", err?.response?.data || err.message); }
     }
     if (!next) {
       setSelecting(false);
@@ -111,11 +119,17 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
   };
 
   const handleMarkAll = async () => {
+    const ids = items.filter((n) => !n.read).map((n) => n.id);
+    ids.forEach((id) => pendingReadsRef.current.add(id));
     try {
       await api.post("/notifications/read-all");
       setUnreadSafe(0);
       setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    } catch (err) { if (import.meta.env.DEV) console.warn("[handleMarkAll]", err?.response?.data || err.message); }
+      setTimeout(() => ids.forEach((id) => pendingReadsRef.current.delete(id)), 10000);
+    } catch (err) {
+      ids.forEach((id) => pendingReadsRef.current.delete(id));
+      if (import.meta.env.DEV) console.warn("[handleMarkAll]", err?.response?.data || err.message);
+    }
   };
 
   const handleItemClick = async (n) => {
@@ -123,12 +137,16 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
       toggleSelect(n.id);
       return;
     }
+    if (!n.read) pendingReadsRef.current.add(n.id);
     try {
-      if (!n.read) await api.patch(`/notifications/${n.slug || n.id}/read`);
+      if (!n.read) await api.patch(`/notifications/${n.id}/read`);
       setUnreadSafe((c) => Math.max(0, c - (n.read ? 0 : 1)));
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-    } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell mark read]", err?.response?.data || err.message); }
-    // Close dropdown immediately — navigation happens via <Link to=...>
+      if (!n.read) setTimeout(() => pendingReadsRef.current.delete(n.id), 10000);
+    } catch (err) {
+      if (!n.read) pendingReadsRef.current.delete(n.id);
+      if (import.meta.env.DEV) console.warn("[NotificationBell mark read]", err?.response?.data || err.message);
+    }
     closeDropdown();
   };
 
@@ -149,6 +167,7 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
   const handleDeleteOne = async (e, id) => {
     e.preventDefault();
     e.stopPropagation();
+    pendingDeletesRef.current.add(id);
     try {
       await api.delete(`/notifications/${id}`);
       setItems((prev) => prev.filter((x) => x.id !== id));
@@ -157,36 +176,51 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
         next.delete(id);
         return next;
       });
-      // adjust unread if deleted was unread
       const wasUnread = items.find((x) => x.id === id)?.read === false;
       if (wasUnread) setUnreadSafe((c) => Math.max(0, c - 1));
-    } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell deleteOne]", err?.response?.data || err.message); }
+      setTimeout(() => pendingDeletesRef.current.delete(id), 10000);
+    } catch (err) {
+      pendingDeletesRef.current.delete(id);
+      if (import.meta.env.DEV) console.warn("[NotificationBell deleteOne]", err?.response?.data || err.message);
+    }
   };
 
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
     if (!window.confirm(`Delete ${selected.size} notification${selected.size !== 1 ? "s" : ""}?`)) return;
+    const ids = Array.from(selected);
+    ids.forEach((id) => pendingDeletesRef.current.add(id));
     try {
-      await api.post("/notifications/bulk-delete", { ids: Array.from(selected) });
+      await api.post("/notifications/bulk-delete", { ids });
       const toRemove = new Set(selected);
       const removedUnread = items.filter((x) => toRemove.has(x.id) && !x.read).length;
       setItems((prev) => prev.filter((x) => !toRemove.has(x.id)));
       setSelected(new Set());
       setSelecting(false);
       if (removedUnread) setUnreadSafe((c) => Math.max(0, c - removedUnread));
-    } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell bulk-delete]", err?.response?.data || err.message); }
+      setTimeout(() => ids.forEach((id) => pendingDeletesRef.current.delete(id)), 10000);
+    } catch (err) {
+      ids.forEach((id) => pendingDeletesRef.current.delete(id));
+      if (import.meta.env.DEV) console.warn("[NotificationBell bulk-delete]", err?.response?.data || err.message);
+    }
   };
 
   const handleDeleteAll = async () => {
     if (items.length === 0) return;
     if (!window.confirm(`Delete all ${items.length} notifications? This cannot be undone.`)) return;
+    const ids = items.map((x) => x.id);
+    ids.forEach((id) => pendingDeletesRef.current.add(id));
     try {
       await api.delete("/notifications");
       setItems([]);
       setSelected(new Set());
       setSelecting(false);
       setUnreadSafe(0);
-    } catch (err) { if (import.meta.env.DEV) console.warn("[NotificationBell deleteAll]", err?.response?.data || err.message); }
+      setTimeout(() => ids.forEach((id) => pendingDeletesRef.current.delete(id)), 10000);
+    } catch (err) {
+      ids.forEach((id) => pendingDeletesRef.current.delete(id));
+      if (import.meta.env.DEV) console.warn("[NotificationBell deleteAll]", err?.response?.data || err.message);
+    }
   };
 
   if (!isAuthenticated) return null;

@@ -11,7 +11,7 @@ import ChatThread from "../components/chat/ChatThread";
 import api from "../api/axios";
 import { isPushSupported, requestPermission, subscribePush } from "../services/push";
 
-const PendingChatRow = ({ listingId, otherId, onOpen }) => {
+const PendingChatRow = ({ listingId, otherId, otherUser, onOpen }) => {
   const [listing, setListing] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,7 @@ const PendingChatRow = ({ listingId, otherId, onOpen }) => {
     setNotFound(false);
     getListingById(listingId).then((d) => { if (!cancelled) { setListing(d); setLoading(false); } }).catch((err) => {
       if (!cancelled) {
-        if (err?.response?.status === 404) { setNotFound(true); setListing({ id: listingId, title: "Product no longer available", isAvailable: false, seller: { id: otherId } }); }
+        if (err?.response?.status === 404) { setNotFound(true); setListing({ id: listingId, title: "Product no longer available", isAvailable: false }); }
         setLoading(false);
       }
     });
@@ -41,9 +41,10 @@ const PendingChatRow = ({ listingId, otherId, onOpen }) => {
       </div>
     );
   }
-  const other = listing?.seller && listing.seller.id === otherId ? listing.seller : { id: otherId, fullName: listing?.seller?.fullName, username: listing?.seller?.username, avatar: listing?.seller?.avatar };
-  const displayName = other?.fullName || other?.username || listing?.title || `Chat ${listingId}`;
-  const avatar = other?.avatar || listing?.images?.[0];
+  // person identity never guessed from listing.seller or listing.title/images — only from otherUser (message-derived)
+  const other = otherUser && otherUser.id === otherId ? otherUser : null;
+  const displayName = other?.fullName || other?.username || `Chat ${listingId}`;
+  const avatar = other?.avatar || null;
   return (
     <div className="card p-4 cursor-pointer hover:border-primary-200 transition-colors" onClick={onOpen}>
       <div className="flex gap-3 items-center">
@@ -360,11 +361,21 @@ const InboxPage = () => {
 
   const inboxCount = messages.filter((m) => !m.listingId).length;
   // Single URL truth: thread open is always ?thread=listingId-otherId — no expanded inline path (see chat-scroll-03)
+  // enrich withUser from conversations/savedChats so ChatThread can show name/avatar before msgs load (never guess from product.seller)
   const threadParamDirect = searchParams.get("thread");
   if (isChat && threadParamDirect) {
     const [lid, withId] = threadParamDirect.split("-").map((v) => parseInt(v, 10));
     if (!isNaN(lid) && !isNaN(withId)) {
-      return <ChatThread listingId={lid} withUser={{ id: withId }} onClose={handleCloseChat} />;
+      const enrichedOther =
+        conversations.find((c) => c.otherUser?.id === withId && c.listing?.id === lid)?.otherUser ||
+        conversations.find((c) => c.otherUser?.id === withId)?.otherUser ||
+        savedChats.find((c) => c.otherUser?.id === withId && c.listing?.id === lid)?.otherUser ||
+        null;
+      const withUserProp =
+        enrichedOther && (enrichedOther.fullName || enrichedOther.username || enrichedOther.avatar)
+          ? enrichedOther
+          : { id: withId };
+      return <ChatThread listingId={lid} withUser={withUserProp} onClose={handleCloseChat} />;
     }
   }
   return (
@@ -435,12 +446,17 @@ const InboxPage = () => {
               const key = c.key;
               const isSelected = selectedConvos.has(key);
               if (c.isPending) {
+                // try to hydrate otherUser from conversations if poll already delivered (otherwise placeholder)
+                const hydratedOther =
+                  conversations.find((conv) => conv.otherUser?.id === c.otherUser.id && conv.listing?.id === c.listing.id)?.otherUser ||
+                  conversations.find((conv) => conv.otherUser?.id === c.otherUser.id)?.otherUser ||
+                  c.otherUser;
                 return (
                   <div key={key} onClick={() => selectingChats ? toggleChatSelect(key) : openThread(c.listing.id, c.otherUser.id)} className={`cursor-pointer ${isSelected ? "ring-2 ring-primary-200 rounded-xl" : ""}`}>
                     <div className="flex gap-2 items-center">
                       {selectingChats && (isSelected ? <FiCheckSquare className="w-5 h-5 text-primary-600 shrink-0" /> : <FiSquare className="w-5 h-5 text-gray-300 shrink-0" />)}
                       <div className="flex-1">
-                        <PendingChatRow listingId={c.listing.id} otherId={c.otherUser.id} onOpen={() => selectingChats ? toggleChatSelect(key) : openThread(c.listing.id, c.otherUser.id)} />
+                        <PendingChatRow listingId={c.listing.id} otherId={c.otherUser.id} otherUser={hydratedOther} onOpen={() => selectingChats ? toggleChatSelect(key) : openThread(c.listing.id, c.otherUser.id)} />
                       </div>
                     </div>
                   </div>

@@ -40,7 +40,11 @@ const createMessage = async (req, res) => {
     }
     const msg = await prisma.message.create({
       data: { body: text, subject: subject || null, senderId: req.user.id, recipientId, listingId: lid, conversationId },
-      include: { sender: { select: { id: true, username: true, fullName: true } }, listing: { select: { id: true, title: true } } },
+      include: {
+        sender: { select: { id: true, username: true, fullName: true, avatar: true } },
+        recipient: { select: { id: true, username: true, fullName: true, avatar: true } },
+        listing: { select: { id: true, title: true } },
+      },
     });
     console.log(`[CREATE MESSAGE] id=${msg.id} conv=${conversationId} listing=${lid} from=${req.user.id} to=${recipientId} bodyLen=${text.length}`);
     try { const { touchActive } = require("../realtime"); touchActive(req.user.id); } catch {}
@@ -219,7 +223,15 @@ const getThread = async (req, res) => {
     // soft-delete visibility: only messages not deleted for this user
     const visibility = { OR: [{ senderId: req.user.id, senderDeleted: false }, { recipientId: req.user.id, recipientDeleted: false }] };
     const whereWithVisibility = { AND: [where, visibility] };
-    const messages = await prisma.message.findMany({ where: whereWithVisibility, orderBy: { createdAt: "asc" }, take: 100, include: { sender: { select: { id: true, username: true, fullName: true } } } });
+    const messages = await prisma.message.findMany({
+      where: whereWithVisibility,
+      orderBy: { createdAt: "asc" },
+      take: 100,
+      include: {
+        sender: { select: { id: true, username: true, fullName: true, avatar: true } },
+        recipient: { select: { id: true, username: true, fullName: true, avatar: true } },
+      },
+    });
     // mark delivered when fetched by recipient
     const toMark = messages.filter((m) => m.recipientId === req.user.id && !m.deliveredAt).map((m) => m.id);
     if (toMark.length) {
