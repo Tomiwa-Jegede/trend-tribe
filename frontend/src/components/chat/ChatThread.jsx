@@ -332,7 +332,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           disabled={sending}
           enterKeyHint="send"
         />
-        <button type="submit" disabled={sending} className="btn-primary px-4 flex items-center gap-1 disabled:opacity-50 shrink-0"><FiSend className="w-4 h-4" /> {sending ? "..." : "Send"}</button>
+        <button type="submit" disabled={sending} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()} className="btn-primary px-4 flex items-center gap-1 disabled:opacity-50 shrink-0"><FiSend className="w-4 h-4" /> {sending ? "..." : "Send"}</button>
       </form>
     </div>
   );
