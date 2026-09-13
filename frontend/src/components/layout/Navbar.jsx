@@ -349,7 +349,7 @@ const Navbar = () => {
                 >
                   More <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
                   {inboxUnread > 0 && (
-                    <span className="absolute -top-2 -right-5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    <span className={`absolute -top-2 -right-5 bg-red-500 text-white font-bold rounded-full flex items-center justify-center leading-none ${inboxUnread > 99 ? "w-[22px] h-[22px] text-[9px]" : inboxUnread > 9 ? "w-[20px] h-[20px] text-[10px]" : "w-[18px] h-[18px] text-[10px]"}`}>
                       {inboxUnread > 99 ? "99+" : inboxUnread}
                     </span>
                   )}
@@ -474,7 +474,7 @@ const Navbar = () => {
                   <FiMenu className="w-5 h-5" />
                 )}
                 {inboxUnread > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] aspect-square flex items-center justify-center px-1">
+                  <span className={`absolute -top-0.5 -right-0.5 bg-red-500 text-white font-bold rounded-full flex items-center justify-center leading-none ${inboxUnread > 99 ? "w-[22px] h-[22px] text-[9px]" : inboxUnread > 9 ? "w-[20px] h-[20px] text-[10px]" : "w-[18px] h-[18px] text-[10px]"}`}>
                     {inboxUnread > 99 ? "99+" : inboxUnread}
                   </span>
                 )}
