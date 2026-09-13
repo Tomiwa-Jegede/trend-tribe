@@ -469,7 +469,7 @@ const Navbar = () => {
                   <FiMenu className="w-5 h-5" />
                 )}
                 {(inboxUnread + notifUnread) > 0 && !menuOpen && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] aspect-square flex items-center justify-center px-1">
                     {(inboxUnread + notifUnread) > 99 ? "99+" : inboxUnread + notifUnread}
                   </span>
                 )}
