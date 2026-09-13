@@ -58,13 +58,14 @@ export const AuthProvider = ({ children }) => {
   // ── Refresh user data from server ────────────────────────────
   const refreshUser = useCallback(async () => {
     if (!localStorage.getItem("tt_token")) return;
+    const controller = new AbortController();
     try {
-      const { data } = await api.get("/auth/me");
+      const { data } = await api.get("/auth/me", { signal: controller.signal });
       setUser(data.user);
       localStorage.setItem("tt_user", JSON.stringify(data.user));
     } catch (err) {
+      if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
       if (err?.response?.status === 401) {
-        // Token expired/invalid — clear session
         localStorage.removeItem("tt_token");
         localStorage.removeItem("tt_user");
         setToken(null);
@@ -73,16 +74,11 @@ export const AuthProvider = ({ children }) => {
       }
       if (import.meta.env.DEV) console.warn("[AuthContext refreshUser]", err?.response?.data || err.message);
     }
+    return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    if (token) {
-      refreshUser();
-    }
-  }, [token, refreshUser]);
-
-  // Real-time: keep user (tokenBalance, profile, etc.) fresh every 30s + on focus
-  useRealtimePolling(refreshUser, 30000, !!token);
+  // Real-time: keep user fresh every 30s + on focus — skip while initial load, debounce focus
+  useRealtimePolling(refreshUser, 30000, !!token && !loading);
 
   // ── Login: save token + user to state + localStorage ────────
   const login = (tokenValue, userData) => {
@@ -105,7 +101,7 @@ export const AuthProvider = ({ children }) => {
     setUser,
     token,
     loading,
-    isAuthenticated: !!token,
+    isAuthenticated: !!user && !!token && !loading,
     login,
     logout,
     refreshUser,

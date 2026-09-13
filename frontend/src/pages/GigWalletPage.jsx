@@ -24,7 +24,7 @@ export default function GigWalletPage() {
   const [withdrawForm, setWithdrawForm] = useState(() => {
     try {
       const raw = localStorage.getItem("tt_gig_withdraw_form_v1");
-      if (raw) { const p = JSON.parse(raw); return { amount: p.amount||"", bankCode: p.bankCode||"", accountNumber: p.accountNumber||"", pin: p.pin||"", bankName: p.bankName||"" }; }
+      if (raw) { const p = JSON.parse(raw); return { amount: p.amount||"", bankCode: p.bankCode||"", accountNumber: p.accountNumber||"", pin: "", bankName: p.bankName||"" }; }
     } catch {}
     return { amount: "", bankCode: "", accountNumber: "", pin: "", bankName: "" };
   });
@@ -141,18 +141,21 @@ export default function GigWalletPage() {
     finally { setLoading(false); }
   };
   useEffect(() => { fetchAll(); }, []);
-  // persist withdraw form so refresh continues where stopped (does not auto-send)
-  useEffect(() => { try { localStorage.setItem("tt_gig_withdraw_form_v1", JSON.stringify(withdrawForm)); } catch {} }, [withdrawForm]);
+  // persist withdraw form so refresh continues where stopped (do not persist pin)
+  useEffect(() => { try { const { pin, ...safe } = withdrawForm; localStorage.setItem("tt_gig_withdraw_form_v1", JSON.stringify(safe)); } catch {} }, [withdrawForm]);
   useEffect(() => { try { localStorage.setItem("tt_gig_withdraw_bankQuery_v1", bankQuery); } catch {} }, [bankQuery]);
   useEffect(() => { try { const v = localStorage.getItem("tt_gig_withdraw_open_v1"); if (v === "1") setShowWithdraw(true); } catch {} }, []);
   useEffect(() => { try { localStorage.setItem("tt_gig_withdraw_open_v1", showWithdraw ? "1" : "0"); } catch {} }, [showWithdraw]);
   useEffect(() => { api.get("/gigs/banks").then(r=>{ if(r.data?.banks) setBanks(r.data.banks); }).catch(()=>{ setBanks([{code:"044", name:"Access Bank"}, {code:"058", name:"GTBank"}, {code:"011", name:"First Bank"}, {code:"033", name:"UBA"}, {code:"057", name:"Zenith Bank"}, {code:"999992", name:"OPay"}, {code:"50211", name:"Kuda Bank"}, {code:"50515", name:"Moniepoint"}, {code:"999991", name:"PalmPay"}]); }); }, []);
   useEffect(() => {
     const { bankCode, accountNumber } = withdrawForm;
-    if (bankCode && /^\d{10}$/.test(accountNumber)) {
+    if (!(bankCode && /^\d{10}$/.test(accountNumber))) { setWithdrawAccountName(""); return; }
+    const controller = new AbortController();
+    const id = setTimeout(() => {
       setWithdrawResolving(true);
-      api.post("/gigs/bank/resolve", { accountNumber, bankCode }).then(r=> setWithdrawAccountName(r.data.accountName || r.data.bankName || "")).catch(()=> setWithdrawAccountName("")).finally(()=> setWithdrawResolving(false));
-    } else setWithdrawAccountName("");
+      api.post("/gigs/bank/resolve", { accountNumber, bankCode }, { signal: controller.signal }).then(r=> setWithdrawAccountName(r.data.accountName || r.data.bankName || "")).catch(()=> { if (!controller.signal.aborted) setWithdrawAccountName(""); }).finally(()=> { if (!controller.signal.aborted) setWithdrawResolving(false); });
+    }, 500);
+    return () => { clearTimeout(id); controller.abort(); };
   }, [withdrawForm.bankCode, withdrawForm.accountNumber]);
   useEffect(() => { if (showWithdraw && withdrawRef.current) withdrawRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, [showWithdraw]);
 

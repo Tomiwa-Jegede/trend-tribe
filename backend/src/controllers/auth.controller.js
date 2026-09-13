@@ -497,8 +497,7 @@ const forgotPassword = async (req, res) => {
 
     // Use canonical clientUrl (single, not comma-separated) — fixed for email links
     const resetUrl = `${config.clientUrl}/reset-password?token=${resetToken}`;
-    // Always log the URL so it can be recovered from logs if email fails (dev + prod)
-    console.log(`[FORGOT PASSWORD] resetUrl for ${user.email}: ${resetUrl}`);
+    if (config.isDev) console.log(`[FORGOT PASSWORD] resetUrl for ${user.email}: ${resetUrl}`);
     try {
       await sendPasswordResetEmail(user.email, user.fullName, resetUrl);
     } catch (emailErr) {

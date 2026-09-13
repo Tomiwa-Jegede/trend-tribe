@@ -177,6 +177,7 @@ const renewGig = async (req, res) => {
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster" });
     if (gig.status !== "EXPIRED") return res.status(400).json({ error: "Only expired gigs can be renewed" });
     const hours = parseInt(req.body.timerHours, 10) || gig.timerHours;
+    if (!Number.isInteger(hours) || hours < 1 || hours > 168) return res.status(400).json({ error: "timerHours must be 1-168" });
     const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
     const updated = await prisma.gig.update({ where: { id }, data: { status: "OPEN", expiresAt, timerHours: hours } });
     return res.json({ gig: updated });
@@ -194,10 +195,13 @@ const refundExpired = async (req, res) => {
     if (!gig) return res.status(404).json({ error: "Gig not found" });
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster" });
     if (gig.status !== "EXPIRED") return res.status(400).json({ error: "Only expired" });
-    await prisma.$transaction(async (tx) => {
+    const refunded = await prisma.$transaction(async (tx) => {
+      const cnt = await tx.gig.updateMany({ where: { id, status: "EXPIRED", posterId: req.user.id }, data: { status: "CANCELLED" } });
+      if (cnt.count === 0) return false;
       await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: gig.escrowAmount } } });
-      await tx.gig.update({ where: { id }, data: { status: "CANCELLED" } });
+      return true;
     });
+    if (!refunded) return res.status(400).json({ error: "Already refunded or not expired" });
     try {
       const { recordWalletMovement } = require("../utils/wallet");
       await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_EXPIRED_REFUND", title: "Expired gig — refund", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for expired gig #${id}.`, meta: { gigId: id } });
@@ -885,7 +889,7 @@ const expireGigs = async () => {
 const autoReleaseGigs = async () => {
   try {
     const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000);
-    const gigs = await prisma.gig.findMany({ where: { status: "CLAIMED", claimedAt: { lte: cutoff } } });
+    const gigs = await prisma.gig.findMany({ where: { status: "CLAIMED", claimedAt: { lte: cutoff } }, take: 100 });
     for (const g of gigs) {
       // Admin posters are free — no profit, 100% payout
       let isPosterAdmin = false;
@@ -895,11 +899,14 @@ const autoReleaseGigs = async () => {
       } catch {}
       const gross = isPosterAdmin ? 0 : fee(g.escrowAmount);
       const pay = isPosterAdmin ? g.escrowAmount : payout(g.escrowAmount);
-      await prisma.$transaction(async (tx) => {
+      const updated = await prisma.$transaction(async (tx) => {
+        const cnt = await tx.gig.updateMany({ where: { id: g.id, status: "CLAIMED" }, data: { status: "COMPLETED", completedAt: new Date() } });
+        if (cnt.count === 0) return false;
         await tx.user.update({ where: { id: g.claimerId }, data: { gigBalance: { increment: pay } } });
-        await tx.gig.update({ where: { id: g.id }, data: { status: "COMPLETED", completedAt: new Date() } });
         if (!isPosterAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(g.id), meta: { gigId: g.id, autoReleased: true } } });
+        return true;
       });
+      if (!updated) continue;
       console.log(`[GIGS] Auto-released gig ${g.id} → ₦${pay/100} to ${g.claimerId}${isPosterAdmin ? " (admin free)" : ` fee ₦${gross/100}`}`);
       try {
         const { recordWalletMovement } = require("../utils/wallet");

@@ -640,12 +640,25 @@ const createListing = async (req, res) => {
     const needsPayment = !isAdmin && totalCost > 0;
     let listing;
     if (!needsPayment) {
-      if (isServices && isFirstService) {
-        // Start 14d trial on first service
-        const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-        await prisma.user.update({ where: { id: req.user.id }, data: { firstServiceAt: now, serviceTrialEndsAt: trialEnds } });
-      }
-      listing = await prisma.listing.create({ data: listingData, include: listingInclude });
+      // Re-check free slot inside transaction to prevent double-click race
+      listing = await prisma.$transaction(async (tx) => {
+        if (!isAdmin) {
+          if (isServices) {
+            if (!isFirstService && !trialActive) {
+              const cnt = await tx.listing.count({ where: { sellerId: req.user.id, category: "SERVICES", isAvailable: true } });
+              if (cnt >= 1) throw new Error("FREE_LIMIT_RACE");
+            }
+          } else {
+            const cnt = await tx.listing.count({ where: { sellerId: req.user.id, isAvailable: true, category: { not: "SERVICES" } } });
+            if (cnt >= FREE_LISTING_LIMIT) throw new Error("FREE_LIMIT_RACE");
+          }
+        }
+        if (isServices && isFirstService) {
+          const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+          await tx.user.update({ where: { id: req.user.id }, data: { firstServiceAt: now, serviceTrialEndsAt: trialEnds } });
+        }
+        return tx.listing.create({ data: listingData, include: listingInclude });
+      });
     } else {
       listing = await prisma.$transaction(async (tx) => {
           const updatedSeller = await tx.user.updateMany({
@@ -708,6 +721,9 @@ const createListing = async (req, res) => {
       listing: formatListing(stripAdminFields(listing)),
     });
   } catch (err) {
+    if (err.message === "FREE_LIMIT_RACE") {
+      return res.status(403).json({ error: "Free limit reached — you already used your free slots. Use a token.", limitReached: true });
+    }
     if (err.message === "TOKEN_BALANCE_RACE") {
       return res.status(403).json({
         error: "Your token balance changed before this could complete. Please check your balance and try again.",
@@ -914,10 +930,9 @@ const deleteListing = async (req, res) => {
     const { error, status, listing } = await findAndVerifyListing(identifier, req.user.id);
     if (error) return res.status(status).json({ error });
 
-    // Delete images from Cloudinary first
-    await deleteFromCloudinary(listing.imagePublicIds);
-
     await prisma.listing.delete({ where: { id: listing.id } });
+    // fire-and-forget Cloudinary after DB success — prevents orphan delete on DB fail
+    deleteFromCloudinary(listing.imagePublicIds).catch(() => {});
     try { const { emitListing } = require("../realtime"); emitListing("deleted", { id: listing.id, sellerId: listing.sellerId }); } catch {}
 
     return res.status(200).json({ message: "Listing deleted successfully ✅" });
@@ -1108,7 +1123,8 @@ const getListingsByUser = async (req, res) => {
 
     const where = { sellerId: userId };
     if (available === "true") where.isAvailable = true;
-    if (available === "false") where.isAvailable = false;
+    else if (available === "false") where.isAvailable = false;
+    else if (req.user?.id !== userId) where.isAvailable = true; // public profile hides sold by default
 
     const orderByMap = {
       newest: { createdAt: "desc" },

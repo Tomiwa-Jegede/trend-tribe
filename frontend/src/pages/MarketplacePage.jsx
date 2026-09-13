@@ -176,8 +176,8 @@ const MarketplacePage = () => {
     if (currentPage > 1) params.page = String(currentPage);
     if (view === "discover") params.view = "discover";
     const curr = Object.fromEntries(searchParams.entries());
-    // normalize: remove empty view, compare
-    if (JSON.stringify(curr) === JSON.stringify(params)) return;
+    const sorted = (o) => JSON.stringify(Object.keys(o).sort().reduce((a,k)=>(a[k]=o[k],a),{}));
+    if (sorted(curr) === sorted(params)) return;
     setSearchParams(params, { replace: true });
   }, [filters, currentPage, view, setSearchParams]);
   // keep filters + currentPage in sync when user navigates via Browse by Category or back/forward (URL truth)
@@ -193,7 +193,8 @@ const MarketplacePage = () => {
       minPrice: searchParams.get("minPrice") || "",
       maxPrice: searchParams.get("maxPrice") || "",
     };
-    if (JSON.stringify(nextFilters) !== JSON.stringify(filters)) setFilters(nextFilters);
+    const sortedF = (o) => JSON.stringify(Object.keys(o).sort().reduce((a,k)=>(a[k]=o[k],a),{}));
+    if (sortedF(nextFilters) !== sortedF(filters)) setFilters(nextFilters);
   }, [searchParams]);
 
   const handleFilterChange = (update) => {

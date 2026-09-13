@@ -148,6 +148,7 @@ const DiscoverFeed = () => {
     const last = lastEvRef.current.get(key) || 0;
     if (now - last < ms) return true;
     lastEvRef.current.set(key, now);
+    setTimeout(() => lastEvRef.current.delete(key), ms);
     return false;
   }, []);
 
@@ -190,8 +191,8 @@ const DiscoverFeed = () => {
     (async () => {
       setLoading(true);
       try {
-        // Server sort=random is source of truth — no client shuffle so PWA and browser see identical order
-        const data = await getListings({ limit: 50, sort: "random" });
+        // Server sort=random is source of truth
+        const data = await getListings({ limit: 20, sort: "random" });
         if (!cancelled) setListings(data.listings || []);
       } catch {
         if (!cancelled) setListings([]);
@@ -210,8 +211,7 @@ const DiscoverFeed = () => {
     };
   }, []);
 
-  // Triplicate the list so we can silently jump between copies for a seamless loop
-  const loopItems = listings.length > 0 ? [...listings, ...listings, ...listings] : [];
+  const loopItems = listings;
 
   // keep itemHeight accurate for PWA window-controls-overlay vs browser tab
   useLayoutEffect(() => {
