@@ -121,7 +121,7 @@ const getMessageById = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
     const msg = await prisma.message.findUnique({ where: { id }, include: { sender: { select: { id: true, username: true, role: true } }, listing: { select: { id: true, title: true, images: true, price: true } } } });
-    if (!msg || msg.recipientId !== req.user.id) return res.status(404).json({ error: "Not found" });
+    if (!msg || msg.recipientId !== req.user.id || msg.recipientDeleted) return res.status(404).json({ error: "Not found" });
     // auto-mark read when opened
     if (!msg.read) await prisma.message.update({ where: { id }, data: { read: true } }).catch(() => {});
     return res.status(200).json({ message: { ...msg, read: true } });
@@ -310,11 +310,16 @@ const getConversations = async (req, res) => {
         buyer: { select: { id: true, username: true, fullName: true, avatar: true, role: true } },
         seller: { select: { id: true, username: true, fullName: true, avatar: true, role: true } },
         listing: { select: { id: true, slug: true, title: true, images: true, price: true } },
-        messages: { orderBy: { createdAt: "desc" }, take: 1 },
+        messages: {
+          where: { OR: [{ senderId: req.user.id, senderDeleted: false }, { recipientId: req.user.id, recipientDeleted: false }] },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
     });
     // include admin's own chats (e.g., Jegede01) — only filter pure system if both are ADMIN (not marketplace)
-    const filtered = convos;
+    // hide orphan shells where all messages are soft-deleted for this user (fixes Delete all reappearance); pending chats with no history are shown via frontend savedChats
+    const filtered = convos.filter((c) => c.messages.length > 0);
     const conversations = await Promise.all(filtered.map(async (c) => {
       const otherUser = c.buyerId === req.user.id ? c.seller : c.buyer;
       const unreadCount = await prisma.message.count({ where: { conversationId: c.id, recipientId: req.user.id, recipientDeleted: false, read: false } });
