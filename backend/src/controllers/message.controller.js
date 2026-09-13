@@ -55,20 +55,25 @@ const createMessage = async (req, res) => {
       prisma.contactView.create({ data: { listingId: lid, viewerId: req.user.id } }).catch(() => {});
     }
     try { emitMessage(recipientId, msg); } catch {}
-    // Always send Web Push — PWA background throttles Pusher/Socket, so push wakes the SW
-    // SW suppresses the visual notification when app is visible (avoids noise), still refreshes inbox via postMessage
-    prisma.message.count({ where: { recipientId, read: false } }).then((unread) => {
-      const { sendPushToUser } = require("../utils/push");
-      sendPushToUser(prisma, recipientId, {
-        title: "Trend Tribe — New chat message",
-        body: `${msg.sender.fullName || msg.sender.username}: ${text.slice(0, 80)}`,
-        url: `/chat?thread=${lid}-${msg.senderId}`,
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        badgeCount: unread,
-        tag: `chat-${msg.id}`,
-      }).catch(() => {});
-    }).catch(() => {});
+    // Web Push only when recipient offline/inactive — uses same mechanism as bookings/withdrawals
+    // Reuse isOnline (onlineCounts>0 || lastActive<2m) as single source; fire-and-forget, never blocks 201
+    try {
+      const { isOnline } = require("../realtime");
+      if (!isOnline(recipientId)) {
+        prisma.message.count({ where: { recipientId, recipientDeleted: false, read: false, listingId: { not: null }, sender: { role: { not: "ADMIN" } } } }).then((unread) => {
+          const { sendPushToUser } = require("../utils/push");
+          sendPushToUser(prisma, recipientId, {
+            title: "Trend Tribe — New chat message",
+            body: `${msg.sender.fullName || msg.sender.username}: ${text.slice(0, 80)}`,
+            url: `/chat?thread=${lid}-${msg.senderId}`,
+            icon: "/icon-192.png",
+            badge: "/icon-192.png",
+            badgeCount: unread,
+            tag: `chat-${msg.id}`,
+          }).catch(() => {});
+        }).catch(() => {});
+      }
+    } catch {}
     return res.status(201).json({ message: msg });
   } catch (err) {
     console.error("[CREATE MESSAGE ERROR]", err);

@@ -9,6 +9,7 @@ import useRealtime from "../hooks/useRealtime";
 import { useAuth } from "../context/AuthContext";
 import ChatThread from "../components/chat/ChatThread";
 import api from "../api/axios";
+import { isPushSupported, requestPermission, subscribePush } from "../services/push";
 
 const PendingChatRow = ({ listingId, otherId, onOpen }) => {
   const [listing, setListing] = useState(null);
@@ -69,6 +70,7 @@ const InboxPage = () => {
   });
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showPushBanner, setShowPushBanner] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [selecting, setSelecting] = useState(false);
   const [selectedConvos, setSelectedConvos] = useState(() => new Set());
@@ -148,6 +150,16 @@ const InboxPage = () => {
     setExpanded(null);
     fetchMessages(true);
   }, [isAuthenticated, token, user?.id]); // fetchMessages stable — don't retrigger on thread change
+
+  // Frontend half of Web Push: banner on first /chat if permission default (msg-push-05)
+  useEffect(() => {
+    if (!isChat || !isAuthenticated) { setShowPushBanner(false); return; }
+    try {
+      if (!isPushSupported() || Notification.permission !== "default") { setShowPushBanner(false); return; }
+      if (localStorage.getItem("tt_push_prompt_dismissed")) { setShowPushBanner(false); return; }
+      setShowPushBanner(true);
+    } catch { setShowPushBanner(false); }
+  }, [isChat, isAuthenticated]);
 
   // realtime inbox refresh — stable handler via ref, fetches immediately on push/socket
   const handleRealtimeMessage = useCallback((msg) => {
@@ -358,6 +370,13 @@ const InboxPage = () => {
   return (
     <div className="container-app py-6 sm:py-10">
       <Helmet><title>{isChat ? "Chats — Trend Tribe" : "Inbox — Trend Tribe"}</title></Helmet>
+      {showPushBanner && (
+        <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl flex items-center gap-3">
+          <p className="text-sm text-primary-800 flex-1">Enable notifications to get chats when you’re offline — you’re not subscribed yet.</p>
+          <button onClick={async () => { const p = await requestPermission(); if (p === "granted") try { await subscribePush(); } catch {} localStorage.setItem("tt_push_prompt_dismissed","1"); setShowPushBanner(false); }} className="btn-primary px-3 py-1 text-sm">Enable</button>
+          <button onClick={() => { localStorage.setItem("tt_push_prompt_dismissed","1"); setShowPushBanner(false); }} className="text-sm text-gray-500">Not now</button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">{isChat ? <FiMessageCircle className="w-6 h-6" /> : <FiMail className="w-6 h-6" />} {isChat ? "Chats" : "Inbox"} {isChat ? conversations.length > 0 && <span className="text-sm font-normal text-gray-500">({conversations.length} chats)</span> : inboxCount > 0 && <span className="text-sm font-normal text-gray-500">({inboxCount})</span>}</h1>
         <div className="flex items-center gap-2 flex-wrap">

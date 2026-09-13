@@ -215,20 +215,10 @@ export default function ChatThread({ listingId, withUser, onClose }) {
         if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
       });
     };
-    // iOS Safari only fires visualViewport resize/scroll AFTER the keyboard finishes animating,
-    // causing a visible lag. Estimate the keyboard height immediately on focus so the input jumps
-    // into place right away, then `update()` corrects to the exact real value moments later.
-    const onFocus = () => {
-      const estimatedKeyboardHeight = window.innerHeight * 0.35;
-      setKbOffset(estimatedKeyboardHeight);
-    };
-    const inputEl = inputRef.current;
-    inputEl?.addEventListener("focus", onFocus);
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
     update();
     return () => {
-      inputEl?.removeEventListener("focus", onFocus);
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
     };
