@@ -8,24 +8,14 @@ import ListingCardSkeleton from "../components/listings/ListingCardSkeleton";
 import FilterBar from "../components/listings/FilterBar";
 import Pagination from "../components/ui/Pagination";
 import Alert from "../components/ui/Alert";
-import { getListings, SUBCATEGORIES_BY_CATEGORY } from "../services/listingService";
+import { getListings, SUBCATEGORIES_BY_CATEGORY, CATEGORIES as CATEGORY_VALUES, CATEGORY_META } from "../services/listingService";
 import { FiInbox, FiArrowLeft } from "react-icons/fi";
 import HomeTicker from "../components/home/HomeTicker";
 import DiscoverFeed from "../components/listings/DiscoverFeed";
 import useRealtime from "../hooks/useRealtime";
 const ITEMS_PER_PAGE = 12;
 
-const CATEGORIES = [
-  { label: "Accessories", emoji: "🔌💎", value: "ACCESSORIES" },
-  { label: "Fashion", emoji: "👗", value: "FASHION" },
-  { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
-  { label: "Snacks", emoji: "🍿", value: "SNACKS" },
-  { label: "Cakes", emoji: "🎂", value: "CAKES" },
-  { label: "Gadgets", emoji: "📱", value: "GADGETS" },
-  { label: "Services", emoji: "🛠️", value: "SERVICES" },
-  { label: "Books", emoji: "📚", value: "BOOKS" },
-  { label: "Others", emoji: "🗂️", value: "OTHERS" },
-];
+const CATEGORIES = CATEGORY_VALUES.map((value) => ({ value, ...CATEGORY_META[value] }));
 const SUBCATEGORY_DISPLAY = {
   MENS_FASHION: { label: "Men's Fashion", emoji: "👕" },
   FEMALE_FASHION: { label: "Female Fashion", emoji: "👚" },

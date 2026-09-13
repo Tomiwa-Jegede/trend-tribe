@@ -15,6 +15,18 @@ export const CATEGORIES = [
   "OTHERS",
 ];
 
+export const CATEGORY_META = {
+  ACCESSORIES: { label: "Accessories", emoji: "👜" },
+  FASHION: { label: "Fashion", emoji: "👗" },
+  BEAUTY_AND_PERSONAL_CARE: { label: "Beauty & Personal Care", emoji: "💄" },
+  SNACKS: { label: "Snacks", emoji: "🍿" },
+  CAKES: { label: "Cakes", emoji: "🎂" },
+  GADGETS: { label: "Gadgets", emoji: "📱" },
+  SERVICES: { label: "Services", emoji: "🛠️" },
+  BOOKS: { label: "Books", emoji: "📚" },
+  OTHERS: { label: "Others", emoji: "🗂️" },
+};
+
 export const SUBCATEGORIES_BY_CATEGORY = {
   FASHION: ["MENS_FASHION", "FEMALE_FASHION", "UNISEX_FASHION", "JERSEY", "TIES"],
   BEAUTY_AND_PERSONAL_CARE: ["SKIN_CARE", "FRAGRANCE", "HAIR_AND_WIGS", "OTHERS"],

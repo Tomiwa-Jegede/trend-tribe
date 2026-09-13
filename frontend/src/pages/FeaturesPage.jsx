@@ -18,6 +18,7 @@ import {
   FiTrendingUp,
   FiSmartphone,
 } from "react-icons/fi";
+import { CATEGORIES as CATEGORY_VALUES, CATEGORY_META } from "../services/listingService";
 
 const heroContainer = {
   hidden: {},
@@ -119,16 +120,8 @@ const Step = ({ number, title, desc, delay = 0 }) => {
   );
 };
 
-// ── Category pill — matches Prisma Category enum (7)
-const CATEGORIES = [
-  { emoji: "👜", label: "Accessories" },
-  { emoji: "👗", label: "Fashion" },
-  { emoji: "💄", label: "Beauty & Personal Care" },
-  { emoji: "📱", label: "Gadgets" },
-  { emoji: "📚", label: "Books" },
-  { emoji: "🍿", label: "Snacks" },
-  { emoji: "🗂️", label: "Others" },
-];
+// ── Category pill — derived from single source of truth (prevents drift)
+const CATEGORIES = CATEGORY_VALUES.map((value) => ({ value, ...CATEGORY_META[value] }));
 
 // ── Main component ────────────────────────────────────────────
 const FeaturesPage = () => {

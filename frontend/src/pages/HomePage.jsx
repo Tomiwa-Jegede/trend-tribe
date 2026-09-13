@@ -17,17 +17,10 @@ import {
 import HomeTicker from "../components/home/HomeTicker";
 import PWAInstallButton from "../components/pwa/PWAInstallButton";
 import { Helmet } from "react-helmet-async";
+import { CATEGORIES as CATEGORY_VALUES, CATEGORY_META } from "../services/listingService";
 
-// ── Static data ────────────────────────────────────────────────
-const CATEGORIES = [
-  { label: "Accessories", emoji: "👜", value: "ACCESSORIES" },
-  { label: "Fashion", emoji: "👗", value: "FASHION" },
-  { label: "Beauty & Personal Care", emoji: "💄", value: "BEAUTY_AND_PERSONAL_CARE" },
-  { label: "Gadgets", emoji: "📱", value: "GADGETS" },
-  { label: "Books", emoji: "📚", value: "BOOKS" },
-  { label: "Snacks", emoji: "🍿", value: "SNACKS" },
-  { label: "Others", emoji: "🗂️", value: "OTHERS" },
-];
+// ── Static data (derived from single source of truth) ─────────
+const CATEGORIES = CATEGORY_VALUES.map((value) => ({ value, ...CATEGORY_META[value] }));
 
 const FEATURES = [
   {
