@@ -5,6 +5,7 @@ import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { usePostHog } from "posthog-js/react";
 import { useAuth } from "./context/AuthContext";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
@@ -127,9 +128,19 @@ const usePageviewTracking = () => {
   }, [location]);
 };
 
+const usePostHogPageview = () => {
+  const location = useLocation();
+  const posthog = usePostHog();
+  useEffect(() => {
+    if (!posthog) return;
+    posthog.capture("$pageview");
+  }, [location.pathname, posthog]);
+};
+
 // ─── App ──────────────────────────────────────────────────────
 const App = () => {
   usePageviewTracking();
+  usePostHogPageview();
   const location = useLocation();
   const isDiscoverMode =
     location.pathname === "/marketplace" &&

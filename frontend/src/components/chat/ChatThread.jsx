@@ -20,6 +20,14 @@ export default function ChatThread({ listingId, withUser, onClose }) {
   const typingTimeout = useRef(null);
   const lastTypingSent = useRef(0);
 
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+      });
+    });
+  }, []);
+
   useEffect(() => {
     if (!listingId) return;
     setLoading(true);
@@ -144,19 +152,23 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     };
   }, []);
 
-  useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [msgs, typing]);
+  useEffect(() => { scrollToBottom(); }, [msgs, typing, scrollToBottom]);
 
   // only allow scroll when messages actually overflow — prevents empty-list rubber-band/bounce
   const [canScroll, setCanScroll] = useState(false);
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    const check = () => setCanScroll(el.scrollHeight > el.clientHeight + 1);
+    const check = () => {
+      const next = el.scrollHeight > el.clientHeight + 1;
+      setCanScroll(next);
+      if (next) scrollToBottom();
+    };
     check();
     const ro = new ResizeObserver(check);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [msgs, typing, product]);
+  }, [msgs, typing, product, scrollToBottom]);
 
   const sendTyping = (isTyping) => {
     const now = Date.now();
@@ -212,9 +224,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
       }
       const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       setKbOffset(offset);
-      requestAnimationFrame(() => {
-        if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-      });
+      scrollToBottom();
     };
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
@@ -223,7 +233,9 @@ export default function ChatThread({ listingId, withUser, onClose }) {
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
     };
-  }, []);
+  }, [scrollToBottom]);
+
+  useEffect(() => { scrollToBottom(); }, [kbOffset, scrollToBottom]);
 
   // derive other user from actual thread messages (backend now includes sender+recipient with avatar) — never guess from product.seller
   const derivedOther = useMemo(() => {

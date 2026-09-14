@@ -28,3 +28,11 @@ export const getAiAnalytics = async () => {
   const { data } = await api.get("/admin/analytics/ai");
   return data;
 };
+export const getPostHogAnalytics = async () => {
+  const { data } = await api.get("/admin/analytics/posthog");
+  return data;
+};
+export const getPostHogReplays = async (limit = 10) => {
+  const { data } = await api.get("/admin/analytics/posthog/replays", { params: { limit } });
+  return data;
+};

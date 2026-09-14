@@ -83,6 +83,12 @@ const config = {
     secretHash: process.env.FLUTTERWAVE_SECRET_HASH,
     redirectUrl: process.env.FLUTTERWAVE_REDIRECT_URL,
   },
+
+  posthog: {
+    apiKey: process.env.POSTHOG_API_KEY || null, // phx_ personal API key (server)
+    projectId: process.env.POSTHOG_PROJECT_ID || "609560",
+    host: (process.env.POSTHOG_HOST || "https://us.posthog.com").replace(/\/$/, ""),
+  },
 };
 
 module.exports = config;

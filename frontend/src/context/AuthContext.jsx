@@ -1,12 +1,14 @@
 // src/context/AuthContext.jsx — Global Auth State
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { usePostHog } from "posthog-js/react";
 import api from "../api/axios";
 import useRealtimePolling from "../hooks/useRealtimePolling";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  const posthog = usePostHog();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true); // true on first load
@@ -30,6 +32,13 @@ export const AuthProvider = ({ children }) => {
       api.get("/auth/me").then(({ data }) => {
         setUser(data.user);
         localStorage.setItem("tt_user", JSON.stringify(data.user));
+        if (posthog && data.user?.id) {
+          posthog.identify(data.user.id.toString(), {
+            email: data.user.email,
+            username: data.user.username,
+            role: data.user.role,
+          });
+        }
       }).catch((err) => {
         if (err?.response?.status === 401) {
           localStorage.removeItem("tt_token");
@@ -46,6 +55,13 @@ export const AuthProvider = ({ children }) => {
       api.get("/auth/me").then(({ data }) => {
         setUser(data.user);
         localStorage.setItem("tt_user", JSON.stringify(data.user));
+        if (posthog && data.user?.id) {
+          posthog.identify(data.user.id.toString(), {
+            email: data.user.email,
+            username: data.user.username,
+            role: data.user.role,
+          });
+        }
       }).catch(() => {
         localStorage.removeItem("tt_token");
         setToken(null);
@@ -53,7 +69,7 @@ export const AuthProvider = ({ children }) => {
       return;
     }
     setLoading(false);
-  }, []);
+  }, [posthog]);
 
   // ── Refresh user data from server ────────────────────────────
   const refreshUser = useCallback(async () => {
@@ -90,10 +106,11 @@ export const AuthProvider = ({ children }) => {
     const handleAuthExpired = () => {
       setToken(null);
       setUser(null);
+      if (posthog) posthog.reset();
     };
     window.addEventListener("tt:auth-expired", handleAuthExpired);
     return () => window.removeEventListener("tt:auth-expired", handleAuthExpired);
-  }, []);
+  }, [posthog]);
 
   // ── Sliding refresh: backend sends x-new-token when <2d left, keep React state in sync
   useEffect(() => {
@@ -111,6 +128,13 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     localStorage.setItem("tt_token", tokenValue);
     localStorage.setItem("tt_user", JSON.stringify(userData));
+    if (posthog && userData?.id) {
+      posthog.identify(userData.id.toString(), {
+        email: userData.email,
+        username: userData.username,
+        role: userData.role,
+      });
+    }
   };
 
   // ── Logout: clear everything ─────────────────────────────────
@@ -119,6 +143,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem("tt_token");
     localStorage.removeItem("tt_user");
+    if (posthog) posthog.reset();
   };
 
   const value = {

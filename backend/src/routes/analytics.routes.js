@@ -158,6 +158,101 @@ router.get("/trust", async (req, res) => {
   }
 });
 
+// ─── PostHog: product analytics via HogQL (server-proxied, ADMIN only) ──
+router.get("/posthog", async (req, res) => {
+  try {
+    const config = require("../config/env");
+    const { apiKey, projectId, host } = config.posthog || {};
+    if (!apiKey) {
+      return res.status(200).json({
+        configured: false,
+        message: "POSTHOG_API_KEY not set. Add phx_ personal API key to backend/.env as POSTHOG_API_KEY to enable PostHog stats.",
+        projectId,
+        host,
+      });
+    }
+
+    const fetchHogQL = async (hogql) => {
+      const r = await fetch(`${host}/api/projects/${projectId}/query/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: { kind: "HogQLQuery", query: hogql } }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.detail || j?.error || `PostHog ${r.status}`);
+      return j;
+    };
+
+    // 30-day window queries — all use $pageview + person props from identify()
+    const qPageviews7d = `SELECT count() as c FROM events WHERE event = '$pageview' AND timestamp > now() - interval 7 day`;
+    const qPageviews30d = `SELECT count() as c FROM events WHERE event = '$pageview' AND timestamp > now() - interval 30 day`;
+    const qUsers30d = `SELECT count(DISTINCT person_id) as c FROM events WHERE timestamp > now() - interval 30 day AND person_id IS NOT NULL`;
+    const qTopPages = `SELECT properties.$current_url as url, count() as c FROM events WHERE event = '$pageview' AND timestamp > now() - interval 7 day GROUP BY url ORDER BY c DESC LIMIT 10`;
+    const qDaily = `SELECT toDate(timestamp) as day, count() as c FROM events WHERE event = '$pageview' AND timestamp > now() - interval 14 day GROUP BY day ORDER BY day ASC`;
+    const qAutocapture = `SELECT event, count() as c FROM events WHERE timestamp > now() - interval 7 day GROUP BY event ORDER BY c DESC LIMIT 10`;
+
+    const [r7, r30, rUsers, rTop, rDaily, rEvents] = await Promise.all([
+      fetchHogQL(qPageviews7d).catch((e) => ({ results: [[0]], error: e.message })),
+      fetchHogQL(qPageviews30d).catch((e) => ({ results: [[0]], error: e.message })),
+      fetchHogQL(qUsers30d).catch((e) => ({ results: [[0]], error: e.message })),
+      fetchHogQL(qTopPages).catch((e) => ({ results: [], error: e.message })),
+      fetchHogQL(qDaily).catch((e) => ({ results: [], error: e.message })),
+      fetchHogQL(qAutocapture).catch((e) => ({ results: [], error: e.message })),
+    ]);
+
+    const extract = (r) => (r?.results?.[0]?.[0] ?? 0);
+    const hasError = [r7, r30, rUsers, rTop, rDaily, rEvents].some((r) => r.error);
+
+    return res.json({
+      configured: true,
+      projectId,
+      host,
+      pageviews7d: Number(extract(r7)),
+      pageviews30d: Number(extract(r30)),
+      distinctUsers30d: Number(extract(rUsers)),
+      topPages: (rTop.results || []).map(([url, c]) => ({ url, count: Number(c) })),
+      daily: (rDaily.results || []).map(([day, c]) => ({ day, count: Number(c) })),
+      topEvents: (rEvents.results || []).map(([event, c]) => ({ event, count: Number(c) })),
+      ...(hasError ? { _warning: "Some PostHog queries failed — check project ID / API key scope", _errors: [r7.error, r30.error, rUsers.error, rTop.error, rDaily.error, rEvents.error].filter(Boolean) } : {}),
+    });
+  } catch (err) {
+    console.error("[ANALYTICS POSTHOG ERROR]", err.message);
+    return res.status(502).json({ error: "Failed to load PostHog analytics", details: err.message });
+  }
+});
+
+// ─── PostHog replays (ADMIN only, server-proxied) ───────────────
+router.get("/posthog/replays", async (req, res) => {
+  try {
+    const config = require("../config/env");
+    const { apiKey, projectId, host } = config.posthog || {};
+    if (!apiKey) {
+      return res.status(200).json({ configured: false, message: "POSTHOG_API_KEY not set", projectId, host, replays: [] });
+    }
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    // PostHog API uses us.posthog.com for API even when ingestion is us.i.posthog.com
+    const url = `${host}/api/projects/${projectId}/session_recordings/?limit=${limit}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j?.detail || j?.error || `PostHog ${r.status}`);
+    // j.results is array of recordings: {id, distinct_id, start_time, end_time, duration, viewed, person, ...}
+    const replays = (j.results || []).map((rec) => ({
+      id: rec.id || rec.session_id,
+      distinct_id: rec.distinct_id,
+      start_time: rec.start_time,
+      end_time: rec.end_time,
+      duration: rec.recording_duration || rec.duration || null,
+      viewed: rec.viewed,
+      person: rec.person ? { id: rec.person.id, properties: rec.person.properties } : null,
+      start_url: rec.start_url || rec.first_url || null,
+    }));
+    return res.json({ configured: true, projectId, host, replays, next: j.next || null });
+  } catch (err) {
+    console.error("[ANALYTICS POSTHOG REPLAYS ERROR]", err.message);
+    return res.status(502).json({ error: "Failed to load replays", details: err.message });
+  }
+});
+
 // ─── AI: Jegede credits & usage ───────────────────────────────
 router.get("/ai", async (req, res) => {
   try {
