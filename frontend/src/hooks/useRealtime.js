@@ -26,13 +26,15 @@ export default function useRealtime(event, callback, opts = {}) {
       // alongside the direct io.emit calls) — dedupe near-simultaneous
       // duplicate deliveries of the identical payload so consumers
       // (badges, counts, lists) don't double-fire and flicker.
+      // shorten for high-frequency notification counts so badge doesn't lag 1s / flash
       let key;
       try { key = JSON.stringify(args); } catch { key = String(args.length); }
       const now = Date.now();
+      const dedupMs = event === "notification:unread" || event === "notification" ? 300 : 1000;
       const last = lastFiredRef.current.get(key) || 0;
-      if (now - last < 1000) return;
+      if (now - last < dedupMs) return;
       lastFiredRef.current.set(key, now);
-      setTimeout(() => lastFiredRef.current.delete(key), 1000);
+      setTimeout(() => lastFiredRef.current.delete(key), dedupMs);
       cbRef.current?.(...args);
     };
     // Pusher (free, no Render sleep) — best

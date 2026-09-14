@@ -43,7 +43,7 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
     } catch (err) {
       if (import.meta.env.DEV) console.warn("[NotificationBell fetchUnread]", err?.response?.data || err.message);
     }
-  }, [isAuthenticated, token, externalUnread]);
+  }, [isAuthenticated, token]);
 
   const fetchList = useCallback(async () => {
     if (!isAuthenticated || !token) return;
@@ -53,26 +53,27 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
       if (pendingDeletesRef.current.size > 0) notifs = notifs.filter((n) => !pendingDeletesRef.current.has(n.id));
       if (pendingReadsRef.current.size > 0) notifs = notifs.map((n) => pendingReadsRef.current.has(n.id) ? { ...n, read: true } : n);
       setItems(notifs);
-      if (pendingReadsRef.current.size === 0 && pendingDeletesRef.current.size === 0) setUnreadSafe(data.unreadCount);
+      if (typeof externalUnread !== "number" && pendingReadsRef.current.size === 0 && pendingDeletesRef.current.size === 0) setUnreadSafe(data.unreadCount);
     } catch (err) {
       if (import.meta.env.DEV) console.warn("[NotificationBell fetchList]", err?.response?.data || err.message);
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, externalUnread]);
 
-  // Clear stale data on logout or account switch, then fetch fresh
+  // Clear stale data on logout or account switch, then fetch fresh — do not depend on fetchUnread identity
   useEffect(() => {
     if (!isAuthenticated || !token || !user?.id) {
-      setItems([]);
-      setUnreadSafe(0);
-      closeDropdown();
+      if (items.length) setItems([]);
+      if (unread !== 0) setUnreadSafe(0);
+      if (open) closeDropdown();
       return;
     }
     // user switched — wipe previous account's notifications immediately before fetching
-    setItems([]);
-    setUnreadSafe(0);
-    closeDropdown();
+    // keep controlled unread (externalUnread) — parent Navbar will push correct N, avoid 0 flash
+    if (items.length) setItems([]);
+    if (open) closeDropdown();
     fetchUnread();
-  }, [isAuthenticated, token, user?.id, fetchUnread]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, token, user?.id]);
 
   // Whole-site real-time: bell refreshes only when notification actually lands + on wake
   useRealtime("notification", fetchUnread, { enabled: isAuthenticated && !!token });
