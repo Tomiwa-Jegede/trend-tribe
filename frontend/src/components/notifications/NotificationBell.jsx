@@ -281,11 +281,7 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
               items.map((n) => {
                 const isMessage = n.type === "MESSAGE";
                 let to = "/my-listings";
-                if (isMessage) {
-                  if (n.listing?.id && n.actor?.id) to = `/chat?thread=${n.listing.id}-${n.actor.id}`;
-                  else if (n.listing?.id) to = "/chat";
-                  else to = "/inbox";
-                }
+                if (isMessage) to = "/inbox";
                 else if (n.type === "SERVICE_BOOKING") to = "/bookings/provider";
                 else if (n.type === "SERVICE_CONFIRMED") to = "/bookings/mine";
                 else if (n.type === "SERVICE_COMPLETED") to = n.listing ? `/bookings` : "/bookings";
