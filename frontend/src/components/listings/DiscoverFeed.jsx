@@ -211,7 +211,11 @@ const DiscoverFeed = () => {
     };
   }, []);
 
-  const loopItems = listings;
+    // Three back-to-back copies of the list so there's always more content
+    // to scroll into at either end — this is what makes the loop feel
+    // infinite. index 0..total-1 = "before" copy, total..2*total-1 = the
+    // real/middle copy, 2*total..3*total-1 = "after" copy.
+    const loopItems = listings.length > 0 ? [...listings, ...listings, ...listings] : [];
 
   // keep itemHeight accurate for PWA window-controls-overlay vs browser tab
   useLayoutEffect(() => {
