@@ -24,8 +24,25 @@ api.interceptors.request.use(
 );
 
 // ─── Response Interceptor ─────────────────────────────────────
+// When we clear the token here, also broadcast an event so any mounted
+// AuthContext can sync its React state. Without this, AuthContext's `token`/
+// `user` state (a separate source of truth from localStorage) stays stale —
+// isAuthenticated keeps reporting true, protected UI stays visible, and every
+// subsequent request just silently 401s with no redirect to login. The event
+// makes localStorage and React state agree the moment either one changes.
+const broadcastAuthExpired = () => {
+  try { window.dispatchEvent(new CustomEvent("tt:auth-expired")); } catch {}
+};
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const newToken = response.headers?.["x-new-token"];
+    if (newToken) {
+      localStorage.setItem("tt_token", newToken);
+      try { window.dispatchEvent(new CustomEvent("tt:auth-refreshed", { detail: newToken })); } catch {}
+    }
+    return response;
+  },
   (error) => {
     if (error?.response?.status === 401) {
       const hasToken = localStorage.getItem("tt_token");
@@ -36,11 +53,13 @@ api.interceptors.response.use(
       if (hasToken && isMeRequest) {
         localStorage.removeItem("tt_token");
         localStorage.removeItem("tt_user");
+        broadcastAuthExpired();
       } else if (hasToken && !isLoginAttempt) {
         const errCode = error?.response?.data?.error || "";
         if (/token|expired|jwt|session/i.test(errCode)) {
           localStorage.removeItem("tt_token");
           localStorage.removeItem("tt_user");
+          broadcastAuthExpired();
         }
       }
     }

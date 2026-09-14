@@ -1,6 +1,6 @@
 // src/middleware/auth.middleware.js — JWT Auth Guard
 
-const { verifyToken } = require("../utils/jwt");
+const { verifyToken, signToken } = require("../utils/jwt");
 const prisma = require("../db");
 
 const protect = async (req, res, next) => {
@@ -72,6 +72,17 @@ const user = await prisma.user.findUnique({
 
     // 6. Attach user to request object for downstream use
     req.user = user;
+
+    // 6a. Sliding refresh: if token expires within 2 days, issue new 7d token via header
+    // Active users (including PWA) never hit hard 7d expiry — idle 7d still logs out.
+    try {
+      const remaining = (decoded.exp || 0) - Math.floor(Date.now() / 1000);
+      if (remaining > 0 && remaining < 2 * 24 * 60 * 60) {
+        const newToken = signToken({ id: decoded.id, email: decoded.email, username: decoded.username });
+        res.setHeader("x-new-token", newToken);
+        res.setHeader("Access-Control-Expose-Headers", "x-new-token");
+      }
+    } catch {}
 
     // 7. Continue to the next middleware / controller
     next();

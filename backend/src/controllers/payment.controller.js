@@ -207,17 +207,15 @@ const buyWithGigBalance = async (req, res) => {
     }
     const ref = `gig_${req.user.id}_${Date.now()}`;
     const isAdminBuyer = req.user.role === "ADMIN";
+    const { recordWalletMovement } = require("../utils/wallet");
     await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: costKobo } }, data: { gigBalance: { decrement: costKobo }, tokenBalance: { increment: qty } } });
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       await tx.tokenPurchase.create({ data: { userId: req.user.id, reference: ref, quantity: qty, amount: qty * TOKEN_PRICE_NAIRA, status: "SUCCESS", flutterwaveTransactionId: ref } });
       if (!isAdminBuyer) await tx.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: costKobo, netFee: costKobo, refId: ref, meta: { tokenPurchaseId: ref, quantity: qty, via: "GIG_BALANCE" } } });
+      // ledger write now atomic with the balance debit above
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: costKobo, fee: 0, type: "TOKEN_BUY", title: `Bought ${qty} token(s)`, body: `Debit: ₦${(costKobo/100).toLocaleString()} for ${qty} token(s) — ref ${ref}. Gig wallet debited, tokens credited.`, meta: { quantity: qty, reference: ref }, tx });
     });
-    // ledger + inbox + push + notification (debit gig wallet, credit tokens)
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: costKobo, fee: 0, type: "TOKEN_BUY", title: `Bought ${qty} token(s)`, body: `Debit: ₦${(costKobo/100).toLocaleString()} for ${qty} token(s) — ref ${ref}. Gig wallet debited, tokens credited.`, meta: { quantity: qty, reference: ref } });
-    } catch {}
     try {
       await prisma.notification.create({ data: { userId: req.user.id, type: "GIG_TO_TOKEN", listingId: null } });
       await prisma.message.create({ data: { senderId: req.user.id, recipientId: req.user.id, subject: `Bought ${qty} token(s) with Gig balance`, body: `Converted ₦${(costKobo/100).toLocaleString()} Gig Naira → ${qty} token(s) at ₦${TOKEN_PRICE_NAIRA}/token — ref ${ref}. Gig balance debited, tokens credited instantly.` } });

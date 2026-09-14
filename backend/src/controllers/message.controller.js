@@ -429,14 +429,26 @@ const deleteConversationsBulk = async (req, res) => {
       // try per-person conversation first (buyer/seller)
       let convo = await prisma.conversation.findFirst({ where: { OR: [{ buyerId: a, sellerId: b }, { buyerId: b, sellerId: a }] } });
       if (convo && (convo.buyerId === req.user.id || convo.sellerId === req.user.id)) {
-        await prisma.message.updateMany({ where: { conversationId: convo.id, OR: [{ senderId: req.user.id }, { recipientId: req.user.id }] }, data: { senderDeleted: true, recipientDeleted: true } });
-        await prisma.message.deleteMany({ where: { conversationId: convo.id } }).catch(() => {});
-        await prisma.conversation.delete({ where: { id: convo.id } }).catch(() => {});
+        // Soft-delete only THIS user's side, matching the per-side pattern used by
+        // deleteOne/deleteMany/deleteAll above. The previous version matched every
+        // message where the user was either sender or recipient (i.e. every message in
+        // the conversation, since both participants qualify) and set BOTH senderDeleted
+        // and recipientDeleted on all of them — hard-deleting the whole conversation for
+        // both parties the instant one user cleared it from their own inbox.
+        await prisma.message.updateMany({ where: { conversationId: convo.id, senderId: req.user.id }, data: { senderDeleted: true } });
+        await prisma.message.updateMany({ where: { conversationId: convo.id, recipientId: req.user.id }, data: { recipientDeleted: true } });
+        await prisma.message.deleteMany({ where: { conversationId: convo.id, senderDeleted: true, recipientDeleted: true } }).catch(() => {});
+        // Only remove the conversation container once no messages remain in it (i.e. the
+        // other party has also cleared their side, or there never were any) — otherwise
+        // the other party's still-visible messages would lose their conversation record.
+        const remaining = await prisma.message.count({ where: { conversationId: convo.id } });
+        if (remaining === 0) await prisma.conversation.delete({ where: { id: convo.id } }).catch(() => {});
       } else {
-        // fallback per-listing: a=listingId, b=otherId
+        // fallback per-listing: a=listingId, b=otherId — same per-side fix.
         const listingId = a, otherId = b;
-        await prisma.message.updateMany({ where: { listingId, OR: [{ senderId: req.user.id, recipientId: otherId }, { senderId: otherId, recipientId: req.user.id }] }, data: { senderDeleted: true, recipientDeleted: true } });
-        await prisma.message.deleteMany({ where: { listingId, OR: [{ senderId: req.user.id, recipientId: otherId }, { senderId: otherId, recipientId: req.user.id }] } }).catch(() => {});
+        await prisma.message.updateMany({ where: { listingId, senderId: req.user.id, recipientId: otherId }, data: { senderDeleted: true } });
+        await prisma.message.updateMany({ where: { listingId, senderId: otherId, recipientId: req.user.id }, data: { recipientDeleted: true } });
+        await prisma.message.deleteMany({ where: { listingId, senderDeleted: true, recipientDeleted: true, OR: [{ senderId: req.user.id, recipientId: otherId }, { senderId: otherId, recipientId: req.user.id }] } }).catch(() => {});
       }
     }
     await prisma.message.deleteMany({ where: { senderDeleted: true, recipientDeleted: true } }).catch(() => {});

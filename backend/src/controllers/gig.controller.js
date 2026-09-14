@@ -21,16 +21,14 @@ const createGig = async (req, res) => {
     if (!user || user.gigBalance < amountKobo) return res.status(402).json({ error: `Need ₦${(amountKobo/100).toLocaleString()} in Gig wallet. You have ₦${((user?.gigBalance||0)/100).toLocaleString()}.`, needsGigBalance: true, gigBalance: user?.gigBalance || 0, required: amountKobo });
 
     const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const { recordWalletMovement } = require("../utils/wallet");
     const gig = await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: amountKobo } }, data: { gigBalance: { decrement: amountKobo } } });
       if (ok.count === 0) throw new Error("BALANCE_RACE");
-      return tx.gig.create({ data: { description: description.trim(), whatsapp: whatsapp.trim(), amount: amountKobo, escrowAmount: amountKobo, timerHours: hours, status: "OPEN", posterId: req.user.id, expiresAt } });
+      const g = await tx.gig.create({ data: { description: description.trim(), whatsapp: whatsapp.trim(), amount: amountKobo, escrowAmount: amountKobo, timerHours: hours, status: "OPEN", posterId: req.user.id, expiresAt } });
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "GIG_CREATE", title: "Gig posted — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for gig #${g.id} "${g.description.slice(0,40)}" — escrow from Gig wallet.`, meta: { gigId: g.id }, tx });
+      return g;
     });
-    // wallet: debit + history + credit notification
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "GIG_CREATE", title: "Gig posted — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for gig #${gig.id} "${gig.description.slice(0,40)}" — escrow from Gig wallet.`, meta: { gigId: gig.id } });
-    } catch {}
     // realtime badge + push to all users when gig goes live
     try {
       const { emitGig } = require("../realtime");
@@ -122,16 +120,15 @@ const confirmGig = async (req, res) => {
     const isAdmin = req.user.role === "ADMIN";
     const gross = isAdmin ? 0 : fee(gig.escrowAmount);
     const pay = isAdmin ? gig.escrowAmount : payout(gig.escrowAmount);
+    const { recordWalletMovement } = require("../utils/wallet");
     await prisma.$transaction(async (tx) => {
       const { count } = await tx.gig.updateMany({ where: { id, status: "CLAIMED", posterId: req.user.id }, data: { status: "COMPLETED", completedAt: new Date() } });
       if (count === 0) throw new Error("ALREADY");
       await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
       if (!isAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(id), meta: { gigId: id, posterId: gig.posterId, claimerId: gig.claimerId } } });
+      // ledger write now atomic with the payout above — can't diverge from the balance change
+      await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_PAYOUT", title: "Gig payout — credited", body: `Credit: ₦${(pay/100).toLocaleString()} from gig #${id}${isAdmin ? " (admin free — no fee)" : ` (fee ₦${(gross/100).toLocaleString()} retained)`} — credited to Gig wallet.`, meta: { gigId: id, fee: gross, adminFree: isAdmin }, tx });
     });
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_PAYOUT", title: "Gig payout — credited", body: `Credit: ₦${(pay/100).toLocaleString()} from gig #${id}${isAdmin ? " (admin free — no fee)" : ` (fee ₦${(gross/100).toLocaleString()} retained)`} — credited to Gig wallet.`, meta: { gigId: id, fee: gross, adminFree: isAdmin } });
-    } catch {}
     return res.json({ message: isAdmin ? `Confirmed (admin free) — ₦${(pay/100).toLocaleString()} sent to claimer.` : `Confirmed — ₦${(pay/100).toLocaleString()} sent to claimer, ₦${(gross/100).toLocaleString()} fee retained.`, payout: pay, fee: gross });
   } catch (err) {
     if (err.message === "ALREADY") return res.status(409).json({ error: `Gig is no longer claimable` });
@@ -150,16 +147,14 @@ const cancelGig = async (req, res) => {
     const isAdmin = req.user.role === "ADMIN";
     const cancelFee = isAdmin ? 0 : Math.floor(gig.escrowAmount * 0.05);
     const refund = gig.escrowAmount - cancelFee;
+    const { recordWalletMovement } = require("../utils/wallet");
     await prisma.$transaction(async (tx) => {
       const { count } = await tx.gig.updateMany({ where: { id, status: "OPEN", posterId: req.user.id }, data: { status: "CANCELLED" } });
       if (count === 0) throw new Error("ALREADY");
       await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: refund } } });
       if (!isAdmin) await tx.platformProfit.create({ data: { source: "GIG_CANCEL_5", grossFee: cancelFee, netFee: cancelFee, refId: String(id), meta: { gigId: id } } });
+      await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: refund, fee: 0, type: "GIG_CANCEL_REFUND", title: "Gig cancelled — refund", body: `Credit: ₦${(refund/100).toLocaleString()} refunded for gig #${id}${isAdmin ? " (admin free — no fee)" : ` (fee ₦${(cancelFee/100).toLocaleString()} retained)`}.`, meta: { gigId: id, fee: cancelFee, adminFree: isAdmin }, tx });
     });
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: refund, fee: 0, type: "GIG_CANCEL_REFUND", title: "Gig cancelled — refund", body: `Credit: ₦${(refund/100).toLocaleString()} refunded for gig #${id}${isAdmin ? " (admin free — no fee)" : ` (fee ₦${(cancelFee/100).toLocaleString()} retained)`}.`, meta: { gigId: id, fee: cancelFee, adminFree: isAdmin } });
-    } catch {}
     return res.json({ message: isAdmin ? `Cancelled (admin free) — refund ₦${(refund/100).toLocaleString()} to Gig wallet.` : `Cancelled — 5% fee ₦${(cancelFee/100).toLocaleString()}, refund ₦${(refund/100).toLocaleString()} to Gig wallet.`, refund, fee: cancelFee });
   } catch (err) {
     if (err.message === "ALREADY") return res.status(409).json({ error: `Cannot cancel` });
@@ -195,17 +190,15 @@ const refundExpired = async (req, res) => {
     if (!gig) return res.status(404).json({ error: "Gig not found" });
     if (gig.posterId !== req.user.id) return res.status(403).json({ error: "Only poster" });
     if (gig.status !== "EXPIRED") return res.status(400).json({ error: "Only expired" });
+    const { recordWalletMovement } = require("../utils/wallet");
     const refunded = await prisma.$transaction(async (tx) => {
       const cnt = await tx.gig.updateMany({ where: { id, status: "EXPIRED", posterId: req.user.id }, data: { status: "CANCELLED" } });
       if (cnt.count === 0) return false;
       await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: gig.escrowAmount } } });
+      await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_EXPIRED_REFUND", title: "Expired gig — refund", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for expired gig #${id}.`, meta: { gigId: id }, tx });
       return true;
     });
     if (!refunded) return res.status(400).json({ error: "Already refunded or not expired" });
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_EXPIRED_REFUND", title: "Expired gig — refund", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for expired gig #${id}.`, meta: { gigId: id } });
-    } catch {}
     return res.json({ message: `Refunded ₦${(gig.escrowAmount/100).toLocaleString()} to Gig wallet.` });
   } catch (err) {
     console.error("[REFUND EXPIRED ERROR]", err);
@@ -222,7 +215,14 @@ const disputeGig = async (req, res) => {
     if (!gig) return res.status(404).json({ error: "Gig not found" });
     if (gig.posterId !== req.user.id && gig.claimerId !== req.user.id) return res.status(403).json({ error: "Only poster or claimer can dispute" });
     if (gig.status !== "CLAIMED") return res.status(400).json({ error: "Only claimed can be disputed" });
-    const updated = await prisma.gig.update({ where: { id }, data: { status: "DISPUTED" } });
+    // Atomic guard: without status:"CLAIMED" on the WHERE, a dispute racing the 72h
+    // autoReleaseGigs cron (or a concurrent confirm) can overwrite a gig that has already
+    // been COMPLETED and paid out back to DISPUTED — status corruption on a gig whose
+    // escrow has already moved, which could then confuse an admin into trying to resolve
+    // (and pay out again) money that's already settled.
+    const disputeOk = await prisma.gig.updateMany({ where: { id, status: "CLAIMED" }, data: { status: "DISPUTED" } });
+    if (disputeOk.count === 0) return res.status(400).json({ error: "Gig was already resolved (confirmed, cancelled, or auto-released) before the dispute was submitted" });
+    const updated = await prisma.gig.findUnique({ where: { id } });
     try {
       const otherId = req.user.id === gig.posterId ? gig.claimerId : gig.posterId;
       if (otherId) {
@@ -287,6 +287,7 @@ const withdrawGig = async (req, res) => {
     } catch {}
 
     const reference = `gigw_${req.user.id}_${Date.now()}`;
+    const { recordWalletMovement } = require("../utils/wallet");
     // Deduct immediately from gig balance + save withdrawal as In review (PENDING) + profit 1%
     const w = await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: totalKobo } }, data: { gigBalance: { decrement: totalKobo } } });
@@ -294,13 +295,10 @@ const withdrawGig = async (req, res) => {
       await tx.user.update({ where: { id: req.user.id }, data: { bankAccountNumber: cleanAcc, bankCode: cleanBank, bankName: bankName || cleanBank } });
       const wd = await tx.gigWithdrawal.create({ data: { userId: req.user.id, amount: kobo, fee: feeKobo, bankCode: cleanBank, bankAccountNumber: cleanAcc, bankName: bankName || cleanBank, accountName, reference, status: "PENDING" } });
       if (!isAdmin && feeKobo > 0) await tx.platformProfit.create({ data: { source: "GIG_WITHDRAW_1P", grossFee: feeKobo, netFee: feeKobo, refId: wd.reference, meta: { withdrawalId: wd.id, amount: kobo } } });
+      // ledger write now atomic with the balance debit above
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: kobo, fee: feeKobo, type: "WITHDRAW", title: "Withdrawal — in review", body: `Debit: ₦${(totalKobo/100).toLocaleString()} (₦${amt.toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)}) to ${bankName || cleanBank} • ${cleanAcc} — ref ${reference} — In review`, meta: { withdrawalId: wd.id, reference }, tx });
       return wd;
     });
-    // ledger for history
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: kobo, fee: feeKobo, type: "WITHDRAW", title: "Withdrawal — in review", body: `Debit: ₦${(totalKobo/100).toLocaleString()} (₦${amt.toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)}) to ${bankName || cleanBank} • ${cleanAcc} — ref ${reference} — In review`, meta: { withdrawalId: w.id, reference } });
-    } catch {}
     // inbox + push + notification for debit (red) — request received + admin push for pending
     try {
       await prisma.notification.create({ data: { userId: req.user.id, actorId: req.user.id, type: "GIG_WITHDRAW_PENDING", listingId: null } });
@@ -390,7 +388,11 @@ const approveGigWithdrawal = async (req, res) => {
 
     const totalKobo = w.amount + (w.fee || 0);
     // Manual confirm — no Flutterwave transfer (removed per request). Mark COMPLETED + same push/inbox.
-    await prisma.gigWithdrawal.update({ where: { id }, data: { status: "COMPLETED" } });
+    // Atomic guard: without this, two admins clicking approve at the same instant both pass
+    // the stale pre-check above and both fire the "withdrawal completed" notification/push
+    // to the user — duplicate notifications for a single withdrawal.
+    const approveOk = await prisma.gigWithdrawal.updateMany({ where: { id, status: "PENDING" }, data: { status: "COMPLETED" } });
+    if (approveOk.count === 0) return res.status(400).json({ error: `Already ${w.status === "PENDING" ? "actioned" : w.status}` });
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_COMPLETED", listingId: null } });
       await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Completed", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} (fee ₦${(w.fee/100).toFixed(2)}) to ${w.bankName} • ${w.bankAccountNumber} — COMPLETED. ₦${(totalKobo/100).toLocaleString()} already debited on request — ref ${w.reference}.` } });
@@ -415,16 +417,20 @@ const rejectGigWithdrawal = async (req, res) => {
     // Already debited on request (amount + fee) — reject refunds all deducted (principal + fee)
     const totalKobo = w.amount + (w.fee || 0);
     const feeKobo = w.fee || 0;
-    await prisma.$transaction(async (tx) => {
+    const { recordWalletMovement } = require("../utils/wallet");
+    // Atomic guard: without the status:"PENDING" condition on this update, two concurrent
+    // reject calls (e.g. admin double-click, or reject racing approve) both pass the stale
+    // pre-check above and both refund the user — double refund.
+    const rejected = await prisma.$transaction(async (tx) => {
+      const ok = await tx.gigWithdrawal.updateMany({ where: { id, status: "PENDING" }, data: { status: "REJECTED" } });
+      if (ok.count === 0) return false;
       await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { increment: totalKobo } } });
-      await tx.gigWithdrawal.update({ where: { id }, data: { status: "REJECTED" } });
       // reverse platform profit (fee) since all sent back
       await tx.platformProfit.deleteMany({ where: { refId: w.reference, source: "GIG_WITHDRAW_1P" } }).catch(()=>{});
+      await recordWalletMovement({ userId: w.userId, direction: "CREDIT", amount: totalKobo, fee: 0, type: "WITHDRAW_REFUND", title: "Withdrawal rejected — refunded", body: `Credit: ₦${(totalKobo/100).toLocaleString()} refunded (withdrawal rejected — ref ${w.reference}).`, meta: { withdrawalId: w.id, reference: w.reference }, tx });
+      return true;
     });
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: w.userId, direction: "CREDIT", amount: totalKobo, fee: 0, type: "WITHDRAW_REFUND", title: "Withdrawal rejected — refunded", body: `Credit: ₦${(totalKobo/100).toLocaleString()} refunded (withdrawal rejected — ref ${w.reference}).`, meta: { withdrawalId: w.id, reference: w.reference } });
-    } catch {}
+    if (!rejected) return res.status(400).json({ error: `Already ${w.status === "PENDING" ? "actioned" : w.status}` });
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_REJECTED", listingId: null } });
       await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Rejected — Fully Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — REJECTED — ₦${(totalKobo/100).toLocaleString()} fully refunded to Gig wallet (was ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited) — ref ${w.reference}.` } });
@@ -450,15 +456,18 @@ const cancelGigWithdrawal = async (req, res) => {
     if (w.status !== "PENDING") return res.status(400).json({ error: `Already ${w.status === "PENDING" ? "In review" : w.status}` });
     const feeKobo = w.fee || 0;
     const totalKobo = w.amount + feeKobo;
-    await prisma.$transaction(async (tx) => {
+    const { recordWalletMovement } = require("../utils/wallet");
+    // Same atomic-guard fix as rejectGigWithdrawal: cancel racing itself (double-click) or
+    // racing an admin's concurrent reject/approve previously could both refund the user.
+    const cancelled = await prisma.$transaction(async (tx) => {
+      const ok = await tx.gigWithdrawal.updateMany({ where: { id, status: "PENDING" }, data: { status: "CANCELLED" } });
+      if (ok.count === 0) return false;
       await tx.user.update({ where: { id: w.userId }, data: { gigBalance: { increment: totalKobo } } });
-      await tx.gigWithdrawal.update({ where: { id }, data: { status: "CANCELLED" } });
       await tx.platformProfit.deleteMany({ where: { refId: w.reference, source: "GIG_WITHDRAW_1P" } }).catch(()=>{});
+      await recordWalletMovement({ userId: w.userId, direction: "CREDIT", amount: totalKobo, fee: 0, type: "WITHDRAW_REFUND", title: "Withdrawal cancelled — refunded", body: `Credit: ₦${(totalKobo/100).toLocaleString()} refunded (withdrawal cancelled — ref ${w.reference}).`, meta: { withdrawalId: w.id, reference: w.reference }, tx });
+      return true;
     });
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: w.userId, direction: "CREDIT", amount: totalKobo, fee: 0, type: "WITHDRAW_REFUND", title: "Withdrawal cancelled — refunded", body: `Credit: ₦${(totalKobo/100).toLocaleString()} refunded (withdrawal cancelled — ref ${w.reference}).`, meta: { withdrawalId: w.id, reference: w.reference } });
-    } catch {}
+    if (!cancelled) return res.status(400).json({ error: `Already ${w.status === "PENDING" ? "actioned" : w.status}` });
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_CANCELLED", listingId: null } });
       await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Cancelled — Fully Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — CANCELLED — ₦${(totalKobo/100).toLocaleString()} fully refunded to Gig wallet (was ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited) — ref ${w.reference}.` } });
@@ -546,22 +555,22 @@ const transferGig = async (req, res) => {
     }
     if ((sender.gigBalance || 0) < totalKobo) return res.status(402).json({ error: `Insufficient Gig balance. Need ₦${(totalKobo/100).toLocaleString()} (₦${amt.toLocaleString()} + ₦${feeKobo/100} fee). You have ₦${((sender.gigBalance||0)/100).toLocaleString()}.`, required: totalKobo, fee: feeKobo, gigBalance: sender.gigBalance });
 
+    const senderUsername = req.user.username || (await prisma.user.findUnique({ where: { id: req.user.id }, select: { username: true } }))?.username;
+    const { recordWalletMovement } = require("../utils/wallet");
     const transfer = await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: totalKobo } }, data: { gigBalance: { decrement: totalKobo } } });
       if (ok.count === 0) throw new Error("BALANCE_RACE");
       await tx.user.update({ where: { id: recipient.id }, data: { gigBalance: { increment: amountKobo } } });
       const tr = await tx.gigTransfer.create({ data: { fromUserId: req.user.id, toUserId: recipient.id, amount: amountKobo, fee: feeKobo, status: "SUCCESS" } });
       if (!isAdminTransfer && feeKobo > 0) await tx.platformProfit.create({ data: { source: "GIG_TRANSFER_1P", grossFee: feeKobo, netFee: feeKobo, refId: tr.reference, meta: { transferId: tr.id, from: req.user.id, to: recipient.id } } });
+      // ledger writes for both sides now atomic with the balance movement above — run
+      // sequentially since interactive-transaction clients don't support concurrent
+      // queries (the previous Promise.all was both fire-and-forget AND racing its own
+      // two queries against the same tx-less client).
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: feeKobo, type: "TRANSFER", title: `Transfer sent to @${recipient.username}`, body: `Debit: ₦${(totalKobo/100).toLocaleString()} sent to @${recipient.username} (amount ₦${amt.toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)}) — ref ${tr.reference}`, meta: { transferId: tr.id, toUserId: recipient.id, reference: tr.reference }, tx });
+      await recordWalletMovement({ userId: recipient.id, direction: "CREDIT", amount: amountKobo, fee: 0, type: "TRANSFER", title: "Transfer received", body: `Credit: ₦${amt.toLocaleString()} received from @${senderUsername} — ref ${tr.reference}`, meta: { transferId: tr.id, fromUserId: req.user.id, reference: tr.reference }, tx });
       return tr;
     });
-    // ledger + history for both sides
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await Promise.all([
-        recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: feeKobo, type: "TRANSFER", title: `Transfer sent to @${recipient.username}`, body: `Debit: ₦${(totalKobo/100).toLocaleString()} sent to @${recipient.username} (amount ₦${amt.toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)}) — ref ${transfer.reference}`, meta: { transferId: transfer.id, toUserId: recipient.id, reference: transfer.reference } }),
-        recordWalletMovement({ userId: recipient.id, direction: "CREDIT", amount: amountKobo, fee: 0, type: "TRANSFER", title: "Transfer received", body: `Credit: ₦${amt.toLocaleString()} received from @${(await prisma.user.findUnique({where:{id:req.user.id},select:{username:true}}))?.username} — ref ${transfer.reference}`, meta: { transferId: transfer.id, fromUserId: req.user.id, reference: transfer.reference } }),
-      ]);
-    } catch {}
     // notify both + push + inbox — debit red for sender, credit green for receiver
     try {
       const senderUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { username: true } });
@@ -899,19 +908,17 @@ const autoReleaseGigs = async () => {
       } catch {}
       const gross = isPosterAdmin ? 0 : fee(g.escrowAmount);
       const pay = isPosterAdmin ? g.escrowAmount : payout(g.escrowAmount);
+      const { recordWalletMovement } = require("../utils/wallet");
       const updated = await prisma.$transaction(async (tx) => {
         const cnt = await tx.gig.updateMany({ where: { id: g.id, status: "CLAIMED" }, data: { status: "COMPLETED", completedAt: new Date() } });
         if (cnt.count === 0) return false;
         await tx.user.update({ where: { id: g.claimerId }, data: { gigBalance: { increment: pay } } });
         if (!isPosterAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(g.id), meta: { gigId: g.id, autoReleased: true } } });
+        await recordWalletMovement({ userId: g.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_AUTO_RELEASE", title: "Gig auto-released — credited", body: `Credit: ₦${(pay/100).toLocaleString()} auto-released for gig #${g.id}${isPosterAdmin ? " (admin free — no fee)" : ` (fee ₦${(gross/100).toLocaleString()} retained)`} — 72h`, meta: { gigId: g.id, autoReleased: true, adminFree: isPosterAdmin }, tx });
         return true;
       });
       if (!updated) continue;
       console.log(`[GIGS] Auto-released gig ${g.id} → ₦${pay/100} to ${g.claimerId}${isPosterAdmin ? " (admin free)" : ` fee ₦${gross/100}`}`);
-      try {
-        const { recordWalletMovement } = require("../utils/wallet");
-        await recordWalletMovement({ userId: g.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_AUTO_RELEASE", title: "Gig auto-released — credited", body: `Credit: ₦${(pay/100).toLocaleString()} auto-released for gig #${g.id}${isPosterAdmin ? " (admin free — no fee)" : ` (fee ₦${(gross/100).toLocaleString()} retained)`} — 72h`, meta: { gigId: g.id, autoReleased: true, adminFree: isPosterAdmin } });
-      } catch {}
     }
   } catch (e) { console.error("[GIGS AUTORELEASE ERROR]", e.message); }
 };

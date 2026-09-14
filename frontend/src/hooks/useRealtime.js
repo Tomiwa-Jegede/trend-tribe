@@ -16,10 +16,25 @@ export default function useRealtime(event, callback, opts = {}) {
   const enabled = opts.enabled !== false;
   const cbRef = useRef(callback);
   useEffect(() => { cbRef.current = callback; }, [callback]);
+  const lastFiredRef = useRef(new Map());
 
   useEffect(() => {
     if (!enabled) return;
-    const handler = (...args) => cbRef.current?.(...args);
+    const handler = (...args) => {
+      // Backend delivers most events over BOTH Pusher and Socket.IO to the
+      // same client (see backend/src/realtime.js emitNotification etc.
+      // alongside the direct io.emit calls) — dedupe near-simultaneous
+      // duplicate deliveries of the identical payload so consumers
+      // (badges, counts, lists) don't double-fire and flicker.
+      let key;
+      try { key = JSON.stringify(args); } catch { key = String(args.length); }
+      const now = Date.now();
+      const last = lastFiredRef.current.get(key) || 0;
+      if (now - last < 1000) return;
+      lastFiredRef.current.set(key, now);
+      setTimeout(() => lastFiredRef.current.delete(key), 1000);
+      cbRef.current?.(...args);
+    };
     // Pusher (free, no Render sleep) — best
     const pusherOffs = [];
     const mainChannel = channelForEvent(event);

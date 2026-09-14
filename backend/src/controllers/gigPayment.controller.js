@@ -56,14 +56,20 @@ const verifyGigPayment = async (req, res) => {
 };
 
 async function creditGigPurchase(purchase, flutterwaveTransactionId) {
-  const { count } = await prisma.gigTokenPurchase.updateMany({ where: { reference: purchase.reference, status: "PENDING" }, data: { status: "SUCCESS", flutterwaveTransactionId } });
-  if (count === 1) {
-    await prisma.user.update({ where: { id: purchase.userId }, data: { gigBalance: { increment: purchase.amount } } });
-    // inbox + push + notification for top-up (credit green) + ledger
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: purchase.userId, direction: "CREDIT", amount: purchase.amount, fee: 0, type: "TOPUP", title: "Gig wallet top-up", body: `Credit: ₦${(purchase.amount/100).toLocaleString()} top-up credited — ref ${purchase.reference}.`, meta: { purchaseId: purchase.id, reference: purchase.reference } });
-    } catch {}
+  // Guard (PENDING -> SUCCESS) and the balance credit + ledger write are now one atomic
+  // transaction. Previously the status flip and the balance increment were two separate
+  // statements outside any transaction — a crash or DB blip between them would leave the
+  // purchase marked SUCCESS with the money never actually credited, and the ledger write
+  // was fire-and-forget on top of that.
+  const credited = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.gigTokenPurchase.updateMany({ where: { reference: purchase.reference, status: "PENDING" }, data: { status: "SUCCESS", flutterwaveTransactionId } });
+    if (count !== 1) return false;
+    await tx.user.update({ where: { id: purchase.userId }, data: { gigBalance: { increment: purchase.amount } } });
+    const { recordWalletMovement } = require("../utils/wallet");
+    await recordWalletMovement({ userId: purchase.userId, direction: "CREDIT", amount: purchase.amount, fee: 0, type: "TOPUP", title: "Gig wallet top-up", body: `Credit: ₦${(purchase.amount/100).toLocaleString()} top-up credited — ref ${purchase.reference}.`, meta: { purchaseId: purchase.id, reference: purchase.reference }, tx });
+    return true;
+  });
+  if (credited) {
     try {
       await prisma.notification.create({ data: { userId: purchase.userId, type: "GIG_TOPUP", listingId: null } });
       await prisma.message.create({ data: { senderId: purchase.userId, recipientId: purchase.userId, subject: "Gig Wallet Top-up", body: `Your Gig wallet was credited ₦${(purchase.amount/100).toLocaleString()} — ref ${purchase.reference}. Balance updated.` } });

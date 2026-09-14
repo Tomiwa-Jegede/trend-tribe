@@ -111,14 +111,27 @@ const confirm = async (req, res) => {
     if (isNaN(userId)) return res.status(400).json({ error: "Invalid userId" });
     const adminId = req.user.id;
     const admin = req.user;
-    // CAS: only if not claimed
-    const existing = await prisma.supportThread.findUnique({ where: { userId } });
-    if (existing?.claimedBy) {
-      const claimer = await prisma.user.findUnique({ where: { id: existing.claimedBy }, select: { username: true, fullName: true } });
-      return res.status(409).json({ error: `Already claimed by ${claimer?.fullName || claimer?.username || "admin"}`, claimedBy: existing.claimedBy });
+    // True atomic CAS. The old code read the thread, checked claimedBy in JS, then did a
+    // separate upsert — two admins clicking "claim" in the same instant could both pass
+    // the read-check and both upsert themselves as claimer, both firing an auto-hello.
+    // Fix: attempt a real create first (unique on userId means only one request's create
+    // can win at the DB level); if the row already exists, fall back to a single
+    // conditional UPDATE ... WHERE claimedBy IS NULL, whose affected-row count tells us
+    // — atomically — whether *this* request actually won the claim.
+    let won = false;
+    try {
+      await prisma.supportThread.create({ data: { userId, claimedBy: adminId, claimedAt: new Date() } });
+      won = true;
+    } catch (e) {
+      if (e.code !== "P2002") throw e; // not a unique-constraint clash, rethrow
+      const claim = await prisma.supportThread.updateMany({ where: { userId, claimedBy: null }, data: { claimedBy: adminId, claimedAt: new Date() } });
+      won = claim.count > 0;
     }
-    await prisma.supportThread.upsert({ where: { userId }, create: { userId, claimedBy: adminId, claimedAt: new Date() }, update: { claimedBy: adminId, claimedAt: new Date() } });
-    // ensure not already claimed via race (check after)
+    if (!won) {
+      const existing = await prisma.supportThread.findUnique({ where: { userId } });
+      const claimer = existing?.claimedBy ? await prisma.user.findUnique({ where: { id: existing.claimedBy }, select: { username: true, fullName: true } }) : null;
+      return res.status(409).json({ error: `Already claimed by ${claimer?.fullName || claimer?.username || "admin"}`, claimedBy: existing?.claimedBy });
+    }
     // auto hello
     const hello = `Hi, my name is ${admin.fullName || admin.username}.`;
     const msg = await prisma.message.create({ data: { body: hello, senderId: adminId, recipientId: userId, listingId: null }, include: { sender: { select: { id: true, username: true, fullName: true } } } });

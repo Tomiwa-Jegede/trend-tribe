@@ -26,16 +26,14 @@ const bookService = async (req, res) => {
     const booking = await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: amountKobo } }, data: { gigBalance: { decrement: amountKobo } } });
       if (ok.count === 0) throw new Error("BALANCE_RACE");
-      return tx.serviceBooking.create({
+      const b = await tx.serviceBooking.create({
         data: { listingId, bookerId: req.user.id, providerId: listing.sellerId, amount: amountKobo, status: "PENDING", expiresAt },
       });
+      const { recordWalletMovement } = require("../utils/wallet");
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "SERVICE_BOOK", title: "Service booked — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for service booking #${b.id} — escrow from Gig wallet.`, meta: { bookingId: b.id, listingId }, tx });
+      return b;
     });
 
-    // ledger debit for booker + notify provider
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "SERVICE_BOOK", title: "Service booked — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for service booking #${booking.id} — escrow from Gig wallet.`, meta: { bookingId: booking.id, listingId } });
-    } catch {}
     try {
       await prisma.notification.create({ data: { userId: listing.sellerId, actorId: req.user.id, listingId, type: "SERVICE_BOOKING" } });
       const { emitNotification, isOnline } = require("../realtime");
@@ -68,23 +66,22 @@ const confirmServiceBooking = async (req, res) => {
     const provider = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true } });
     if (!isAdminProvider && (provider?.gigBalance || 0) < feeKobo) return res.status(402).json({ error: `Insufficient Gig balance for 20% fee. Need ₦${(feeKobo/100).toLocaleString()} in Gig wallet. You have ₦${((provider?.gigBalance||0)/100).toLocaleString()}. Please fund your Gig wallet.`, feeKobo });
 
+    const { recordWalletMovement } = require("../utils/wallet");
     await prisma.$transaction(async (tx) => {
+      // Atomic guard: only one concurrent confirm can flip PENDING -> CONFIRMED. Without
+      // this, two rapid taps both pass the earlier (stale, pre-transaction) PENDING check
+      // and both go on to decrement the fee below — double fee-deduction.
+      const bookOk = await tx.serviceBooking.updateMany({ where: { id, status: "PENDING" }, data: { status: "CONFIRMED" } });
+      if (bookOk.count === 0) throw new Error("ALREADY_CONFIRMED");
       if (!isAdminProvider) {
         const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: feeKobo } }, data: { gigBalance: { decrement: feeKobo } } });
         if (ok.count === 0) throw new Error("FEE_RACE");
+        await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
+        // ledger debit for provider fee, atomic with the deduction above — admin free skips
+        await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: feeKobo, fee: 0, type: "SERVICE_FEE", title: "Service confirm fee — 20%", body: `Debit: ₦${(feeKobo/100).toLocaleString()} fee for confirming booking #${id} — debited from Gig wallet.`, meta: { bookingId: id }, tx });
       }
       // Keep escrow held — do NOT refund booker yet. Booker paid at booking time, funds stay in escrow until service completed.
-      await tx.serviceBooking.update({ where: { id }, data: { status: "CONFIRMED" } });
-      if (!isAdminProvider) await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
     });
-
-    // ledger debit for provider fee — admin free skips
-    if (!isAdminProvider) {
-      try {
-        const { recordWalletMovement } = require("../utils/wallet");
-        await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: feeKobo, fee: 0, type: "SERVICE_FEE", title: "Service confirm fee — 20%", body: `Debit: ₦${(feeKobo/100).toLocaleString()} fee for confirming booking #${id} — debited from Gig wallet.`, meta: { bookingId: id } });
-      } catch {}
-    }
 
     // Notify booker with provider whatsapp — escrow still held
     const providerUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { whatsapp: true } });
@@ -100,6 +97,8 @@ const confirmServiceBooking = async (req, res) => {
 
     return res.json({ message: `Confirmed — escrow still held (₦${(booking.amount/100).toLocaleString()}), booker gets your WhatsApp. Mark as completed after service to release funds.`, whatsapp: providerUser?.whatsapp, feeKobo });
   } catch (err) {
+    if (err.message === "ALREADY_CONFIRMED") return res.status(400).json({ error: "Booking was already confirmed" });
+    if (err.message === "FEE_RACE") return res.status(402).json({ error: "Balance changed — insufficient funds for fee" });
     console.error("[CONFIRM SERVICE BOOKING ERROR]", err);
     return res.status(500).json({ error: "Could not confirm" });
   }
@@ -118,11 +117,36 @@ const completeServiceBooking = async (req, res) => {
     const otherField = isBooker ? "providerCompletedAt" : "bookerCompletedAt";
     if (booking[field]) return res.status(400).json({ error: "You already marked as completed" });
 
-    const otherCompleted = !!booking[otherField];
+    const { recordWalletMovement } = require("../utils/wallet");
 
-    if (!otherCompleted) {
-      // First party marks — wait for the other
-      await prisma.serviceBooking.update({ where: { id }, data: { [field]: new Date() } });
+    // Single atomic transaction handles both the "first party marks" and "both marked ->
+    // release escrow" paths. Previously the flag-set and the payout were two separate,
+    // unguarded steps driven by a pre-transaction read of `booking` — two concurrent
+    // "mark complete" calls (e.g. a double-tap, or booker+provider clicking at the same
+    // instant) could both observe the pre-completion state and both execute the payout
+    // transaction, releasing the escrow to the provider twice. Now the flag-set is itself
+    // the atomic guard: only the request that actually flips [field] from null wins, and
+    // the decision to pay out is made from a fresh in-transaction read.
+    const result = await prisma.$transaction(async (tx) => {
+      const flagOk = await tx.serviceBooking.updateMany({ where: { id, status: "CONFIRMED", [field]: null }, data: { [field]: new Date() } });
+      if (flagOk.count === 0) throw new Error("ALREADY_MARKED");
+
+      const fresh = await tx.serviceBooking.findUnique({ where: { id } });
+      if (!fresh[otherField]) {
+        // First party to mark — wait for the other, nothing to pay out yet.
+        return { released: false };
+      }
+
+      // Both have now marked — release escrow to provider, guarded so this can only
+      // happen once (status flips CONFIRMED -> COMPLETED atomically with the payout).
+      const releaseOk = await tx.serviceBooking.updateMany({ where: { id, status: "CONFIRMED" }, data: { status: "COMPLETED" } });
+      if (releaseOk.count === 0) return { released: false }; // already released by the other request
+      await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
+      await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_PAYOUT", title: "Service completed — payout", body: `Credit: ₦${(booking.amount/100).toLocaleString()} escrow released for booking #${id} — credited to Gig wallet.`, meta: { bookingId: id }, tx });
+      return { released: true };
+    });
+
+    if (!result.released) {
       try {
         const otherId = isBooker ? booking.providerId : booking.bookerId;
         await prisma.notification.create({ data: { userId: otherId, actorId: req.user.id, listingId: booking.listingId, type: "SERVICE_COMPLETED_PENDING" } });
@@ -133,18 +157,6 @@ const completeServiceBooking = async (req, res) => {
       } catch {}
       return res.json({ message: `Marked as completed — waiting for ${isBooker ? "provider" : "booker"} to confirm to release escrow.` });
     }
-
-    // Both have now marked — release escrow to provider
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
-      await tx.serviceBooking.update({ where: { id }, data: { status: "COMPLETED", [field]: new Date() } });
-    });
-
-    // ledger credit for provider
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_PAYOUT", title: "Service completed — payout", body: `Credit: ₦${(booking.amount/100).toLocaleString()} escrow released for booking #${id} — credited to Gig wallet.`, meta: { bookingId: id } });
-    } catch {}
 
     try {
       await prisma.notification.createMany({ data: [
@@ -161,6 +173,7 @@ const completeServiceBooking = async (req, res) => {
 
     return res.json({ message: `Both confirmed — escrow ₦${(booking.amount/100).toLocaleString()} released to provider.` });
   } catch (err) {
+    if (err.message === "ALREADY_MARKED") return res.status(400).json({ error: "You already marked as completed" });
     console.error("[COMPLETE SERVICE BOOKING ERROR]", err);
     return res.status(500).json({ error: "Could not complete service" });
   }
@@ -206,16 +219,20 @@ const cancelServiceBooking = async (req, res) => {
     if (booking.providerId !== req.user.id && booking.bookerId !== req.user.id) return res.status(403).json({ error: "Not your booking" });
     if (booking.status !== "PENDING") return res.status(400).json({ error: `Cannot cancel ${booking.status}` });
 
+    const { recordWalletMovement } = require("../utils/wallet");
+    // Atomic guard on status: without this, cancel racing a concurrent confirm (or a
+    // double-tap of cancel itself) can both pass the pre-transaction PENDING check and
+    // both refund the booker — double refund. Only the request that actually flips
+    // PENDING -> CANCELLED proceeds to refund.
     await prisma.$transaction(async (tx) => {
+      const ok = await tx.serviceBooking.updateMany({ where: { id, status: "PENDING" }, data: { status: "CANCELLED" } });
+      if (ok.count === 0) throw new Error("ALREADY_RESOLVED");
       await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
-      await tx.serviceBooking.update({ where: { id }, data: { status: "CANCELLED" } });
+      await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_REFUND", title: "Booking cancelled — refund", body: `Credit: ₦${(booking.amount/100).toLocaleString()} refunded for cancelled booking #${id}.`, meta: { bookingId: id }, tx });
     });
-    try {
-      const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_REFUND", title: "Booking cancelled — refund", body: `Credit: ₦${(booking.amount/100).toLocaleString()} refunded for cancelled booking #${id}.`, meta: { bookingId: id } });
-    } catch {}
     return res.json({ message: `Cancelled — ₦${(booking.amount/100).toLocaleString()} refunded to your Gig wallet.` });
   } catch (err) {
+    if (err.message === "ALREADY_RESOLVED") return res.status(400).json({ error: "Booking was already confirmed, cancelled, or expired" });
     console.error("[CANCEL SERVICE BOOKING ERROR]", err);
     return res.status(500).json({ error: "Could not cancel" });
   }
@@ -226,15 +243,20 @@ const expireServiceBookings = async () => {
     const now = new Date();
     const expired = await prisma.serviceBooking.findMany({ where: { status: "PENDING", expiresAt: { lte: now } } });
     for (const b of expired) {
-      await prisma.$transaction(async (tx) => {
-        await tx.user.update({ where: { id: b.bookerId }, data: { gigBalance: { increment: b.amount } } });
-        await tx.serviceBooking.update({ where: { id: b.id }, data: { status: "EXPIRED" } });
-      });
-      console.log(`[SERVICE BOOKING] Auto-expired ${b.id} after 1h — refunded to Gig wallet`);
       try {
         const { recordWalletMovement } = require("../utils/wallet");
-        await recordWalletMovement({ userId: b.bookerId, direction: "CREDIT", amount: b.amount, fee: 0, type: "SERVICE_EXPIRED_REFUND", title: "Booking expired — refund", body: `Credit: ₦${(b.amount/100).toLocaleString()} refunded for expired booking #${b.id} (1h).`, meta: { bookingId: b.id } });
-      } catch {}
+        // Same atomic guard as cancelServiceBooking: this cron can race a user manually
+        // cancelling or the provider confirming at the same moment. Only proceed with the
+        // refund if this call is the one that actually flips PENDING -> EXPIRED.
+        const released = await prisma.$transaction(async (tx) => {
+          const ok = await tx.serviceBooking.updateMany({ where: { id: b.id, status: "PENDING" }, data: { status: "EXPIRED" } });
+          if (ok.count === 0) return false;
+          await tx.user.update({ where: { id: b.bookerId }, data: { gigBalance: { increment: b.amount } } });
+          await recordWalletMovement({ userId: b.bookerId, direction: "CREDIT", amount: b.amount, fee: 0, type: "SERVICE_EXPIRED_REFUND", title: "Booking expired — refund", body: `Credit: ₦${(b.amount/100).toLocaleString()} refunded for expired booking #${b.id} (1h).`, meta: { bookingId: b.id }, tx });
+          return true;
+        });
+        if (released) console.log(`[SERVICE BOOKING] Auto-expired ${b.id} after 1h — refunded to Gig wallet`);
+      } catch (e) { console.error(`[SERVICE BOOKING EXPIRE ${b.id} ERROR]`, e.message); }
     }
   } catch (e) { console.error("[SERVICE BOOKING EXPIRE ERROR]", e.message); }
 };

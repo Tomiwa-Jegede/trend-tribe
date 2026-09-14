@@ -77,8 +77,33 @@ export const AuthProvider = ({ children }) => {
     return () => controller.abort();
   }, []);
 
-  // Real-time: keep user fresh every 30s + on focus — skip while initial load, debounce focus
+  // ── Real-time: keep user fresh every 30s + on focus — skip while initial load, debounce focus
   useRealtimePolling(refreshUser, 30000, !!token && !loading);
+
+  // ── Sync React state when axios's interceptor clears an expired/invalid
+  // token from localStorage. Without this listener, localStorage and this
+  // context's in-memory state can disagree indefinitely: the interceptor only
+  // touches storage, so `isAuthenticated` would keep reporting true and
+  // protected UI would stay mounted while every API call quietly 401s in the
+  // background, with no redirect to login until the user manually refreshes.
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener("tt:auth-expired", handleAuthExpired);
+    return () => window.removeEventListener("tt:auth-expired", handleAuthExpired);
+  }, []);
+
+  // ── Sliding refresh: backend sends x-new-token when <2d left, keep React state in sync
+  useEffect(() => {
+    const handleRefreshed = (e) => {
+      const t = e.detail || localStorage.getItem("tt_token");
+      if (t) setToken(t);
+    };
+    window.addEventListener("tt:auth-refreshed", handleRefreshed);
+    return () => window.removeEventListener("tt:auth-refreshed", handleRefreshed);
+  }, []);
 
   // ── Login: save token + user to state + localStorage ────────
   const login = (tokenValue, userData) => {

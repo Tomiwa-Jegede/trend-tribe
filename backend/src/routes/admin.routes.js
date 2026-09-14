@@ -872,39 +872,54 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
     if (!["gig","service"].includes(type) || !id || !["refund","release","split"].includes(decision)) {
       return res.status(400).json({ error: "type must be gig/service, decision refund/release/split" });
     }
+    const { recordWalletMovement } = require("../utils/wallet");
     if (type === "gig") {
       const gigId = parseInt(id,10);
       const gig = await prisma.gig.findUnique({ where: { id: gigId } });
       if (!gig || gig.status !== "DISPUTED") return res.status(400).json({ error: "Gig not in DISPUTED" });
+      // Every branch below guards its status transition with an atomic updateMany
+      // (status: "DISPUTED" in the WHERE). Previously the status check happened once,
+      // outside any transaction, before three separate unguarded update blocks — an
+      // admin double-clicking "resolve", or two admins resolving the same dispute at
+      // once, could both pass that stale check and both pay out. Now only the request
+      // that actually flips DISPUTED -> (CANCELLED|COMPLETED) proceeds to move money.
       if (decision === "refund") {
-        await prisma.$transaction(async (tx) => {
+        const ok = await prisma.$transaction(async (tx) => {
+          const flip = await tx.gig.updateMany({ where: { id: gigId, status: "DISPUTED" }, data: { status: "CANCELLED" } });
+          if (flip.count === 0) return false;
           await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: gig.escrowAmount } } });
-          await tx.gig.update({ where: { id: gigId }, data: { status: "CANCELLED" } });
+          await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_DISPUTE_REFUND", title: "Dispute resolved — refunded", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for gig #${gigId} (admin decision: refund).`, meta: { gigId }, tx });
+          return true;
         });
-        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_DISPUTE_REFUND", title: "Dispute resolved — refunded", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for gig #${gigId} (admin decision: refund).`, meta: { gigId } }); } catch {}
+        if (!ok) return res.status(400).json({ error: "Dispute was already resolved" });
       } else if (decision === "release") {
         const posterUser = await prisma.user.findUnique({ where: { id: gig.posterId }, select: { role: true } });
         const isPosterAdmin = posterUser?.role === "ADMIN";
         const fee = isPosterAdmin ? 0 : Math.floor(gig.escrowAmount*0.2);
         const pay = isPosterAdmin ? gig.escrowAmount : gig.escrowAmount - Math.floor(gig.escrowAmount*0.2);
-        await prisma.$transaction(async (tx) => {
+        const ok = await prisma.$transaction(async (tx) => {
+          const flip = await tx.gig.updateMany({ where: { id: gigId, status: "DISPUTED" }, data: { status: "COMPLETED", completedAt: new Date() } });
+          if (flip.count === 0) return false;
           await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
-          await tx.gig.update({ where: { id: gigId }, data: { status: "COMPLETED", completedAt: new Date() } });
           if (!isPosterAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: fee, netFee: fee, refId: String(gigId), meta: { gigId, disputed: true, decision } } });
+          await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_DISPUTE_RELEASE", title: "Dispute resolved — released", body: `Credit: ₦${(pay/100).toLocaleString()} released for gig #${gigId} (admin decision: release${isPosterAdmin ? ", admin free — no fee" : `, fee ₦${(fee/100).toLocaleString()}`}).`, meta: { gigId, adminFree: isPosterAdmin }, tx });
+          return true;
         });
-        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_DISPUTE_RELEASE", title: "Dispute resolved — released", body: `Credit: ₦${(pay/100).toLocaleString()} released for gig #${gigId} (admin decision: release${isPosterAdmin ? ", admin free — no fee" : `, fee ₦${(fee/100).toLocaleString()}`}).`, meta: { gigId, adminFree: isPosterAdmin } }); } catch {}
+        if (!ok) return res.status(400).json({ error: "Dispute was already resolved" });
       } else if (decision === "split") {
         const half = Math.floor(gig.escrowAmount/2);
-        await prisma.$transaction(async (tx) => {
+        const ok = await prisma.$transaction(async (tx) => {
+          const flip = await tx.gig.updateMany({ where: { id: gigId, status: "DISPUTED" }, data: { status: "COMPLETED", completedAt: new Date() } });
+          if (flip.count === 0) return false;
           await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: half } } });
-          if (gig.claimerId) await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: gig.escrowAmount - half } } });
-          await tx.gig.update({ where: { id: gigId }, data: { status: "COMPLETED", completedAt: new Date() } });
+          await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${(half/100).toLocaleString()} for gig #${gigId} (admin split).`, meta: { gigId }, tx });
+          if (gig.claimerId) {
+            await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: gig.escrowAmount - half } } });
+            await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: gig.escrowAmount - half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${((gig.escrowAmount - half)/100).toLocaleString()} for gig #${gigId} (admin split).`, meta: { gigId }, tx });
+          }
+          return true;
         });
-        try {
-          const { recordWalletMovement } = require("../utils/wallet");
-          await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${(half/100).toLocaleString()} for gig #${gigId} (admin split).`, meta: { gigId } });
-          if (gig.claimerId) await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: gig.escrowAmount - half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${((gig.escrowAmount - half)/100).toLocaleString()} for gig #${gigId} (admin split).`, meta: { gigId } });
-        } catch {}
+        if (!ok) return res.status(400).json({ error: "Dispute was already resolved" });
       }
       // notify both
       try {
@@ -921,30 +936,37 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
       const bookingId = parseInt(id,10);
       const booking = await prisma.serviceBooking.findUnique({ where: { id: bookingId } });
       if (!booking || booking.status !== "DISPUTED") return res.status(400).json({ error: "Booking not in DISPUTED" });
+      // Same atomic-guard fix as the gig branch above.
       if (decision === "refund") {
-        await prisma.$transaction(async (tx) => {
+        const ok = await prisma.$transaction(async (tx) => {
+          const flip = await tx.serviceBooking.updateMany({ where: { id: bookingId, status: "DISPUTED" }, data: { status: "CANCELLED" } });
+          if (flip.count === 0) return false;
           await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
-          await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "CANCELLED" } });
+          await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_DISPUTE_REFUND", title: "Service dispute — refunded", body: `Credit: ₦${(booking.amount/100).toLocaleString()} refunded for booking #${bookingId} (admin refund).`, meta: { bookingId }, tx });
+          return true;
         });
-        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_DISPUTE_REFUND", title: "Service dispute — refunded", body: `Credit: ₦${(booking.amount/100).toLocaleString()} refunded for booking #${bookingId} (admin refund).`, meta: { bookingId } }); } catch {}
+        if (!ok) return res.status(400).json({ error: "Dispute was already resolved" });
       } else if (decision === "release") {
-        await prisma.$transaction(async (tx) => {
+        const ok = await prisma.$transaction(async (tx) => {
+          const flip = await tx.serviceBooking.updateMany({ where: { id: bookingId, status: "DISPUTED" }, data: { status: "COMPLETED" } });
+          if (flip.count === 0) return false;
           await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
-          await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
+          await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_DISPUTE_RELEASE", title: "Service dispute — released", body: `Credit: ₦${(booking.amount/100).toLocaleString()} released to provider for booking #${bookingId} (admin release).`, meta: { bookingId }, tx });
+          return true;
         });
-        try { const { recordWalletMovement } = require("../utils/wallet"); await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_DISPUTE_RELEASE", title: "Service dispute — released", body: `Credit: ₦${(booking.amount/100).toLocaleString()} released to provider for booking #${bookingId} (admin release).`, meta: { bookingId } }); } catch {}
+        if (!ok) return res.status(400).json({ error: "Dispute was already resolved" });
       } else if (decision === "split") {
         const half = Math.floor(booking.amount/2);
-        await prisma.$transaction(async (tx) => {
+        const ok = await prisma.$transaction(async (tx) => {
+          const flip = await tx.serviceBooking.updateMany({ where: { id: bookingId, status: "DISPUTED" }, data: { status: "COMPLETED" } });
+          if (flip.count === 0) return false;
           await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: half } } });
           await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount - half } } });
-          await tx.serviceBooking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
+          await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: half, fee: 0, type: "SERVICE_DISPUTE_SPLIT", title: "Service dispute — split", body: `Credit: ₦${(half/100).toLocaleString()} for booking #${bookingId} (admin split).`, meta: { bookingId }, tx });
+          await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount - half, fee: 0, type: "SERVICE_DISPUTE_SPLIT", title: "Service dispute — split", body: `Credit: ₦${((booking.amount - half)/100).toLocaleString()} for booking #${bookingId} (admin split).`, meta: { bookingId }, tx });
+          return true;
         });
-        try {
-          const { recordWalletMovement } = require("../utils/wallet");
-          await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: half, fee: 0, type: "SERVICE_DISPUTE_SPLIT", title: "Service dispute — split", body: `Credit: ₦${(half/100).toLocaleString()} for booking #${bookingId} (admin split).`, meta: { bookingId } });
-          await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount - half, fee: 0, type: "SERVICE_DISPUTE_SPLIT", title: "Service dispute — split", body: `Credit: ₦${((booking.amount - half)/100).toLocaleString()} for booking #${bookingId} (admin split).`, meta: { bookingId } });
-        } catch {}
+        if (!ok) return res.status(400).json({ error: "Dispute was already resolved" });
       }
       try {
         await prisma.notification.createMany({ data: [
