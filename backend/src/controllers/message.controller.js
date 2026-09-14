@@ -189,24 +189,22 @@ const getThread = async (req, res) => {
     }
     let where;
     if (conversation) {
-      // per-listing isolation when listingId provided — prevents cross-listing leakage for same buyer/seller pair
-      if (listingId) {
-        where = {
-          OR: [
-            { AND: [{ conversationId: conversation.id }, { listingId }] },
-            {
-              listingId,
-              conversationId: null,
-              OR: [
-                { senderId: req.user.id, recipientId: withId },
-                { senderId: withId, recipientId: req.user.id },
-              ],
-            },
-          ],
-        };
-      } else {
-        where = { conversationId: conversation.id };
-      }
+      // per-person merged thread (Ticket 02) — all messages for this buyer/seller pair
+      // include legacy per-listing messages that have no conversationId yet
+      where = {
+        OR: [
+          { conversationId: conversation.id },
+          {
+            listingId: listingId || undefined,
+            conversationId: null,
+            OR: [
+              { senderId: req.user.id, recipientId: withId },
+              { senderId: withId, recipientId: req.user.id },
+            ],
+          },
+        ],
+      };
+      if (!listingId) where = { conversationId: conversation.id };
     } else if (listingId) {
       where = {
         listingId,
