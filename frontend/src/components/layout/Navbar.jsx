@@ -16,6 +16,8 @@ import {
   FiLogOut,
   FiHelpCircle,
   FiChevronDown,
+  FiMessageCircle,
+  FiInbox,
 } from "react-icons/fi";
 import NotificationBell from "../notifications/NotificationBell";
 import PWAInstallButton from "../pwa/PWAInstallButton";
@@ -74,6 +76,10 @@ const Navbar = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [inboxUnread, setInboxUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
+  const [systemInboxUnread, setSystemInboxUnread] = useState(0);
+  const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
+  const [supportUnread, setSupportUnread] = useState(0);
+  const [adminBadgeCount, setAdminBadgeCount] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const moreRef = useRef(null);
   const [showMoreMobile, setShowMoreMobile] = useState(false);
@@ -97,6 +103,43 @@ const Navbar = () => {
     if (!isAuthenticated || !token) { setNotifUnread(0); return; }
     try { const { data } = await api.get("/notifications/unread-count"); setNotifUnread(data.unreadCount); } catch {}
   }, [isAuthenticated, token]);
+  const fetchSystemInbox = useCallback(async () => {
+    if (!isAuthenticated || !token) { setSystemInboxUnread(0); return; }
+    try {
+      const { data } = await api.get("/messages", { params: { limit: 1 } });
+      const totalUnread = data.unreadCount ?? 0;
+      // system = total - chat (inboxUnread is chat with listingId)
+      setSystemInboxUnread(Math.max(0, totalUnread - inboxUnread));
+    } catch { setSystemInboxUnread(0); }
+  }, [isAuthenticated, token, inboxUnread]);
+  const fetchPendingBookings = useCallback(async () => {
+    if (!isAuthenticated || !token) { setPendingBookingsCount(0); return; }
+    try {
+      const { data } = await api.get("/services/bookings");
+      const pending = [...(data.asProvider || []), ...(data.asBooker || [])].filter((b) => b.status === "PENDING").length;
+      setPendingBookingsCount(pending);
+    } catch { setPendingBookingsCount(0); }
+  }, [isAuthenticated, token]);
+  const fetchSupportUnread = useCallback(async () => {
+    if (!isAuthenticated || !token) { setSupportUnread(0); return; }
+    try {
+      const { data } = await api.get("/support/thread").catch(() => ({ data: [] }));
+      const msgs = Array.isArray(data) ? data : data.messages || [];
+      const unread = msgs.filter((m) => m.recipientId === user?.id && !m.read).length;
+      setSupportUnread(unread);
+    } catch { setSupportUnread(0); }
+  }, [isAuthenticated, token, user?.id]);
+  const fetchAdminBadges = useCallback(async () => {
+    if (!isAuthenticated || !token || user?.role !== "ADMIN") { setAdminBadgeCount(0); return; }
+    try {
+      const [disputes, withdrawals, reports] = await Promise.all([
+        api.get("/admin/disputes").then((r) => r.data.total || 0).catch(() => 0),
+        api.get("/admin/gig-withdrawals").then((r) => r.data.withdrawals?.filter((w) => w.status === "PENDING").length || 0).catch(() => 0),
+        api.get("/admin/reports").then((r) => r.data.pagination?.totalCount || r.data.reports?.length || 0).catch(() => 0),
+      ]);
+      setAdminBadgeCount((disputes || 0) + (withdrawals || 0) + (reports || 0));
+    } catch { setAdminBadgeCount(0); }
+  }, [isAuthenticated, token, user?.role]);
 
   useRealtime("message", fetchInbox, { enabled: isAuthenticated && !!token });
   useRealtime("message:unread", fetchInbox, { enabled: isAuthenticated && !!token });
@@ -104,18 +147,31 @@ const Navbar = () => {
   useRealtime("message:delivered", fetchInbox, { enabled: isAuthenticated && !!token });
   useRealtime("notification", fetchNotif, { enabled: isAuthenticated && !!token });
   useRealtime("notification:unread", fetchNotif, { enabled: isAuthenticated && !!token });
+  useRealtime("message", fetchSystemInbox, { enabled: isAuthenticated && !!token });
+  useRealtime("message:unread", fetchSystemInbox, { enabled: isAuthenticated && !!token });
+  useRealtime("message", fetchPendingBookings, { enabled: isAuthenticated && !!token });
+  useRealtime("message", fetchSupportUnread, { enabled: isAuthenticated && !!token });
+  useRealtime("notification", fetchAdminBadges, { enabled: isAuthenticated && !!token && user?.role === "ADMIN" });
 
   useEffect(() => {
     if (!isAuthenticated || !token || !user?.id) {
       setInboxUnread(0);
       setNotifUnread(0);
+      setSystemInboxUnread(0);
+      setPendingBookingsCount(0);
+      setSupportUnread(0);
+      setAdminBadgeCount(0);
       return;
     }
     setInboxUnread(0);
     setNotifUnread(0);
     fetchInbox();
     fetchNotif();
-  }, [isAuthenticated, token, user?.id, fetchInbox, fetchNotif]);
+    fetchSystemInbox();
+    fetchPendingBookings();
+    fetchSupportUnread();
+    fetchAdminBadges();
+  }, [isAuthenticated, token, user?.id, fetchInbox, fetchNotif, fetchSystemInbox, fetchPendingBookings, fetchSupportUnread, fetchAdminBadges]);
 
 
 
@@ -298,7 +354,7 @@ const Navbar = () => {
               <div className="relative" ref={gigsMenuRef}>
                 <button
                   onClick={() => setShowGigsMenu((v) => !v)}
-                  className={`flex items-center gap-1 text-sm font-medium pb-1 ${
+                  className={`relative flex items-center gap-1 text-sm font-medium pb-1 ${
                     location.pathname.startsWith("/gigs") || location.pathname.startsWith("/bookings") ? "text-primary-600" : "text-gray-600 hover:text-primary-600"
                   }`}
                 >
@@ -306,6 +362,11 @@ const Navbar = () => {
                   {availableGigsCount > 0 && (
                     <span className="ml-0.5 bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
                       {availableGigsCount > 99 ? "99+" : availableGigsCount}
+                    </span>
+                  )}
+                  {pendingBookingsCount > 0 && (
+                    <span className="absolute -top-2 -right-4 bg-red-500 text-white text-[10px] font-bold rounded-full w-[18px] h-[18px] flex items-center justify-center leading-none">
+                      {pendingBookingsCount > 99 ? "99+" : pendingBookingsCount}
                     </span>
                   )}
                   <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showGigsMenu ? "rotate-180" : ""}`} />
@@ -336,8 +397,8 @@ const Navbar = () => {
                       </Link>
                       <div className="border-t border-gray-100 my-1" />
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Bookings</p>
-                      <Link to="/bookings/mine" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">My Bookings</Link>
-                      {hasActiveService && <Link to="/bookings/provider" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">As Provider</Link>}
+                       <Link to="/bookings/mine" onClick={() => setShowGigsMenu(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>My Bookings</span>{pendingBookingsCount > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingBookingsCount > 99 ? "99+" : pendingBookingsCount}</span>}</Link>
+                      {hasActiveService && <Link to="/bookings/provider" onClick={() => setShowGigsMenu(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>As Provider</span>{pendingBookingsCount > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingBookingsCount}</span>}</Link>}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -365,7 +426,7 @@ const Navbar = () => {
                     >
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Activity</p>
                       <Link to="/saved" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Favorites</Link>
-                      <Link to="/inbox" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Inbox</Link>
+                      <Link to="/inbox" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Inbox</span>{systemInboxUnread > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{systemInboxUnread > 99 ? "99+" : systemInboxUnread}</span>}</Link>
                       <Link to="/chat" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Messages</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
                       <div className="border-t border-gray-100 my-1" />
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Explore</p>
@@ -415,9 +476,7 @@ const Navbar = () => {
                             </div>
                           )}
                           {user?.role === "ADMIN" && (
-                            <Link to="/admin" onClick={() => setShowAccountMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                              Admin
-                            </Link>
+                            <Link to="/admin" onClick={() => setShowAccountMenu(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Admin</span>{adminBadgeCount > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{adminBadgeCount > 99 ? "99+" : adminBadgeCount}</span>}</Link>
                           )}
                           <button
                             onClick={handleLogout}
@@ -473,9 +532,9 @@ const Navbar = () => {
                 ) : (
                   <FiMenu className="w-5 h-5" />
                 )}
-                {inboxUnread > 0 && (
-                  <span className={`absolute -top-0.5 -right-0.5 bg-red-500 text-white font-bold rounded-full flex items-center justify-center leading-none ${inboxUnread > 99 ? "w-[22px] h-[22px] text-[9px]" : inboxUnread > 9 ? "w-[20px] h-[20px] text-[10px]" : "w-[18px] h-[18px] text-[10px]"}`}>
-                    {inboxUnread > 99 ? "99+" : inboxUnread}
+                {(inboxUnread + systemInboxUnread) > 0 && (
+                  <span className={`absolute -top-0.5 -right-0.5 bg-red-500 text-white font-bold rounded-full flex items-center justify-center leading-none ${(inboxUnread + systemInboxUnread) > 99 ? "w-[22px] h-[22px] text-[9px]" : (inboxUnread + systemInboxUnread) > 9 ? "w-[20px] h-[20px] text-[10px]" : "w-[18px] h-[18px] text-[10px]"}`}>
+                    {(inboxUnread + systemInboxUnread) > 99 ? "99+" : inboxUnread + systemInboxUnread}
                   </span>
                 )}
               </motion.button>
@@ -517,7 +576,7 @@ const Navbar = () => {
                       className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
                     >
                       <Link to="/saved" onClick={() => setMenuOpen(false)} className="block text-sm font-medium py-1 text-gray-600 hover:text-primary-600">Favorites</Link>
-                      <Link to="/inbox" onClick={() => setMenuOpen(false)} className="block text-sm font-medium py-1 text-gray-600 hover:text-primary-600">Inbox</Link>
+                      <Link to="/inbox" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600"><span>Inbox</span>{systemInboxUnread > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{systemInboxUnread > 99 ? "99+" : systemInboxUnread}</span>}</Link>
                       <Link to="/chat" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600"><span>Messages</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
                     </motion.div>
                   )}
@@ -554,7 +613,8 @@ const Navbar = () => {
                       <MobileNavLink path="/gigs/wallet" label="Wallet" index={2} />
                       <div className="border-t border-gray-100 my-1" />
                       <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Bookings</p>
-                      <MobileNavLink path="/bookings/mine" label="My Bookings" index={2} />
+                       <MobileNavLink path="/bookings/mine" label="My Bookings" index={2} />
+                      {pendingBookingsCount > 0 && <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingBookingsCount}</span>}
                       {hasActiveService && <MobileNavLink path="/bookings/provider" label="As Provider" index={2} />}
                     </motion.div>
                   )}
@@ -600,7 +660,10 @@ const Navbar = () => {
                 </div>
               )}
               {user?.role === "ADMIN" && (
-                <MobileNavLink path="/admin" label="Admin" index={4} />
+                <div className="flex items-center gap-2">
+                  <MobileNavLink path="/admin" label="Admin" index={4} />
+                  {adminBadgeCount > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{adminBadgeCount > 99 ? "99+" : adminBadgeCount}</span>}
+                </div>
               )}
 
               <div className="border-t border-sage-100 pt-4 flex flex-col gap-3">
