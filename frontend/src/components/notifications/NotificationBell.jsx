@@ -14,9 +14,9 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
   useEffect(() => { if (typeof externalUnread === "number") setUnread(externalUnread); }, [externalUnread]);
   const setUnreadSafe = (v) => {
     if (typeof externalUnread === "number" && onExternalUnreadChange) {
-      onExternalUnreadChange(typeof v === "function" ? v(unread) : v);
+      onExternalUnreadChange(v);
     } else {
-      setUnread(v);
+      setUnread(typeof v === "function" ? v(unread) : v);
     }
   };
   const [open, setOpen] = useState(false);

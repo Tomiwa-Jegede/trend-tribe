@@ -106,12 +106,15 @@ const Navbar = () => {
   const fetchSystemInbox = useCallback(async () => {
     if (!isAuthenticated || !token) { setSystemInboxUnread(0); return; }
     try {
-      const { data } = await api.get("/messages", { params: { limit: 1 } });
-      const totalUnread = data.unreadCount ?? 0;
-      // system = total - chat (inboxUnread is chat with listingId)
-      setSystemInboxUnread(Math.max(0, totalUnread - inboxUnread));
+      const [{ data: msgData }, { data: chatData }] = await Promise.all([
+        api.get("/messages", { params: { limit: 1 } }),
+        api.get("/messages/unread-count"),
+      ]);
+      const totalUnread = msgData.unreadCount ?? 0;
+      const chatUnread = chatData.unreadCount ?? 0;
+      setSystemInboxUnread(Math.max(0, totalUnread - chatUnread));
     } catch { setSystemInboxUnread(0); }
-  }, [isAuthenticated, token, inboxUnread]);
+  }, [isAuthenticated, token]);
   const fetchPendingBookings = useCallback(async () => {
     if (!isAuthenticated || !token) { setPendingBookingsCount(0); return; }
     try {
