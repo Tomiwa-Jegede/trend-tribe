@@ -59,14 +59,16 @@ const createMessage = async (req, res) => {
       prisma.contactView.create({ data: { listingId: lid, viewerId: req.user.id } }).catch(() => {});
     }
     try { emitMessage(recipientId, msg); } catch {}
-    // Web Push — always send, SW suppresses visually when app foreground (push-handler.js hasVisibleClient)
-    // Previous isOnline guard caused silent skip when socket lingered <2m after app closed (realtime.js lastActive)
+    // Notification for bell + Web Push — always send, SW suppresses visually when app foreground
     try {
+      // create Notification so bell shows “new message” alongside hamburger/Messages badge
+      prisma.notification.create({ data: { userId: recipientId, actorId: req.user.id, listingId: lid, type: "MESSAGE" } }).catch(() => {});
+      try { const { emitNotification } = require("../realtime"); emitNotification(recipientId, { type: "MESSAGE", actorId: req.user.id, listingId: lid }); } catch {}
       const { isOnline } = require("../realtime");
       let isOnlineVal = false;
       try { isOnlineVal = isOnline(recipientId); } catch {}
       console.log(`[PUSH CHAT] recipient=${recipientId} isOnline=${isOnlineVal} msg=${msg.id} lid=${lid}`);
-      prisma.message.count({ where: { recipientId, recipientDeleted: false, read: false, listingId: { not: null }, sender: { role: { not: "ADMIN" } } } }).then((unread) => {
+      prisma.message.count({ where: { recipientId, recipientDeleted: false, read: false, listingId: { not: null } } }).then((unread) => {
         const { sendPushToUser } = require("../utils/push");
         sendPushToUser(prisma, recipientId, {
           title: "Trend Tribe — New chat message",
@@ -158,9 +160,9 @@ const markAllRead = async (req, res) => {
 
 const getUnreadCount = async (req, res) => {
   try {
-    // chat only — exclude system/admin messages (those belong to Notifications inbox)
+    // chat badge — count all unread chat messages (including ADMIN as participant) so hamburger shows
     const count = await prisma.message.count({
-      where: { recipientId: req.user.id, recipientDeleted: false, read: false, listingId: { not: null }, sender: { role: { not: "ADMIN" } } },
+      where: { recipientId: req.user.id, recipientDeleted: false, read: false, listingId: { not: null } },
     });
     return res.status(200).json({ unreadCount: count });
   } catch (err) {
