@@ -120,15 +120,6 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
 };
 
 // ─── Feed container: fetch, infinite loop, action wiring ───────
-const DISCOVER_SCROLL_KEY = "discoverFeedScrollIndex";
-// PWA and browser tabs share same origin — localStorage keeps resume in sync across contexts
-const getStoredIndex = () => {
-  try {
-    const v = localStorage.getItem(DISCOVER_SCROLL_KEY);
-    const n = Number(v);
-    return Number.isInteger(n) ? n : null;
-  } catch { return null; }
-};
 
 const DiscoverFeed = () => {
   const [listings, setListings] = useState([]);
@@ -177,7 +168,7 @@ const DiscoverFeed = () => {
     if (!listing?.id) return;
     if (dedup(`listing:${action}:${listing.id}`, 900)) return;
     if (action === "create") {
-      setListings((prev) => prev.some((l) => l.id === listing.id) ? prev : [listing, ...prev].slice(0, 50));
+           setListings((prev) => prev.some((l) => l.id === listing.id) ? prev : [listing, ...prev]);
     } else if (action === "delete" || action === "hide") {
       setListings((prev) => prev.filter((l) => l.id !== listing.id));
     } else if (action === "update") {
@@ -186,24 +177,42 @@ const DiscoverFeed = () => {
   }, [dedup]);
   useRealtime("listing", handleListingRealtime);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        // Server sort=random is source of truth
-        const data = await getListings({ limit: 20, sort: "random" });
-        if (!cancelled) setListings(data.listings || []);
-      } catch {
-        if (!cancelled) setListings([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    useEffect(() => {
+      let cancelled = false;
+      (async () => {
+        setLoading(true);
+        try {
+          // Backend caps `limit` at 48/request and reshuffles independently
+          // per call for sort=random, so paging with sort=random would skip
+          // or duplicate items across pages. Page through with a stable
+          // sort instead to collect every listing, then shuffle once here.
+          const first = await getListings({ limit: 48, page: 1, sort: "newest" });
+          let all = first.listings || [];
+          const totalPages = first.pagination?.totalPages || 1;
+          if (totalPages > 1) {
+            const rest = await Promise.all(
+              Array.from({ length: totalPages - 1 }, (_, idx) =>
+                getListings({ limit: 48, page: idx + 2, sort: "newest" })
+              )
+            );
+            rest.forEach((r) => { all = all.concat(r.listings || []); });
+          }
+          // Fisher-Yates — random discover order across the full set
+          for (let i = all.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [all[i], all[j]] = [all[j], all[i]];
+          }
+          if (!cancelled) setListings(all);
+        } catch {
+          if (!cancelled) setListings([]);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, []);
 
   useEffect(() => {
     return () => {
@@ -228,16 +237,15 @@ const DiscoverFeed = () => {
     return () => ro.disconnect();
   }, [listings.length]);
 
-  useLayoutEffect(() => {
-    if (!containerRef.current || listings.length === 0) return;
-    const container = containerRef.current;
-    const itemHeight = itemHeightRef.current || container.getBoundingClientRect().height || container.clientHeight;
+    useLayoutEffect(() => {
+      if (!containerRef.current || listings.length === 0) return;
+      const container = containerRef.current;
+      const itemHeight = itemHeightRef.current || container.getBoundingClientRect().height || container.clientHeight;
 
-    const saved = getStoredIndex();
-    const savedIndex = saved !== null && saved >= 0 && saved < listings.length ? saved : 0;
-
-    container.scrollTop = itemHeight * (listings.length + savedIndex); // resume on the middle copy, at the saved position
-  }, [listings.length]);
+      // Always start fresh at the top of the (freshly reshuffled) middle
+      // copy — no resume-position persistence.
+      container.scrollTop = itemHeight * listings.length;
+    }, [listings.length]);
 
   // Only correct the wraparound position once scrolling has fully settled —
   // doing it mid-scroll fights the browser's native snap animation and
@@ -267,11 +275,6 @@ const DiscoverFeed = () => {
         index = targetIndex;
       }
 
-      // Persist position (relative to the original list) so returning from
-      // a product page resumes here instead of restarting from the top — localStorage so PWA ↔ browser stay in sync
-      const logicalIndex = index - total;
-      try { localStorage.setItem(DISCOVER_SCROLL_KEY, String(logicalIndex)); } catch {}
-      // also broadcast to other tabs/PWA via storage event (no-op needed, just write)
     }, 120);
   };
 
