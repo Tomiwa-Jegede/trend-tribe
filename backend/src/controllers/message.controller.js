@@ -233,6 +233,9 @@ const getThread = async (req, res) => {
         recipient: { select: { id: true, username: true, fullName: true, avatar: true } },
       },
     });
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     console.log(`[GET THREAD] user=${req.user.id} listingId=${listingId} withId=${withId} conv=${conversation?.id || "none"} where=${JSON.stringify(where)} vis=${JSON.stringify(visibility)} found=${messages.length}`);
     // mark delivered when fetched by recipient
     const toMark = messages.filter((m) => m.recipientId === req.user.id && !m.deliveredAt).map((m) => m.id);
