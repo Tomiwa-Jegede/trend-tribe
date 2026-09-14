@@ -107,10 +107,9 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
     setOpen(next);
     if (next) {
       await fetchList();
-      // mark bell read with tombstone to prevent poll resurrect
-      const ids = items.filter((n) => !n.read).map((n) => n.id);
-      ids.forEach((id) => pendingReadsRef.current.add(id));
-      try { await api.post("/notifications/read-all"); setUnreadSafe(0); setItems((prev) => prev.map((n) => ({ ...n, read: true }))); setTimeout(() => ids.forEach((id) => pendingReadsRef.current.delete(id)), 10000); } catch (err) { ids.forEach((id) => pendingReadsRef.current.delete(id)); if (import.meta.env.DEV) console.warn("[read-all notif]", err?.response?.data || err.message); }
+      // Badge only clears when a specific notification is actually opened
+      // (handleItemClick) or via the explicit "Mark all read" button —
+      // not just from opening the dropdown to glance at it.
     }
     if (!next) {
       setSelecting(false);
