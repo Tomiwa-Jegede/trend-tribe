@@ -221,7 +221,7 @@ const getThread = async (req, res) => {
         ],
       };
     }
-    // soft-delete visibility: only messages not deleted for this user
+     // soft-delete visibility: only messages not deleted for this user
     const visibility = { OR: [{ senderId: req.user.id, senderDeleted: false }, { recipientId: req.user.id, recipientDeleted: false }] };
     const whereWithVisibility = { AND: [where, visibility] };
     const messages = await prisma.message.findMany({
@@ -233,6 +233,7 @@ const getThread = async (req, res) => {
         recipient: { select: { id: true, username: true, fullName: true, avatar: true } },
       },
     });
+    console.log(`[GET THREAD] user=${req.user.id} listingId=${listingId} withId=${withId} conv=${conversation?.id || "none"} where=${JSON.stringify(where)} vis=${JSON.stringify(visibility)} found=${messages.length}`);
     // mark delivered when fetched by recipient
     const toMark = messages.filter((m) => m.recipientId === req.user.id && !m.deliveredAt).map((m) => m.id);
     if (toMark.length) {
