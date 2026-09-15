@@ -299,10 +299,9 @@ const withdrawGig = async (req, res) => {
       await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: kobo, fee: feeKobo, type: "WITHDRAW", title: "Withdrawal — in review", body: `Debit: ₦${(totalKobo/100).toLocaleString()} (₦${amt.toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)}) to ${bankName || cleanBank} • ${cleanAcc} — ref ${reference} — In review`, meta: { withdrawalId: wd.id, reference }, tx });
       return wd;
     });
-    // inbox + push + notification for debit (red) — request received + admin push for pending
+    // push + notification for debit (red) — request received + admin push for pending
     try {
       await prisma.notification.create({ data: { userId: req.user.id, actorId: req.user.id, type: "GIG_WITHDRAW_PENDING", listingId: null } });
-      await prisma.message.create({ data: { senderId: req.user.id, recipientId: req.user.id, subject: "Gig Withdrawal Requested — In review", body: `Withdrawal ₦${amt.toLocaleString()} (fee ₦${(feeKobo/100).toFixed(2)}) to ${bankName || cleanBank} • ${cleanAcc} — ref ${reference} — In review, awaiting admin approval. ₦${(totalKobo/100).toLocaleString()} debited from Gig wallet.` } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification, isOnline } = require("../realtime");
       if (!isOnline(req.user.id)) sendPushToUser(prisma, req.user.id, { title: "Gig Wallet — Withdrawal in review", body: `₦${amt.toLocaleString()} to ${bankName || cleanBank} — in review, ₦${(totalKobo/100).toLocaleString()} debited`, url: "/gigs/wallet", tag: `gig-wd-${reference}` }).catch(()=>{});
@@ -395,7 +394,6 @@ const approveGigWithdrawal = async (req, res) => {
     if (approveOk.count === 0) return res.status(400).json({ error: `Already ${w.status === "PENDING" ? "actioned" : w.status}` });
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_COMPLETED", listingId: null } });
-      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Completed", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} (fee ₦${(w.fee/100).toFixed(2)}) to ${w.bankName} • ${w.bankAccountNumber} — COMPLETED. ₦${(totalKobo/100).toLocaleString()} already debited on request — ref ${w.reference}.` } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
       sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal completed", body: `₦${(w.amount/100).toLocaleString()} sent to your bank`, url: "/gigs/wallet", tag: `gig-wd-c-${w.reference}` }).catch(()=>{});
@@ -433,7 +431,6 @@ const rejectGigWithdrawal = async (req, res) => {
     if (!rejected) return res.status(400).json({ error: `Already ${w.status === "PENDING" ? "actioned" : w.status}` });
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_REJECTED", listingId: null } });
-      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Rejected — Fully Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — REJECTED — ₦${(totalKobo/100).toLocaleString()} fully refunded to Gig wallet (was ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited) — ref ${w.reference}.` } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
       sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal rejected", body: `₦${(w.amount/100).toLocaleString()} rejected — ₦${(totalKobo/100).toLocaleString()} fully refunded`, url: "/gigs/wallet", tag: `gig-wd-r-${w.reference}` }).catch(()=>{});
@@ -470,7 +467,6 @@ const cancelGigWithdrawal = async (req, res) => {
     if (!cancelled) return res.status(400).json({ error: `Already ${w.status === "PENDING" ? "actioned" : w.status}` });
     try {
       await prisma.notification.create({ data: { userId: w.userId, type: "GIG_WITHDRAW_CANCELLED", listingId: null } });
-      await prisma.message.create({ data: { senderId: w.userId, recipientId: w.userId, subject: "Gig Withdrawal Cancelled — Fully Refunded", body: `Withdrawal ₦${(w.amount/100).toLocaleString()} — CANCELLED — ₦${(totalKobo/100).toLocaleString()} fully refunded to Gig wallet (was ₦${(w.amount/100).toLocaleString()} + fee ₦${(feeKobo/100).toFixed(2)} = ₦${(totalKobo/100).toLocaleString()} debited) — ref ${w.reference}.` } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
       sendPushToUser(prisma, w.userId, { title: "Gig Wallet — Withdrawal cancelled", body: `₦${(w.amount/100).toLocaleString()} cancelled — ₦${(totalKobo/100).toLocaleString()} fully refunded`, url: "/gigs/wallet", tag: `gig-wd-cnl-${w.reference}` }).catch(()=>{});
@@ -583,10 +579,6 @@ const transferGig = async (req, res) => {
       sendPushToUser(prisma, req.user.id, { title: "Gig Wallet — Debit", body: `Sent ₦${amt.toLocaleString()} to @${recipient.username} — fee ₦${(feeKobo/100).toFixed(2)}`, url: "/gigs/wallet", tag: `gig-sent-${transfer.id}` }).catch(()=>{});
       sendPushToUser(prisma, recipient.id, { title: "Gig Wallet — Credit", body: `Received ₦${amt.toLocaleString()} from @${senderUser?.username}`, url: "/gigs/wallet", tag: `gig-recv-${transfer.id}` }).catch(()=>{});
       try { emitNotification(req.user.id, { type: "GIG_TRANSFER_SENT" }); emitNotification(recipient.id, { type: "GIG_TRANSFER_RECEIVED" }); } catch {}
-      await prisma.message.createMany({ data: [
-        { senderId: req.user.id, recipientId: req.user.id, body: `Debit: You sent ₦${amt.toLocaleString()} to @${recipient.username} (fee ₦${(feeKobo/100).toFixed(2)}) — ref ${transfer.reference}`, subject: "Gig Transfer Sent — Debit" },
-        { senderId: req.user.id, recipientId: recipient.id, body: `Credit: You received ₦${amt.toLocaleString()} from @${senderUser?.username} — ref ${transfer.reference}`, subject: "Gig Transfer Received — Credit" },
-      ]});
     } catch {}
     return res.json({ transfer, fee: feeKobo, amount: amountKobo, recipient, message: `Transferred ₦${amt.toLocaleString()} to ${recipient.fullName} @${recipient.username} — fee ₦${feeKobo/100}` });
   } catch (err) {

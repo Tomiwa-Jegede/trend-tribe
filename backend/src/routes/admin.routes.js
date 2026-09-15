@@ -472,7 +472,7 @@ router.get("/db-usage", protect, requireAdmin, async (req, res) => {
     const counts = {
       users: await prisma.user.count(),
       listings: await prisma.listing.count(),
-      messages: await prisma.message.count().catch(() => 0),
+      messages: 0,
       notifications: await prisma.notification.count(),
       favorites: await prisma.favorite.count(),
     };
@@ -497,30 +497,26 @@ router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
     const users = await prisma.user.findMany({ select: { id: true } });
     const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
     if (recipientIds.length === 0) return res.status(200).json({ sent: 0 });
-    const messagesData = recipientIds.map((rid) => ({ subject: subject?.trim() || null, body: text, senderId: req.user.id, recipientId: rid }));
-    for (let i = 0; i < messagesData.length; i += 800) await prisma.message.createMany({ data: messagesData.slice(i, i + 800) });
-    // notifications with preview (first 80 chars)
+    // notifications with preview (first 80 chars) — WhatsApp-only, no Message table
     const preview = text.slice(0, 80) + (text.length > 80 ? "…" : "");
     const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: null }));
     for (let i = 0; i < notifs.length; i += 800) await prisma.notification.createMany({ data: notifs.slice(i, i + 800) });
-    // realtime: push to inbox + bell instantly + phone push (even when app closed)
+    // realtime: bell + phone push (even when app closed) — no inbox Message
     try {
-      const { emitMessage, emitNotification } = require("../realtime");
+      const { emitNotification } = require("../realtime");
       const { sendPushToUser } = require("../utils/push");
-      const created = await prisma.message.findMany({ where: { senderId: req.user.id }, orderBy: { createdAt: "desc" }, take: recipientIds.length, select: { id: true, subject: true, body: true, senderId: true, recipientId: true, createdAt: true } });
-      for (const m of created) {
-        emitMessage(m.recipientId, m);
-        emitNotification(m.recipientId, { type: "MESSAGE", actorId: req.user.id });
+      for (const rid of recipientIds) {
+        emitNotification(rid, { type: "MESSAGE", actorId: req.user.id });
         // phone push (service worker) — badge count included
-        prisma.notification.count({ where: { userId: m.recipientId, read: false } }).then((unread) => {
-          sendPushToUser(prisma, m.recipientId, {
-            title: m.subject || "Trend Tribe — New message",
+        prisma.notification.count({ where: { userId: rid, read: false } }).then((unread) => {
+          sendPushToUser(prisma, rid, {
+            title: subject?.trim() || "Trend Tribe — New message",
             body: text.slice(0, 120),
-            url: "/inbox",
+            url: "/marketplace",
             icon: "/icon-192.png",
             badge: "/icon-192.png",
             badgeCount: unread,
-            tag: `msg-${m.id}`,
+            tag: `msg-${rid}-${Date.now()}`,
           }).catch(() => {});
         }).catch(() => {});
       }
@@ -578,8 +574,6 @@ router.post("/listings/:id/share", protect, requireAdmin, async (req, res) => {
     const body = custom || `Check this on Trend Tribe: ${listing.title} — tap to view`;
     const users = await prisma.user.findMany({ select: { id: true } });
     const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
-    const messagesData = recipientIds.map((rid) => ({ subject: null, body, senderId: req.user.id, recipientId: rid, listingId: id }));
-    for (let i = 0; i < messagesData.length; i += 800) await prisma.message.createMany({ data: messagesData.slice(i, i + 800) });
     const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: id }));
     for (let i = 0; i < notifs.length; i += 800) await prisma.notification.createMany({ data: notifs.slice(i, i + 800) });
     return res.status(200).json({ sent: recipientIds.length });

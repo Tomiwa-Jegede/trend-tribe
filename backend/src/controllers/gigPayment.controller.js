@@ -72,7 +72,6 @@ async function creditGigPurchase(purchase, flutterwaveTransactionId) {
   if (credited) {
     try {
       await prisma.notification.create({ data: { userId: purchase.userId, type: "GIG_TOPUP", listingId: null } });
-      await prisma.message.create({ data: { senderId: purchase.userId, recipientId: purchase.userId, subject: "Gig Wallet Top-up", body: `Your Gig wallet was credited ₦${(purchase.amount/100).toLocaleString()} — ref ${purchase.reference}. Balance updated.` } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
       sendPushToUser(prisma, purchase.userId, { title: "Gig Wallet — Top-up credited", body: `₦${(purchase.amount/100).toLocaleString()} added to your Gig wallet`, url: "/gigs/wallet", tag: `gig-topup-${purchase.reference}` }).catch(()=>{});

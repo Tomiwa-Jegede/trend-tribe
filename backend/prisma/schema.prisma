@@ -9,67 +9,63 @@ datasource db {
 }
 
 model User {
-  id                   Int             @id @default(autoincrement())
-  slug                 String?         @unique
-  email                String          @unique
-  username             String          @unique
-  password             String
-  fullName             String
-  school               String
-  bio                  String?
-  avatar               String?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  isVerified           Boolean         @default(false)
-  otpCode              String?
-  otpExpiresAt         DateTime?
-  resetToken           String?         @unique
-  resetTokenExpiresAt  DateTime?
-  matricNumber         String?         @unique
-  pendingSellerEmail   String?
-  pendingSellerMatric  String?
-  avatarPublicId       String?
-  whatsapp             String?
-  role                 Role            @default(USER)
-  aiUsesRemaining      Int             @default(0)
-  numberViewsRemaining Int             @default(0)
-  tokenBalance         Float           @default(5)
-  gigBalance           Int             @default(0) // kobo, separate from marketplace tokenBalance, buyable, Naira display
-  gigAccountNumber     String?         @unique // 10 digits like 8091234567
-  gigTransferPin       String?         // bcrypt hash of 4-digit PIN
-  gigPinOtpCode        String?
-  gigPinOtpExpiresAt   DateTime?
-  bankAccountNumber    String?
-  bankCode             String?
-  bankName             String?
-  firstServiceAt       DateTime?
-  serviceTrialEndsAt   DateTime?
-  marketingOptIn       Boolean         @default(true)
-  unsubscribeToken     String          @unique @default(cuid())
-  tokenPurchases       TokenPurchase[]
-  gigPurchases         GigTokenPurchase[]
-  gigsPosted           Gig[]           @relation("GigPoster")
-  gigsClaimed          Gig[]           @relation("GigClaimer")
-  gigWithdrawals       GigWithdrawal[]
-  gigTransfersSent     GigTransfer[]     @relation("GigTransferFrom")
-  gigTransfersReceived GigTransfer[]     @relation("GigTransferTo")
-  gigWalletTransactions GigWalletTransaction[]
-  serviceBookingsAsBooker ServiceBooking[] @relation("ServiceBooker")
-  serviceBookingsAsProvider ServiceBooking[] @relation("ServiceProvider")
-  listings             Listing[]
-  reports              Report[]
-  favorites            Favorite[]
-  notifications        Notification[]
-  contactViews         ContactView[]
-  viewLogs             ListingView[]
-  sentMessages         Message[] @relation("SentMessages")
-  receivedMessages     Message[] @relation("ReceivedMessages")
-  conversationsAsBuyer  Conversation[] @relation("ConvBuyer")
-  conversationsAsSeller Conversation[] @relation("ConvSeller")
-  pushSubscriptions    PushSubscription[]
-  pwaInstalls          PWAInstall[]
-  supportThread        SupportThread? @relation("SupportUser")
-  supportClaims        SupportThread[] @relation("SupportClaimer")
+  id                        Int                    @id @default(autoincrement())
+  slug                      String?                @unique
+  email                     String                 @unique
+  username                  String                 @unique
+  password                  String
+  fullName                  String
+  school                    String
+  bio                       String?
+  avatar                    String?
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
+  isVerified                Boolean                @default(false)
+  otpCode                   String?
+  otpExpiresAt              DateTime?
+  resetToken                String?                @unique
+  resetTokenExpiresAt       DateTime?
+  matricNumber              String?                @unique
+  pendingSellerEmail        String?
+  pendingSellerMatric       String?
+  avatarPublicId            String?
+  whatsapp                  String?
+  role                      Role                   @default(USER)
+  aiUsesRemaining           Int                    @default(0)
+  numberViewsRemaining      Int                    @default(0)
+  tokenBalance              Float                  @default(5)
+  gigBalance                Int                    @default(0) // kobo, separate from marketplace tokenBalance, buyable, Naira display
+  gigAccountNumber          String?                @unique // 10 digits like 8091234567
+  gigTransferPin            String? // bcrypt hash of 4-digit PIN
+  gigPinOtpCode             String?
+  gigPinOtpExpiresAt        DateTime?
+  bankAccountNumber         String?
+  bankCode                  String?
+  bankName                  String?
+  firstServiceAt            DateTime?
+  serviceTrialEndsAt        DateTime?
+  marketingOptIn            Boolean                @default(true)
+  unsubscribeToken          String                 @unique @default(cuid())
+  tokenPurchases            TokenPurchase[]
+  gigPurchases              GigTokenPurchase[]
+  gigsPosted                Gig[]                  @relation("GigPoster")
+  gigsClaimed               Gig[]                  @relation("GigClaimer")
+  gigWithdrawals            GigWithdrawal[]
+  gigTransfersSent          GigTransfer[]          @relation("GigTransferFrom")
+  gigTransfersReceived      GigTransfer[]          @relation("GigTransferTo")
+  gigWalletTransactions     GigWalletTransaction[]
+  serviceBookingsAsBooker   ServiceBooking[]       @relation("ServiceBooker")
+  serviceBookingsAsProvider ServiceBooking[]       @relation("ServiceProvider")
+  listings                  Listing[]
+  reports                   Report[]
+  favorites                 Favorite[]
+  notifications             Notification[]
+  contactViews              ContactView[]
+  viewLogs                  ListingView[]
+  pushSubscriptions         PushSubscription[]
+  pwaInstalls               PWAInstall[]
+  supportThread             SupportThread?         @relation("SupportUser")
+  supportClaims             SupportThread[]        @relation("SupportClaimer")
 
   @@map("users")
 }
@@ -97,8 +93,8 @@ model TokenPurchase {
   userId                   Int
   reference                String   @unique // our tx_ref sent to Flutterwave
   flutterwaveTransactionId String?  @unique // Flutterwave's numeric transaction ID (received after redirect)
-  quantity                 Int      // display tokens purchased (not raw units)
-  amount                   Int      // amount in Naira (Flutterwave Naira, not kobo) — GigTokenPurchase is kobo
+  quantity                 Int // display tokens purchased (not raw units)
+  amount                   Int // amount in Naira (Flutterwave Naira, not kobo) — GigTokenPurchase is kobo
   status                   String   @default("PENDING") // PENDING | SUCCESS | FAILED
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
@@ -117,39 +113,37 @@ model FrederickSession {
 }
 
 model Listing {
-  id             Int       @id @default(autoincrement())
-  slug           String?   @unique
-  title          String
-  description    String
-  price          Decimal   @db.Decimal(10, 2)
-  category       Category
-  subcategory    Subcategory?
-  condition      Condition
-  images         String[]  @default([])
-  location       String?
-  isAvailable    Boolean   @default(true)
-  soldAt         DateTime?
-  archivedAt     DateTime?
-  boostedAt      DateTime?
-  boostedUntil   DateTime?
-  boostTier      Int?        @default(1)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  sellerId       Int
-  imagePublicIds String[]  @default([])
-  coverPosition  Json?     @default("{\"x\": 50, \"y\": 50}")
-  editCount      Int       @default(0)
-  contactViews   Int       @default(0)
-  views          Int       @default(0)
-  shares         Int       @default(0)
-  seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  reports        Report[]
-  favorites      Favorite[]
-  notifications  Notification[]
+  id              Int              @id @default(autoincrement())
+  slug            String?          @unique
+  title           String
+  description     String
+  price           Decimal          @db.Decimal(10, 2)
+  category        Category
+  subcategory     Subcategory?
+  condition       Condition
+  images          String[]         @default([])
+  location        String?
+  isAvailable     Boolean          @default(true)
+  soldAt          DateTime?
+  archivedAt      DateTime?
+  boostedAt       DateTime?
+  boostedUntil    DateTime?
+  boostTier       Int?             @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sellerId        Int
+  imagePublicIds  String[]         @default([])
+  coverPosition   Json?            @default("{\"x\": 50, \"y\": 50}")
+  editCount       Int              @default(0)
+  contactViews    Int              @default(0)
+  views           Int              @default(0)
+  shares          Int              @default(0)
+  seller          User             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  reports         Report[]
+  favorites       Favorite[]
+  notifications   Notification[]
   contactViewLogs ContactView[]
-  viewLogs       ListingView[]
-  messages       Message[]
-  conversations  Conversation[]
+  viewLogs        ListingView[]
   serviceBookings ServiceBooking[]
 
   @@map("listings")
@@ -227,50 +221,6 @@ model ListingView {
   @@map("listing_views")
 }
 
-model Conversation {
-  id            String   @id @default(cuid())
-  listingId     Int?
-  buyerId       Int
-  sellerId      Int
-  lastMessageAt DateTime @updatedAt
-  createdAt     DateTime @default(now())
-  listing       Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  buyer         User     @relation("ConvBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
-  seller        User     @relation("ConvSeller", fields: [sellerId], references: [id], onDelete: Cascade)
-  messages      Message[]
-
-  @@unique([buyerId, sellerId])
-  @@index([buyerId])
-  @@index([sellerId])
-  @@index([listingId])
-  @@map("conversations")
-}
-
-model Message {
-  id               Int      @id @default(autoincrement())
-  subject          String?
-  body             String
-  senderId         Int
-  recipientId      Int
-  listingId        Int?
-  conversationId   String?
-  read             Boolean  @default(false)
-  deliveredAt      DateTime?
-  senderDeleted    Boolean  @default(false)
-  recipientDeleted Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  sender           User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient        User     @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
-  listing          Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  conversation     Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@index([recipientId, read])
-  @@index([recipientId, createdAt])
-  @@index([listingId])
-  @@index([conversationId])
-  @@map("messages")
-}
-
 model SearchLog {
   id        Int      @id @default(autoincrement())
   query     String
@@ -286,8 +236,8 @@ model SearchLog {
 
 model AiFreeUsage {
   id         Int      @id @default(autoincrement())
-  identifier String   // userId or ip — each gets own 10/20 per day, not shared
-  date       String   // YYYY-MM-DD
+  identifier String // userId or ip — each gets own 10/20 per day, not shared
+  date       String // YYYY-MM-DD
   count      Int      @default(1)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -307,14 +257,14 @@ model GeminiLog {
 }
 
 model PushSubscription {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   userId         Int?
-  endpoint       String   @unique
+  endpoint       String    @unique
   p256dh         String
   auth           String
   expirationTime DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -339,11 +289,11 @@ model PWAInstall {
 }
 
 model SupportThread {
-  userId    Int      @id
+  userId    Int       @id
   claimedBy Int?
   claimedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user    User  @relation("SupportUser", fields: [userId], references: [id], onDelete: Cascade)
   claimer User? @relation("SupportClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
@@ -360,22 +310,22 @@ model SiteConfig {
 }
 
 model Gig {
-  id          Int      @id @default(autoincrement())
-  description String
-  whatsapp    String   // per-gig WhatsApp, not profile
-  amount      Int      // kobo, Naira display = amount/100
-  escrowAmount Int     // same as amount at creation, held
-  timerHours  Int      @default(24) // how long gig stays open
-  status      String   @default("OPEN") // OPEN | CLAIMED | COMPLETED | EXPIRED | CANCELLED | DISPUTED
-  posterId    Int
-  claimerId   Int?
-  claimedAt   DateTime?
-  expiresAt   DateTime
-  completedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  poster      User     @relation("GigPoster", fields: [posterId], references: [id], onDelete: Cascade)
-  claimer     User?    @relation("GigClaimer", fields: [claimerId], references: [id], onDelete: SetNull)
+  id           Int       @id @default(autoincrement())
+  description  String
+  whatsapp     String // per-gig WhatsApp, not profile
+  amount       Int // kobo, Naira display = amount/100
+  escrowAmount Int // same as amount at creation, held
+  timerHours   Int       @default(24) // how long gig stays open
+  status       String    @default("OPEN") // OPEN | CLAIMED | COMPLETED | EXPIRED | CANCELLED | DISPUTED
+  posterId     Int
+  claimerId    Int?
+  claimedAt    DateTime?
+  expiresAt    DateTime
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  poster       User      @relation("GigPoster", fields: [posterId], references: [id], onDelete: Cascade)
+  claimer      User?     @relation("GigClaimer", fields: [claimerId], references: [id], onDelete: SetNull)
 
   @@index([status, expiresAt])
   @@index([posterId])
@@ -388,44 +338,46 @@ model GigTokenPurchase {
   userId                   Int
   reference                String   @unique // gt_ prefix
   flutterwaveTransactionId String?  @unique
-  amount                   Int      // kobo
+  amount                   Int // kobo
   status                   String   @default("PENDING")
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id])
+  user                     User     @relation(fields: [userId], references: [id])
+
   @@map("gig_token_purchases")
 }
 
 model GigWithdrawal {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  amount    Int      // kobo
-  whatsapp  String?  // legacy, kept for admin view
-  bankCode  String?
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  amount            Int // kobo
+  whatsapp          String? // legacy, kept for admin view
+  bankCode          String?
   bankAccountNumber String?
-  bankName  String?
-  accountName String?
-  fee       Int      @default(0) // 1% fee, kobo
-  reference String?  @unique
-  status    String   @default("PENDING") // PENDING | COMPLETED | FAILED | REJECTED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankName          String?
+  accountName       String?
+  fee               Int      @default(0) // 1% fee, kobo
+  reference         String?  @unique
+  status            String   @default("PENDING") // PENDING | COMPLETED | FAILED | REJECTED
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, status])
   @@map("gig_withdrawals")
 }
 
 model GigTransfer {
-  id          Int      @id @default(autoincrement())
-  fromUserId  Int
-  toUserId    Int
-  amount      Int      // kobo, without fee
-  fee         Int      // kobo, 5000 (50) or 10000 (100)
-  reference   String   @unique @default(cuid())
-  status      String   @default("SUCCESS") // SUCCESS | FAILED
-  createdAt   DateTime @default(now())
-  fromUser    User     @relation("GigTransferFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser      User     @relation("GigTransferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  fromUserId Int
+  toUserId   Int
+  amount     Int // kobo, without fee
+  fee        Int // kobo, 5000 (50) or 10000 (100)
+  reference  String   @unique @default(cuid())
+  status     String   @default("SUCCESS") // SUCCESS | FAILED
+  createdAt  DateTime @default(now())
+  fromUser   User     @relation("GigTransferFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User     @relation("GigTransferTo", fields: [toUserId], references: [id], onDelete: Cascade)
 
   @@index([fromUserId, createdAt])
   @@index([toUserId, createdAt])
@@ -433,22 +385,22 @@ model GigTransfer {
 }
 
 model ServiceBooking {
-  id          Int      @id @default(autoincrement())
-  listingId   Int
-  bookerId    Int
-  providerId  Int
-  amount      Int      // kobo, service price at booking time
-  status      String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED | EXPIRED | COMPLETED | DISPUTED
-  bookerCompletedAt DateTime?
+  id                  Int       @id @default(autoincrement())
+  listingId           Int
+  bookerId            Int
+  providerId          Int
+  amount              Int // kobo, service price at booking time
+  status              String    @default("PENDING") // PENDING | CONFIRMED | CANCELLED | EXPIRED | COMPLETED | DISPUTED
+  bookerCompletedAt   DateTime?
   providerCompletedAt DateTime?
-  disputeReason String?
-  disputeDescription String?
-  expiresAt   DateTime // 1h from booking
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  booker      User     @relation("ServiceBooker", fields: [bookerId], references: [id], onDelete: Cascade)
-  provider    User     @relation("ServiceProvider", fields: [providerId], references: [id], onDelete: Cascade)
+  disputeReason       String?
+  disputeDescription  String?
+  expiresAt           DateTime // 1h from booking
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  listing             Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  booker              User      @relation("ServiceBooker", fields: [bookerId], references: [id], onDelete: Cascade)
+  provider            User      @relation("ServiceProvider", fields: [providerId], references: [id], onDelete: Cascade)
 
   @@index([listingId, status])
   @@index([bookerId])
@@ -458,11 +410,11 @@ model ServiceBooking {
 
 model PlatformProfit {
   id        Int      @id @default(autoincrement())
-  source    String   // GIG_CONFIRM_20 | GIG_CANCEL_5 | SERVICE_CONFIRM_20 | GIG_TRANSFER_1P | GIG_WITHDRAW_1P | TOKEN_SOLD
-  grossFee  Int      // kobo gross
-  netFee    Int      // kobo net (gross - flutter fee if known else gross)
-  refId     String?  // gigId/withdrawalId/transferId/tokenPurchaseId
-  meta      Json?    // { gigId, withdrawalId, etc }
+  source    String // GIG_CONFIRM_20 | GIG_CANCEL_5 | SERVICE_CONFIRM_20 | GIG_TRANSFER_1P | GIG_WITHDRAW_1P | TOKEN_SOLD
+  grossFee  Int // kobo gross
+  netFee    Int // kobo net (gross - flutter fee if known else gross)
+  refId     String? // gigId/withdrawalId/transferId/tokenPurchaseId
+  meta      Json? // { gigId, withdrawalId, etc }
   createdAt DateTime @default(now())
 
   @@index([source, createdAt])
@@ -473,11 +425,11 @@ model PlatformProfit {
 model GigWalletTransaction {
   id        Int      @id @default(autoincrement())
   userId    Int
-  type      String   // e.g. GIG_CREATE | GIG_PAYOUT | GIG_CANCEL_REFUND | TOPUP | WITHDRAW | TRANSFER_SENT | TRANSFER_RECEIVED | SERVICE_BOOK | SERVICE_FEE | SERVICE_REFUND | SERVICE_PAYOUT | TOKEN_BUY | ADMIN_REFUND | ADMIN_RELEASE | ADMIN_SPLIT
-  direction String   // CREDIT | DEBIT
-  amount    Int      // kobo principal (without fee)
+  type      String // e.g. GIG_CREATE | GIG_PAYOUT | GIG_CANCEL_REFUND | TOPUP | WITHDRAW | TRANSFER_SENT | TRANSFER_RECEIVED | SERVICE_BOOK | SERVICE_FEE | SERVICE_REFUND | SERVICE_PAYOUT | TOKEN_BUY | ADMIN_REFUND | ADMIN_RELEASE | ADMIN_SPLIT
+  direction String // CREDIT | DEBIT
+  amount    Int // kobo principal (without fee)
   fee       Int      @default(0) // kobo fee if any
-  total     Int      // kobo total moved (amount+fee for DEBIT, amount for CREDIT)
+  total     Int // kobo total moved (amount+fee for DEBIT, amount for CREDIT)
   reference String?  @unique @default(cuid())
   meta      Json?
   createdAt DateTime @default(now())

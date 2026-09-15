@@ -49,11 +49,10 @@ router.get("/money", async (req, res) => {
 // ─── Funnel: view → favorite → contact ───────────────────────
 router.get("/funnel", async (req, res) => {
   try {
-    const [totalListings, totalFavorites, totalContactViews, totalMessages] = await Promise.all([
+    const [totalListings, totalFavorites, totalContactViews] = await Promise.all([
       prisma.listing.count({ where: { isAvailable: true } }),
       prisma.favorite.count(),
       prisma.contactView.count(),
-      prisma.message.count(),
     ]);
 
     const topByFunnel = await prisma.listing.findMany({
@@ -66,7 +65,6 @@ router.get("/funnel", async (req, res) => {
       { step: "Active Listings", count: totalListings },
       { step: "Favorites", count: totalFavorites },
       { step: "Contact Views", count: totalContactViews },
-      { step: "Messages (inbox)", count: totalMessages },
     ];
 
     return res.json({ funnel, topByFunnel });
