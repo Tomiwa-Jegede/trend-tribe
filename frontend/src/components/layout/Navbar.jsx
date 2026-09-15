@@ -412,11 +412,6 @@ const Navbar = () => {
                   className="relative flex items-center gap-1 text-sm font-medium pb-1 text-gray-600 hover:text-primary-600"
                 >
                   More <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
-                  {inboxUnread > 0 && (
-                    <span className={`absolute -top-2 -right-5 bg-red-500 text-white font-bold rounded-full flex items-center justify-center leading-none ${inboxUnread > 99 ? "w-[22px] h-[22px] text-[9px]" : inboxUnread > 9 ? "w-[20px] h-[20px] text-[10px]" : "w-[18px] h-[18px] text-[10px]"}`}>
-                      {inboxUnread > 99 ? "99+" : inboxUnread}
-                    </span>
-                  )}
                 </button>
                 <AnimatePresence>
                   {showMore && (
@@ -429,8 +424,6 @@ const Navbar = () => {
                     >
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Activity</p>
                       <Link to="/saved" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Favorites</Link>
-                      <Link to="/inbox" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Inbox</span>{systemInboxUnread > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{systemInboxUnread > 99 ? "99+" : systemInboxUnread}</span>}</Link>
-                      <Link to="/chat" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Messages</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
                       <div className="border-t border-gray-100 my-1" />
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Explore</p>
                       <Link to="/features" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Features</Link>
@@ -535,11 +528,7 @@ const Navbar = () => {
                 ) : (
                   <FiMenu className="w-5 h-5" />
                 )}
-                {(inboxUnread + systemInboxUnread) > 0 && (
-                  <span className={`absolute -top-0.5 -right-0.5 bg-red-500 text-white font-bold rounded-full flex items-center justify-center leading-none ${(inboxUnread + systemInboxUnread) > 99 ? "w-[22px] h-[22px] text-[9px]" : (inboxUnread + systemInboxUnread) > 9 ? "w-[20px] h-[20px] text-[10px]" : "w-[18px] h-[18px] text-[10px]"}`}>
-                    {(inboxUnread + systemInboxUnread) > 99 ? "99+" : inboxUnread + systemInboxUnread}
-                  </span>
-                )}
+
               </motion.button>
             </div>
           </div>
@@ -566,7 +555,7 @@ const Navbar = () => {
                     onClick={() => setShowActivityMobile((v) => !v)}
                     className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
                   >
-                    <span className="flex items-center gap-1.5">Activity {inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</span>
+                    <span className="flex items-center gap-1.5">Activity</span>
                     <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showActivityMobile ? "rotate-180" : ""}`} />
                   </button>
                 </motion.div>
@@ -579,8 +568,6 @@ const Navbar = () => {
                       className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
                     >
                       <Link to="/saved" onClick={() => setMenuOpen(false)} className="block text-sm font-medium py-1 text-gray-600 hover:text-primary-600">Favorites</Link>
-                      <Link to="/inbox" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600"><span>Inbox</span>{systemInboxUnread > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{systemInboxUnread > 99 ? "99+" : systemInboxUnread}</span>}</Link>
-                      <Link to="/chat" onClick={() => setMenuOpen(false)} className="flex items-center justify-between text-sm font-medium py-1 text-gray-600 hover:text-primary-600"><span>Messages</span>{inboxUnread > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inboxUnread > 99 ? "99+" : inboxUnread}</span>}</Link>
                     </motion.div>
                   )}
                 </AnimatePresence>

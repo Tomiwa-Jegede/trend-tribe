@@ -507,24 +507,25 @@ const ListingDetailPage = () => {
                         <button
                 onClick={async () => {
                   if (!listing.isAvailable) { toast.error("Product no longer available"); fetchListing(false); return; }
-                  if (!isAuthenticated) { navigate("/login", { state: { from: `/chat?thread=${listing.id}-${listing.seller.id}` } }); return; }
+                  if (!isAuthenticated) { navigate("/login", { state: { from: `/listings/${listing.slug || listing.id}` } }); return; }
                   if (listing.seller.id === user?.id) { toast.info("This is your listing"); return; }
-                  try {
-                    const api = (await import("../api/axios")).default;
-                    await api.post("/messages/conversations", { listingId: listing.id });
-                  } catch (err) {
-                    const msg = err?.response?.data?.error || "";
-                    if (/no longer available/i.test(msg)) { toast.error(msg); fetchListing(false); return; }
-                  }
-                  navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
+                  const raw = listing.seller.whatsapp?.replace(/\D/g, "");
+                  if (!raw) { toast.error("Seller WhatsApp not available"); return; }
+                  let wa = raw;
+                  if (wa.startsWith("0")) wa = "234" + wa.slice(1);
+                  if (!wa.startsWith("234")) wa = "234" + wa.replace(/^0+/, "");
+                  const text = `Hi, I'm interested in your listing \"${listing.title}\" - ₦${Number(listing.price).toLocaleString()} on Trend Tribe: ${window.location.origin}/listings/${listing.slug || listing.id}`;
+                  const waUrl = `https://wa.me/${wa}?text=${encodeURIComponent(text)}`;
+                  try { const api = (await import("../api/axios")).default; api.post(`/listings/${listing.slug || listing.id}/contact-open`).catch(()=>{}); } catch {}
+                  window.open(waUrl, "_blank", "noopener,noreferrer");
                 }}
-                disabled={!listing.isAvailable || contactLoading}
+                disabled={!listing.isAvailable}
                 className="btn-primary flex items-center justify-center gap-2 py-3.5"
               >
-                <FiMessageCircle className="w-5 h-5" />
-                {contactLoading ? "Sending..." : listing.isAvailable ? "Contact Seller" : "No Longer Available"}
+                <FiPhone className="w-5 h-5" />
+                {listing.isAvailable ? "Chat on WhatsApp" : "No Longer Available"}
               </button>
-              <p className="text-xs text-gray-400 text-center">Replies live in Inbox — WhatsApp shared after seller replies</p>
+              <p className="text-xs text-gray-400 text-center">Opens WhatsApp with product details pre-filled</p>
             </div>
           )}
 

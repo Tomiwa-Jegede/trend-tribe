@@ -129,7 +129,7 @@ const DiscoverFeed = () => {
   const itemHeightRef = useRef(0);
   const scrollEndTimerRef = useRef(null);
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { isFavorited, toggleFavorite } = useFavorites();
   const { toast } = useToast();
 
@@ -311,12 +311,17 @@ const DiscoverFeed = () => {
   };
 
   const handleContact = async (listing) => {
-    if (!isAuthenticated) { navigate("/login", { state: { from: `/chat?thread=${listing.id}-${listing.seller.id}` } }); return; }
-    try {
-      const api = (await import("../../api/axios")).default;
-      await api.post("/messages/conversations", { listingId: listing.id });
-    } catch {}
-    navigate(`/chat?thread=${listing.id}-${listing.seller.id}`);
+    if (!isAuthenticated) { navigate("/login", { state: { from: `/listings/${listing.slug || listing.id}` } }); return; }
+    if (listing.seller?.id === user?.id) { toast.info("This is your listing"); return; }
+    const raw = listing.seller?.whatsapp?.replace(/\D/g, "");
+    if (!raw) { toast.error("Seller WhatsApp not available"); return; }
+    let wa = raw;
+    if (wa.startsWith("0")) wa = "234" + wa.slice(1);
+    if (!wa.startsWith("234")) wa = "234" + wa.replace(/^0+/, "");
+    const text = `Hi, I'm interested in your listing \"${listing.title}\" - ₦${Number(listing.price).toLocaleString()} on Trend Tribe: ${window.location.origin}/listings/${listing.slug || listing.id}`;
+    const waUrl = `https://wa.me/${wa}?text=${encodeURIComponent(text)}`;
+    try { const api = (await import("../../api/axios")).default; api.post(`/listings/${listing.slug || listing.id}/contact-open`).catch(()=>{}); } catch {}
+    window.open(waUrl, "_blank", "noopener,noreferrer");
   };
 
   if (loading) {
