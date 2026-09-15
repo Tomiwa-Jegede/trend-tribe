@@ -497,7 +497,13 @@ const getListingById = async (req, res) => {
     }
 
     const { listings: sellerListings, ...sellerFields } = listing.seller;
-    const cleaned = stripAdminFields(listing);
+    // Match Marketplace display so owner sees same views as buyers (getDisplayViews)
+    const [totalUsers, favCount] = await Promise.all([
+      prisma.user.count(),
+      prisma.favorite.count({ where: { listingId: listing.id } }),
+    ]);
+    const withDisplay = { ...listing, favoriteCount: favCount, views: getDisplayViews({ ...listing, favoriteCount: favCount }, totalUsers) };
+    const cleaned = stripAdminFields(withDisplay);
     cleaned.seller = undefined;
 
     return res.status(200).json({
@@ -966,7 +972,7 @@ const getMyListings = async (req, res) => {
     };
     const orderBy = orderByMap[sort] || orderByMap.newest;
 
-    const [listings, totalCount] = await Promise.all([
+    const [rawListings, totalCount, totalUsers] = await Promise.all([
       prisma.listing.findMany({
         where,
         orderBy,
@@ -977,16 +983,21 @@ const getMyListings = async (req, res) => {
         },
       }),
       prisma.listing.count({ where }),
+      prisma.user.count(),
     ]);
 
     const totalPages = Math.ceil(totalCount / limitNum);
 
+    let listings = rawListings.map((l) => ({
+      ...formatListing(stripAdminFields(l)),
+      favoriteCount: l._count.favorites,
+      reportCount: l._count.reports,
+    }));
+    // Match Marketplace display (starter+fake+boost) so seller sees same as buyers
+    listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsers) }));
+
     return res.status(200).json({
-      listings: listings.map((l) => ({
-        ...formatListing(stripAdminFields(l)),
-        favoriteCount: l._count.favorites,
-        reportCount: l._count.reports,
-      })),
+      listings,
       pagination: {
         totalCount,
         totalPages,
@@ -1134,16 +1145,24 @@ const getListingsByUser = async (req, res) => {
     };
     const orderBy = orderByMap[sort] || orderByMap.newest;
 
-    const [listings, totalCount] = await Promise.all([
-      prisma.listing.findMany({ where, orderBy, skip, take: limitNum }),
+    const [rawListings, totalCount, totalUsers] = await Promise.all([
+      prisma.listing.findMany({ where, orderBy, skip, take: limitNum, include: { _count: { select: { favorites: true } } } }),
       prisma.listing.count({ where }),
+      prisma.user.count(),
     ]);
 
     const totalPages = Math.ceil(totalCount / limitNum);
 
+    let listings = rawListings.map((l) => ({
+      ...formatListing(stripAdminFields(l)),
+      favoriteCount: l._count.favorites,
+    }));
+    // Match Marketplace display so profile === marketplace
+    listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsers) }));
+
     return res.status(200).json({
       seller: user,
-      listings: listings.map((l) => formatListing(stripAdminFields(l))),
+      listings,
       pagination: {
         totalCount,
         totalPages,
