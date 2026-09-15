@@ -25,7 +25,6 @@ const analyticsRoutes = require("./routes/analytics.routes");
 const frederickRoutes = require("./routes/frederick.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const notificationRoutes = require("./routes/notification.routes");
-const messageRoutes = require("./routes/message.routes");
 const pushRoutes = require("./routes/push.routes");
 const pwaRoutes = require("./routes/pwa.routes");
 const sitemapRoutes = require("./routes/sitemap.routes");
@@ -107,7 +106,6 @@ app.use("/api/admin/analytics", analyticsRoutes);
 app.use("/api/frederick", frederickRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/messages", messageRoutes);
 app.use("/api/push", pushRoutes);
 app.use("/api/pwa", pwaRoutes);
 app.use("/sitemap.xml", sitemapRoutes);
@@ -197,14 +195,7 @@ async function startServer() {
     setInterval(autoReleaseGigs, 60 * 60 * 1000);
     expireGigs().catch(() => {});
     autoReleaseGigs().catch(() => {});
-    // ─── Chat TTL 30d — auto-delete old messages (person-to-person only) ──
-    setInterval(async () => {
-      try {
-        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const { count } = await prisma.message.deleteMany({ where: { createdAt: { lt: cutoff } } });
-        if (count > 0) console.log(`🧹 Chat TTL deleted ${count} messages older than 30d`);
-      } catch {}
-    }, 24 * 60 * 60 * 1000);
+
     // ─── Services: 1h booking expiry ──
     const { expireServiceBookings } = require("./controllers/serviceBooking.controller");
     setInterval(expireServiceBookings, 5 * 60 * 1000);

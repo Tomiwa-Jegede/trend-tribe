@@ -218,7 +218,6 @@ const buyWithGigBalance = async (req, res) => {
     });
     try {
       await prisma.notification.create({ data: { userId: req.user.id, type: "GIG_TO_TOKEN", listingId: null } });
-      await prisma.message.create({ data: { senderId: req.user.id, recipientId: req.user.id, subject: `Bought ${qty} token(s) with Gig balance`, body: `Converted ₦${(costKobo/100).toLocaleString()} Gig Naira → ${qty} token(s) at ₦${TOKEN_PRICE_NAIRA}/token — ref ${ref}. Gig balance debited, tokens credited instantly.` } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
       sendPushToUser(prisma, req.user.id, { title: "Tokens credited", body: `${qty} token(s) bought with Gig wallet — ₦${(costKobo/100).toLocaleString()}`, url: "/pricing", tag: `gig-token-${ref}` }).catch(()=>{});

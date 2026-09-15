@@ -44,10 +44,6 @@ async function recordWalletMovement({ userId, direction, amount, fee = 0, type, 
     try {
       await db.notification.create({ data: { userId, type: specificType, listingId: null } });
     } catch (e) { console.warn("[WALLET NOTIF FAIL]", e.message); }
-    try {
-      const subject = direction === "CREDIT" ? `Credit: ${title}` : `Debit: ${title}`;
-      await db.message.create({ data: { senderId: userId, recipientId: userId, subject, body } });
-    } catch (e) { console.warn("[WALLET MSG FAIL]", e.message); }
     // Push/realtime are genuinely external side effects — never block or roll back the
     // DB transaction for these. Fire after the ledger/notification/message writes above
     // have been queued on the tx client; these are best-effort network calls.
@@ -82,10 +78,6 @@ async function recordWalletMovement({ userId, direction, amount, fee = 0, type, 
     try {
       await prisma.notification.create({ data: { userId, type: specificType, listingId: null } });
     } catch (e) { console.warn("[WALLET NOTIF FAIL]", e.message); }
-    try {
-      const subject = direction === "CREDIT" ? `Credit: ${title}` : `Debit: ${title}`;
-      await prisma.message.create({ data: { senderId: userId, recipientId: userId, subject, body } });
-    } catch (e) { console.warn("[WALLET MSG FAIL]", e.message); }
     try {
       const { sendPushToUser } = require("./push");
       const { emitNotification, isOnline } = require("../realtime");

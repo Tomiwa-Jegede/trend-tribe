@@ -94,38 +94,6 @@ function initRealtime(httpServer, allowedOrigins) {
       if (!socket.user?.id) return;
       lastActive.set(socket.user.id, new Date());
     });
-    // delivered/read receipts
-    socket.on("message:delivered", async ({ messageId }) => {
-      try {
-        const mid = parseInt(messageId, 10);
-        if (isNaN(mid)) return;
-        const msg = await prisma.message.findUnique({ where: { id: mid }, select: { id: true, senderId: true, recipientId: true } });
-        if (!msg || msg.recipientId !== socket.user?.id) return;
-        await prisma.message.update({ where: { id: mid }, data: { deliveredAt: new Date() } }).catch(() => {});
-        io.to(`user:${msg.senderId}`).emit("message:delivered", { messageId: mid, deliveredAt: new Date() });
-        try { const { emitDelivered } = require("./pusher"); emitDelivered(msg.senderId, { messageId: mid }); } catch {}
-      } catch {}
-    });
-    socket.on("message:read", async ({ messageId, listingId }) => {
-      try {
-        if (messageId) {
-          const mid = parseInt(messageId, 10);
-          const msg = await prisma.message.findUnique({ where: { id: mid }, select: { senderId: true, recipientId: true } });
-          if (!msg || msg.recipientId !== socket.user?.id) return;
-          await prisma.message.update({ where: { id: mid }, data: { read: true } }).catch(() => {});
-          io.to(`user:${msg.senderId}`).emit("message:read", { messageId: mid, listingId });
-          try { const { emitRead } = require("./pusher"); emitRead(msg.senderId, { messageId: mid, listingId }); } catch {}
-        } else if (listingId) {
-          const lid = parseInt(listingId, 10);
-          await prisma.message.updateMany({ where: { listingId: lid, recipientId: socket.user.id, read: false }, data: { read: true } });
-          io.to(`user:${socket.user.id}`).emit("message:read", { listingId: lid });
-          // also notify senders — find distinct senders
-          const msgs = await prisma.message.findMany({ where: { listingId: lid, recipientId: socket.user.id }, select: { senderId: true } });
-          const senders = [...new Set(msgs.map((m) => m.senderId))];
-          senders.forEach((sid) => io.to(`user:${sid}`).emit("message:read", { listingId: lid }));
-        }
-      } catch {}
-    });
     socket.on("disconnect", () => {
       if (socket.user?.id) {
         const c = Math.max(0, (onlineCounts.get(socket.user.id) || 1) - 1);
