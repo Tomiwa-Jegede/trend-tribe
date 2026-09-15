@@ -1099,26 +1099,26 @@ const getListingsByUser = async (req, res) => {
 
     let user = await prisma.user.findUnique({
       where: { slug: identifier },
-      select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true },
+      select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true },
     });
     if (!user) {
       const asInt = parseInt(identifier, 10);
       if (!isNaN(asInt) && String(asInt) === String(identifier).trim()) {
         user = await prisma.user.findUnique({
           where: { id: asInt },
-          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true },
+          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true },
         });
         // fallback prefix for old slugs without hash
         if (!user) {
           user = await prisma.user.findFirst({
             where: { slug: { startsWith: identifier } },
-            select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true },
+            select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true },
           });
         }
       } else {
         user = await prisma.user.findFirst({
           where: { slug: { startsWith: identifier } },
-          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true },
+          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true },
         });
       }
     }

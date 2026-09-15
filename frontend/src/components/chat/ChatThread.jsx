@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { FiSend, FiCheck, FiCheckCircle, FiArrowLeft } from "react-icons/fi";
-import { getThread, sendMessage } from "../../services/messageService";
+import { getThread, sendMessage, getPresence } from "../../services/messageService";
 import { getListingById } from "../../services/listingService";
 import { getSocket, connectSocket } from "../../services/socket";
 import useRealtime from "../../hooks/useRealtime";
@@ -114,6 +114,19 @@ export default function ChatThread({ listingId, withUser, onClose }) {
     const id = setInterval(ping, 60 * 1000);
     return () => { document.removeEventListener("visibilitychange", onVis); clearInterval(id); };
   }, []);
+
+  // initial presence — REST source of truth, not just socket events (fixes "always offline" until next connect)
+  useEffect(() => {
+    if (!withUser?.id) return;
+    getPresence([withUser.id]).then((data) => {
+      const p = data[withUser.id] ?? data[String(withUser.id)];
+      if (p !== undefined) {
+        const online = typeof p === "boolean" ? p : !!p?.online;
+        const lastSeen = typeof p === "object" ? p.lastSeen || p.lastActive || null : null;
+        setPresence({ online, lastSeen });
+      }
+    }).catch(() => {});
+  }, [withUser?.id]);
 
   // scroll-lock body + html while chat (fixed overlay) is open — keeps header truly fixed,
   // prevents iOS from scrolling the page to bring the focused input into view
