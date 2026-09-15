@@ -1,6 +1,6 @@
 // src/pages/RegisterPage.jsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
@@ -55,18 +55,21 @@ const STEPS = [
     label: "Profile Info",
     desc: "Name & username",
     fields: ["fullName", "username", "email"],
+    sectionId: "section-profile",
   },
   {
     icon: FiBook,
     label: "School Details",
     desc: "School & matric number",
     fields: ["school", "matricNumber", "whatsapp"],
+    sectionId: "section-school",
   },
   {
     icon: FiLock,
     label: "Security",
     desc: "Set your password",
     fields: ["password", "confirmPassword"],
+    sectionId: "section-security",
   },
   {
     icon: FiCheckSquare,
@@ -74,8 +77,36 @@ const STEPS = [
     desc: "Terms & privacy",
     fields: ["terms", "privacy"],
     isAgreement: true,
+    sectionId: "section-agreements",
   },
 ];
+
+// Visual order of fields as they appear in the form (for first-error scroll)
+const FIELD_ORDER = [
+  "fullName",
+  "username",
+  "email",
+  "school",
+  "matricNumber",
+  "whatsapp",
+  "password",
+  "confirmPassword",
+  "terms",
+  "privacy",
+];
+
+const FIELD_TO_SECTION = {
+  fullName: "section-profile",
+  username: "section-profile",
+  email: "section-profile",
+  school: "section-school",
+  matricNumber: "section-school",
+  whatsapp: "section-school",
+  password: "section-security",
+  confirmPassword: "section-security",
+  terms: "section-agreements",
+  privacy: "section-agreements",
+};
 
 const ROLE_OPTIONS = [
   {
@@ -119,6 +150,7 @@ const RegisterPage = () => {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
+  const formScrollRef = useRef(null);
 
   // Derive active step from which fields are filled
   useEffect(() => {
@@ -152,6 +184,29 @@ const RegisterPage = () => {
     if (errors[key]) {
       setErrors((prev) => ({ ...prev, [key]: "" }));
     }
+  };
+
+  const scrollToFirstError = (errObj) => {
+    const firstField = FIELD_ORDER.find((f) => errObj[f]);
+    if (!firstField) return;
+    // Prefer the actual input/checkbox, fallback to its section header
+    const fieldEl =
+      document.getElementById(firstField) ||
+      document.querySelector(`[name="${firstField}"]`);
+    const sectionId = FIELD_TO_SECTION[firstField];
+    const targetEl = fieldEl || (sectionId ? document.getElementById(sectionId) : null);
+    if (!targetEl) return;
+    // Defer to next frame so error DOM (red borders) has painted
+    requestAnimationFrame(() => {
+      targetEl.scrollIntoView({
+        behavior: reduced ? "auto" : "smooth",
+        block: "center",
+      });
+      if (fieldEl && typeof fieldEl.focus === "function") {
+        // focus without re-scrolling (we already scrolled to center)
+        setTimeout(() => fieldEl.focus({ preventScroll: true }), 350);
+      }
+    });
   };
 
   const validate = () => {
@@ -201,7 +256,9 @@ const RegisterPage = () => {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    if (!isValid) scrollToFirstError(newErrors);
+    return isValid;
   };
 
   const handleSubmit = async (e) => {
@@ -232,6 +289,7 @@ const RegisterPage = () => {
           backendErrors[d.field] = d.message;
         });
         setErrors(backendErrors);
+        scrollToFirstError(backendErrors);
       } else {
         setServerError(
           err.response?.data?.error ||
@@ -248,7 +306,10 @@ const RegisterPage = () => {
       {/* ══ SPLIT LAYOUT ══════════════════════════════════════ */}
       <div className="flex flex-1 flex-row-reverse items-start">
         {/* ── Form (right side) ───────────────────────────── */}
-        <div className="flex-1 flex items-start justify-center px-6 py-12 bg-white overflow-y-auto h-[calc(100vh-4rem)] no-scrollbar">
+        <div
+          ref={formScrollRef}
+          className="flex-1 flex items-start justify-center px-6 py-12 bg-white overflow-y-auto h-[calc(100vh-4rem)] no-scrollbar"
+        >
           <motion.div
             className="w-full max-w-md"
             variants={reduced ? {} : heroContainer}
@@ -320,7 +381,7 @@ const RegisterPage = () => {
                 </div>
 
                 {/* Section 1 — Profile */}
-                <div className="flex flex-col gap-4">
+                <div id="section-profile" className="flex flex-col gap-4 scroll-mt-6">
                   <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
                     <div className="w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                       <FiUser className="text-white w-3 h-3" />
@@ -362,7 +423,7 @@ const RegisterPage = () => {
 
                 {/* Section 2 — School (sellers only) */}
                 {role === "SELLER" && (
-                  <div className="flex flex-col gap-4">
+                  <div id="section-school" className="flex flex-col gap-4 scroll-mt-6">
                     <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
                       <div className="w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                         <FiBook className="text-white w-3 h-3" />
@@ -404,7 +465,7 @@ const RegisterPage = () => {
                 )}
 
                 {/* Section 3 — Password */}
-                <div className="flex flex-col gap-4">
+                <div id="section-security" className="flex flex-col gap-4 scroll-mt-6">
                   <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
                     <div className="w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                       <FiLock className="text-white w-3 h-3" />
@@ -437,7 +498,7 @@ const RegisterPage = () => {
                 </div>
 
                 {/* Section 4 — Agreements (NEW) */}
-                <div className="flex flex-col gap-3">
+                <div id="section-agreements" className="flex flex-col gap-3 scroll-mt-6">
                   <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
                     <div className="w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                       <FiCheckSquare className="text-white w-3 h-3" />
@@ -449,13 +510,15 @@ const RegisterPage = () => {
 
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
+                      id="terms"
+                      name="terms"
                       type="checkbox"
                       checked={agreements.terms}
                       onChange={() => handleAgreementChange("terms")}
                       className={`mt-0.5 w-4 h-4 rounded border-gray-300 text-primary-600
                                  focus:ring-2 focus:ring-primary-500 cursor-pointer ${
-                                   errors.terms ? "border-red-400" : ""
-                                 }`}
+                                    errors.terms ? "border-red-400" : ""
+                                  }`}
                     />
                     <span className="text-sm text-gray-600 leading-snug">
                       I agree to the{" "}
@@ -476,13 +539,15 @@ const RegisterPage = () => {
 
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
+                      id="privacy"
+                      name="privacy"
                       type="checkbox"
                       checked={agreements.privacy}
                       onChange={() => handleAgreementChange("privacy")}
                       className={`mt-0.5 w-4 h-4 rounded border-gray-300 text-primary-600
                                  focus:ring-2 focus:ring-primary-500 cursor-pointer ${
-                                   errors.privacy ? "border-red-400" : ""
-                                 }`}
+                                    errors.privacy ? "border-red-400" : ""
+                                  }`}
                     />
                     <span className="text-sm text-gray-600 leading-snug">
                       I agree to the{" "}
