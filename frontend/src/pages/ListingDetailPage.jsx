@@ -11,6 +11,7 @@ import { Helmet } from "react-helmet-async";
 import Alert from "../components/ui/Alert";
 import { getListingById, deleteListing, reportListing } from "../services/listingService";
 import { useToast } from "../context/ToastContext";
+import { cldUrl } from "../utils/cloudinary";
 import {
   FiMapPin,
   FiUser,
@@ -332,7 +333,7 @@ const ListingDetailPage = () => {
                 <div key={i} className="h-full flex-shrink-0" style={{ width: `${100 / images.length}%` }}>
                   {img ? (
                     <img
-                      src={img}
+                      src={cldUrl(img, { width: i === 0 ? 800 : 400 })}
                       alt={`${listing.title} ${i + 1}`}
                       loading={i === 0 ? "eager" : "lazy"}
                       decoding="async"
@@ -377,7 +378,7 @@ const ListingDetailPage = () => {
                     activeImage === i ? "border-primary-600" : "border-transparent"
                   }`}
                 >
-                  {img ? <img src={img} alt={`Thumbnail ${i + 1}`} loading="lazy" decoding="async" width="64" height="64" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-100" />}
+                  {img ? <img src={cldUrl(img, { width: 200 })} alt={`Thumbnail ${i + 1}`} loading="lazy" decoding="async" width="64" height="64" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-100" />}
                 </button>
               ))}
             </div>
@@ -444,7 +445,7 @@ const ListingDetailPage = () => {
           >
             <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-primary-100">
               {listing.seller.avatar ? (
-                <img src={listing.seller.avatar} alt={listing.seller.username} className="w-full h-full object-cover" onError={(e)=>{e.currentTarget.style.display="none";}} />
+                <img src={cldUrl(listing.seller.avatar, { width: 100 })} alt={listing.seller.username} loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e)=>{e.currentTarget.style.display="none";}} />
               ) : (
                 <FiUser className="w-5 h-5 text-primary-600" />
               )}

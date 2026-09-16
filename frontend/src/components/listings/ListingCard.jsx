@@ -5,6 +5,7 @@ import { FiMapPin, FiUser, FiHeart, FiLink2, FiMessageCircle, FiShoppingBag } fr
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import { useFavorites } from "../../context/FavoritesContext";
+import { cldUrl } from "../../utils/cloudinary";
 
 // ─── Condition badge color map ────────────────────────────────
 const CONDITION_STYLES = {
@@ -93,7 +94,8 @@ const ListingCard = ({ listing }) => {
   const { isFavorited, toggleFavorite } = useFavorites();
   const { id, slug, title, price, category, condition, images, location, seller } =
     listing;
-  const thumbnail = images?.[0] || null;
+  const thumbnail = images?.[0] ? cldUrl(images[0], { width: 400 }) : null;
+  const avatarUrl = seller?.avatar ? cldUrl(seller.avatar, { width: 80 }) : null;
   const favorited = isFavorited(id);
   const listingSlug = slug || id;
 
@@ -281,10 +283,10 @@ const ListingCard = ({ listing }) => {
           {/* Seller row */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
             <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-sage-100">
-              {seller?.avatar ? (
-                <img src={seller.avatar} alt={seller.username} className="w-full h-full object-cover" loading="lazy" onError={(e)=>{e.currentTarget.style.display="none"; e.currentTarget.nextSibling.style.display="flex";}} />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={seller.username} className="w-full h-full object-cover" loading="lazy" decoding="async" onError={(e)=>{e.currentTarget.style.display="none"; e.currentTarget.nextSibling.style.display="flex";}} />
               ) : null}
-              <span style={{display: seller?.avatar ? "none" : "flex"}} className="w-full h-full items-center justify-center">
+              <span style={{display: avatarUrl ? "none" : "flex"}} className="w-full h-full items-center justify-center">
                 <FiUser className="w-3 h-3 text-primary-600" />
               </span>
             </div>

@@ -6,6 +6,7 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import TokenIcon from "../components/ui/TokenIcon";
 import { FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
+import { cldUrl } from "../utils/cloudinary";
 
 const GHOST_DAYS = 30;
 
@@ -190,7 +191,7 @@ const MyListingsPage = () => {
                 <div key={l.id} className={`card overflow-hidden ${ghost ? "ring-2 ring-amber-300" : ""} ${boosted ? "ring-2 ring-amber-400" : ""} ${!l.isAvailable ? "opacity-60" : ""}`}>
                   <div className="relative h-48 bg-gray-100 overflow-hidden">
                     {l.images?.[0] ? (
-                      <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" style={l.coverPosition ? { objectPosition: `${l.coverPosition.x}% ${l.coverPosition.y}%` } : undefined} />
+                      <img src={cldUrl(l.images[0], { width: 400 })} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" style={l.coverPosition ? { objectPosition: `${l.coverPosition.x}% ${l.coverPosition.y}%` } : undefined} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
                     )}

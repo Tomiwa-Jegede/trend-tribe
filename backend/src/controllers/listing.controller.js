@@ -259,7 +259,23 @@ const getAllListings = async (req, res) => {
       if (pagedIds.length > 0) {
         const fetched = await prisma.listing.findMany({
           where: { id: { in: pagedIds } },
-          include: {
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            price: true,
+            category: true,
+            subcategory: true,
+            condition: true,
+            images: true,
+            location: true,
+            coverPosition: true,
+            contactViews: true,
+            views: true,
+            shares: true,
+            boostedUntil: true,
+            boostTier: true,
+            createdAt: true,
             seller: {
               select: {
                 id: true,
@@ -268,7 +284,6 @@ const getAllListings = async (req, res) => {
                 fullName: true,
                 avatar: true,
                 school: true,
-                whatsapp: true,
               },
             },
             _count: { select: { favorites: true } },
@@ -333,7 +348,23 @@ const getAllListings = async (req, res) => {
         orderBy,
         skip,
         take: limitNum,
-        include: {
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          price: true,
+          category: true,
+          subcategory: true,
+          condition: true,
+          images: true,
+          location: true,
+          coverPosition: true,
+          contactViews: true,
+          views: true,
+          shares: true,
+          boostedUntil: true,
+          boostTier: true,
+          createdAt: true,
           seller: {
             select: {
               id: true,
@@ -342,7 +373,6 @@ const getAllListings = async (req, res) => {
               fullName: true,
               avatar: true,
               school: true,
-              whatsapp: true,
             },
           },
           _count: { select: { favorites: true } },

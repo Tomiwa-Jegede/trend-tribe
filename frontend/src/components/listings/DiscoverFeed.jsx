@@ -8,6 +8,7 @@ import { useToast } from "../../context/ToastContext";
 import { getListings, incrementShare } from "../../services/listingService";
 import { revealContact } from "../../services/contactService";
 import useRealtime from "../../hooks/useRealtime";
+import { cldUrl } from "../../utils/cloudinary";
 
 const formatPrice = (price) =>
   new Intl.NumberFormat("en-NG", {
@@ -18,16 +19,19 @@ const formatPrice = (price) =>
 
 // ─── Single full-screen product card ───────────────────────────
 const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, contactLoading }) => {
-  const thumbnail = listing.images?.[0] || null;
+  const thumbnail = listing.images?.[0] ? cldUrl(listing.images[0], { width: 800 }) : null;
+  const thumbSmall = listing.images?.[0] ? cldUrl(listing.images[0], { width: 100 }) : null;
 
   return (
     <div className="relative w-full h-full snap-start snap-always flex-shrink-0 bg-black flex items-center justify-center overflow-hidden">
       {/* Blurred backdrop fill — desktop only; mobile card is already full-bleed */}
-      {thumbnail && (
+      {thumbSmall && (
         <img
-          src={thumbnail}
+          src={thumbSmall}
           alt=""
           aria-hidden="true"
+          loading="lazy"
+          decoding="async"
           className="block absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-60"
         />
       )}
@@ -38,9 +42,11 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
         {thumbnail ? (
           <>
             <img
-              src={thumbnail}
+              src={thumbSmall}
               alt=""
               aria-hidden="true"
+              loading="lazy"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-60"
             />
             <img
@@ -49,6 +55,7 @@ const DiscoverCard = ({ listing, favorited, onFavorite, onShare, onContact, cont
               className="relative w-full h-full object-contain object-center"
               loading="lazy"
               decoding="async"
+              width="800"
             />
           </>
         ) : (
