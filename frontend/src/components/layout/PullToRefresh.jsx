@@ -65,23 +65,23 @@ export default function PullToRefresh({ children, disabled = false }) {
   }, [onTouchStart, onTouchMove, onTouchEnd]);
 
   const progress = Math.min(1, pull / TRIGGER);
-  const spinnerSize = 22 + progress * 10;
-  const opacity = Math.min(1, progress * 1.2);
+  const spinnerSize = 28 + progress * 10;
+  const opacity = pull > 2 || refreshing ? Math.min(1, 0.3 + progress * 0.9) : 0;
   const translateY = pull;
 
   return (
-    <div style={{ transform: `translateY(${translateY}px)`, transition: pulling.current ? "none" : "transform 0.22s ease-out" }}>
-      {/* spinner */}
+    <>
+      {/* spinner - fixed outside transformed content so it stays at viewport top */}
       <div
         aria-hidden="true"
         style={{
           position: "fixed",
           top: 0,
           left: "50%",
-          transform: `translateX(-50%) translateY(${pull > 0 || refreshing ? 12 : -40}px)`,
-          opacity: pull > 0 || refreshing ? opacity : 0,
+          transform: `translateX(-50%) translateY(${pull > 0 || refreshing ? 10 : -48}px)`,
+          opacity,
           transition: pulling.current ? "none" : "transform 0.22s ease-out, opacity 0.2s ease-out",
-          zIndex: 40,
+          zIndex: 9999,
           pointerEvents: "none",
         }}
       >
@@ -90,20 +90,34 @@ export default function PullToRefresh({ children, disabled = false }) {
             width: spinnerSize,
             height: spinnerSize,
             borderRadius: "50%",
-            border: "3px solid #e5e7eb",
-            borderTopColor: "#1340B8",
-            borderRightColor: "#F5C518",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
             background: "white",
-            opacity: pull > 0 || refreshing ? 1 : 0,
-            transform: `scale(${0.7 + progress * 0.3}) rotate(${pull * 2}deg)`,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 3,
+            transform: `scale(${0.85 + progress * 0.15})`,
             transition: pulling.current ? "none" : "transform 0.22s ease-out, width 0.18s, height 0.18s",
-            animation: refreshing ? "pull-spin 0.7s linear infinite" : undefined,
           }}
-        />
+        >
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              borderRadius: "50%",
+              border: "3px solid #e5e7eb",
+              borderTopColor: "#1340B8",
+              borderRightColor: "#F5C518",
+              transform: refreshing ? undefined : `rotate(${pull * 3}deg)`,
+              animation: refreshing ? "pull-spin 0.7s linear infinite" : undefined,
+            }}
+          />
+        </div>
       </div>
       <style>{`@keyframes pull-spin { to { transform: rotate(360deg); } }`}</style>
-      {children}
-    </div>
+      <div style={{ transform: `translateY(${translateY}px)`, transition: pulling.current ? "none" : "transform 0.22s ease-out" }}>
+        {children}
+      </div>
+    </>
   );
 }
