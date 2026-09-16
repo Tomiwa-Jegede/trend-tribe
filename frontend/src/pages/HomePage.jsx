@@ -12,6 +12,7 @@ import {
   FiUsers,
   FiArrowRight,
   FiStar,
+  FiBriefcase,
 } from "react-icons/fi";
 
 import HomeTicker from "../components/home/HomeTicker";
@@ -29,9 +30,9 @@ const FEATURES = [
     desc: "Anyone can create an account to buy. Only verified students can list items.",
   },
   {
-    icon: <FiSearch className="w-6 h-6 text-primary-600" />,
-    title: "Easy Discovery",
-    desc: "Search, filter by category, condition, and price to find exactly what you need.",
+    icon: <FiBriefcase className="w-6 h-6 text-primary-600" />,
+    title: "Gigs, Services & Tasks",
+    desc: "Book a service, post a task, or pick up gigs on campus — get paid straight into your Gig Wallet.",
   },
   {
     icon: <FiShield className="w-6 h-6 text-primary-600" />,
@@ -286,13 +287,13 @@ const HomePage = () => {
                 variants={reduced ? {} : fadeIn}
                 className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4"
               >
-                Buy & Sell Within
+                Buy, Sell & Get Things Done
                 <motion.span
                   variants={reduced ? {} : fadeIn}
                   className="block relative"
                   style={{ color: "#F5C518" }}
                 >
-                  Your Campus
+                  Within Your Campus
                   <span
                     className="absolute left-0 -bottom-1 h-0.5 w-2/3 rounded-full"
                     style={{ background: "#F5C518", opacity: 0.4 }}
@@ -304,7 +305,7 @@ const HomePage = () => {
                 variants={reduced ? {} : fadeIn}
                 className="text-base lg:text-lg text-white/75 leading-relaxed mb-5"
               >
-                Buy and sell with students on your campus. 3 items free. Need more? 1 token. Meet on campus. No delivery.
+                Buy and sell with students on campus, book services, post tasks, or pick up gigs and get paid straight to your wallet. 3 items free. Meet on campus. No delivery.
               </motion.p>
 
               {/* Live stats — same fadeIn + ping like Now open */}
