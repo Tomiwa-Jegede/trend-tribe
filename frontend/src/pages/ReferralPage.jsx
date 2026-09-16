@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import { useToast } from "../context/ToastContext";
+import { FiInfo, FiX } from "react-icons/fi";
 
 const ReferralPage = () => {
   const { toast } = useToast();
@@ -13,6 +14,7 @@ const ReferralPage = () => {
   const [editCode, setEditCode] = useState("");
   const [savingCode, setSavingCode] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -65,10 +67,34 @@ const ReferralPage = () => {
   const { referralCode, referralLink, stats } = data;
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6 flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Referrals</h1>
-        <p className="text-sm text-gray-500">Invite friends, earn 5% for 6 months.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            Referrals
+            <button onClick={() => setShowInfo(true)} className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600" aria-label="How referrals work"><FiInfo className="w-4 h-4" /></button>
+          </h1>
+          <p className="text-sm text-gray-500">Invite friends, earn 5% for 6 months.</p>
+        </div>
       </div>
+      {showInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowInfo(false)} />
+          <div className="relative bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+            <button onClick={() => setShowInfo(false)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><FiX className="w-4 h-4" /></button>
+            <h2 className="text-lg font-bold mb-3">How referrals work</h2>
+            <div className="flex flex-col gap-3 text-sm text-gray-600 leading-relaxed">
+              <p><span className="font-semibold text-gray-900">1. Get your code/link.</span> Everyone has a code like <span className="font-mono bg-gray-100 px-1 rounded">K8P2QX</span> and a link like <span className="font-mono text-xs break-all">trendtribe.app/signup?ref=K8P2QX</span>. You can also set your own code (4–12 letters/numbers, e.g. <span className="font-mono bg-gray-100 px-1 rounded">TOMIWA01</span>) with Edit code.</p>
+              <p><span className="font-semibold text-gray-900">2. Share it.</span> Send the link to friends. They must open your link and sign up with it. One person = one referrer forever. You can’t refer yourself and you can’t change who referred you later.</p>
+              <p><span className="font-semibold text-gray-900">3. Earn 5% automatically.</span> For the <span className="font-semibold">next 6 months</span> after they sign up, every time they do a real transaction — top up Gig Wallet, buy tokens, complete a Gig as claimer, or complete a Service as provider — you automatically get <span className="font-semibold">5% of that amount</span> in your Gig Wallet. No need to claim.</p>
+              <p><span className="font-semibold text-gray-900">4. Separate clock per person.</span> If you refer 10 people, each has their own 6-month window. Changing your code later doesn’t remove people you already referred, but old links stop working.</p>
+              <p><span className="font-semibold text-gray-900">5. Withdraw anytime.</span> Your earnings go straight to your Gig Wallet. You can withdraw with your normal withdrawal (PIN + bank) whenever you want — you don’t have to wait 6 months.</p>
+              <p><span className="font-semibold text-gray-900">6. What doesn’t count:</span> failed/cancelled/expired transactions, money you send to friends, or money you withdraw. If a transaction is refunded after you were paid, that commission is reversed.</p>
+              <p className="text-xs text-gray-400 border-t border-gray-100 pt-3 mt-1">Tip: If your code is taken when you try to edit, pick another. Old earnings stay safe.</p>
+            </div>
+            <button onClick={() => setShowInfo(false)} className="mt-5 w-full py-2.5 bg-black text-white rounded-xl text-sm font-medium">Got it</button>
+          </div>
+        </div>
+      )}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Your referral code</span>
