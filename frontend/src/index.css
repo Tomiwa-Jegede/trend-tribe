@@ -7,6 +7,10 @@
 
 /* ─── Base styles ───────────────────────────────────────── */
 @layer base {
+  html, body {
+    overscroll-behavior-y: none;
+  }
+
   * {
     box-sizing: border-box;
   }

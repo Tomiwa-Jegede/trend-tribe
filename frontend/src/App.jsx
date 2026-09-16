@@ -11,6 +11,7 @@ import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import FrederickWidget from "./components/frederick/FrederickWidget";
 import PageTransition from "./components/layout/PageTransition";
+import PullToRefresh from "./components/layout/PullToRefresh";
 import PWARegister from "./components/pwa/PWARegister";
 import InstallPrompt from "./components/pwa/InstallPrompt";
 import OfflineBanner from "./components/pwa/OfflineBanner";
@@ -150,192 +151,194 @@ const App = () => {
     location.pathname === "/chat" &&
     new URLSearchParams(location.search).has("thread");
   return (
-    <div className="min-h-screen flex flex-col">
-      {!isDiscoverMode && !isChatThreadOpen && <Navbar />}
+    <PullToRefresh disabled={isChatThreadOpen}>
+      <div className="min-h-screen flex flex-col">
+        {!isDiscoverMode && !isChatThreadOpen && <Navbar />}
 
-      <main className="flex-1">
-        <PageTransition>
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center min-h-screen">
-                <div
-                  className="w-8 h-8 border-4 border-primary-600
+        <main className="flex-1">
+          <PageTransition>
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                  <div
+                    className="w-8 h-8 border-4 border-primary-600
                                 border-t-transparent rounded-full animate-spin"
-                />
-              </div>
-            }
-          >
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/marketplace" element={<MarketplacePage />} />
-            <Route path="/listings/:slug" element={<ListingDetailPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/verify-registration" element={<VerifyOtpPage />} />
-            <Route path="/profile/:slug" element={<ProfilePage />} />
-            <Route
-              path="/profile/:slug/edit"
-              element={
-                <ProtectedRoute>
-                  <EditProfilePage />
-                </ProtectedRoute>
+                  />
+                </div>
               }
-            />
+            >
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/marketplace" element={<MarketplacePage />} />
+              <Route path="/listings/:slug" element={<ListingDetailPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/verify-registration" element={<VerifyOtpPage />} />
+              <Route path="/profile/:slug" element={<ProfilePage />} />
+              <Route
+                path="/profile/:slug/edit"
+                element={
+                  <ProtectedRoute>
+                    <EditProfilePage />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Protected */}
-            <Route
-              path="/create-listing"
-              element={
-                <ProtectedRoute>
-                  <CreateListingPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/listings/:slug/edit"
-              element={
-                <ProtectedRoute>
-                  <EditListingPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tokens/callback"
-              element={
-                <ProtectedRoute>
-                  <TokenCallbackPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route
-              path="/verify-email"
-              element={
-                <ProtectedRoute>
-                  <VerifyOtpPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminDashboardPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/listings"
-              element={
-                <AdminRoute>
-                  <AdminListingsPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <AdminRoute>
-                  <AdminUsersPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/reports"
-              element={
-                <AdminRoute>
-                  <AdminReportsPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/favorites"
-              element={
-                <AdminRoute>
-                  <AdminFavoritesPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/analytics"
-              element={
-                <AdminRoute>
-                  <AdminAnalyticsPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/withdrawals"
-              element={
-                <TopAdminRoute>
-                  <AdminWithdrawalsPage />
-                </TopAdminRoute>
-              }
-            />
-            <Route
-              path="/admin/disputes"
-              element={
-                <AdminRoute>
-                  <AdminDisputesPage />
-                </AdminRoute>
-              }
-            />
-            <Route path="/gigs" element={<GigsPage />} />
-            <Route path="/gigs/callback" element={<GigsPage />} />
-            <Route path="/gigs/available" element={<GigAvailablePage />} />
-            <Route path="/gigs/wallet" element={<ProtectedRoute><GigWalletPage /></ProtectedRoute>} />
-            <Route path="/gigs/wallet/transfer" element={<ProtectedRoute><GigTransferPage /></ProtectedRoute>} />
-            <Route path="/gigs/wallet/history" element={<ProtectedRoute><GigTransactionHistoryPage /></ProtectedRoute>} />
-            <Route path="/bookings" element={<ProtectedRoute><ServiceBookingsPage /></ProtectedRoute>} />
-            <Route path="/bookings/provider" element={<ProtectedRoute><BookingProviderPage /></ProtectedRoute>} />
-            <Route path="/bookings/mine" element={<ProtectedRoute><BookingMinePage /></ProtectedRoute>} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/features" element={<FeaturesPage />} />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/coming-soon" element={<ComingSoonPage />} />
-            <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
-            <Route path="/referrals" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
-            <Route path="/admin/support" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
-            {/* In-app chat removed — WhatsApp only. Keep routes as redirects to avoid 404 for old links */}
-            <Route path="/messages" element={<Navigate to="/marketplace" replace />} />
-            <Route path="/inbox" element={<Navigate to="/marketplace" replace />} />
-            <Route path="/chat" element={<Navigate to="/marketplace" replace />} />
-            <Route
-              path="/saved"
-              element={
-                <ProtectedRoute>
-                  <FavoritesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/contact" element={<Navigate to="/support" replace />} />
-            <Route path="/notifications" element={<ComingSoonPage />} />
-            <Route
-              path="/my-listings"
-              element={
-                <ProtectedRoute>
-                  <MyListingsPage />
-                </ProtectedRoute>
-              }
-            />
-            {/* 404 — must be last */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-          </Suspense>
-        </PageTransition>
-      </main>
+              {/* Protected */}
+              <Route
+                path="/create-listing"
+                element={
+                  <ProtectedRoute>
+                    <CreateListingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/listings/:slug/edit"
+                element={
+                  <ProtectedRoute>
+                    <EditListingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tokens/callback"
+                element={
+                  <ProtectedRoute>
+                    <TokenCallbackPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route
+                path="/verify-email"
+                element={
+                  <ProtectedRoute>
+                    <VerifyOtpPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminDashboardPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/listings"
+                element={
+                  <AdminRoute>
+                    <AdminListingsPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <AdminRoute>
+                    <AdminUsersPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/reports"
+                element={
+                  <AdminRoute>
+                    <AdminReportsPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/favorites"
+                element={
+                  <AdminRoute>
+                    <AdminFavoritesPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/analytics"
+                element={
+                  <AdminRoute>
+                    <AdminAnalyticsPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/withdrawals"
+                element={
+                  <TopAdminRoute>
+                    <AdminWithdrawalsPage />
+                  </TopAdminRoute>
+                }
+              />
+              <Route
+                path="/admin/disputes"
+                element={
+                  <AdminRoute>
+                    <AdminDisputesPage />
+                  </AdminRoute>
+                }
+              />
+              <Route path="/gigs" element={<GigsPage />} />
+              <Route path="/gigs/callback" element={<GigsPage />} />
+              <Route path="/gigs/available" element={<GigAvailablePage />} />
+              <Route path="/gigs/wallet" element={<ProtectedRoute><GigWalletPage /></ProtectedRoute>} />
+              <Route path="/gigs/wallet/transfer" element={<ProtectedRoute><GigTransferPage /></ProtectedRoute>} />
+              <Route path="/gigs/wallet/history" element={<ProtectedRoute><GigTransactionHistoryPage /></ProtectedRoute>} />
+              <Route path="/bookings" element={<ProtectedRoute><ServiceBookingsPage /></ProtectedRoute>} />
+              <Route path="/bookings/provider" element={<ProtectedRoute><BookingProviderPage /></ProtectedRoute>} />
+              <Route path="/bookings/mine" element={<ProtectedRoute><BookingMinePage /></ProtectedRoute>} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/faq" element={<FAQPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/features" element={<FeaturesPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/coming-soon" element={<ComingSoonPage />} />
+              <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+              <Route path="/referrals" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
+              <Route path="/admin/support" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
+              {/* In-app chat removed — WhatsApp only. Keep routes as redirects to avoid 404 for old links */}
+              <Route path="/messages" element={<Navigate to="/marketplace" replace />} />
+              <Route path="/inbox" element={<Navigate to="/marketplace" replace />} />
+              <Route path="/chat" element={<Navigate to="/marketplace" replace />} />
+              <Route
+                path="/saved"
+                element={
+                  <ProtectedRoute>
+                    <FavoritesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/contact" element={<Navigate to="/support" replace />} />
+              <Route path="/notifications" element={<ComingSoonPage />} />
+              <Route
+                path="/my-listings"
+                element={
+                  <ProtectedRoute>
+                    <MyListingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              {/* 404 — must be last */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+            </Suspense>
+          </PageTransition>
+        </main>
 
-      {!isDiscoverMode && !isChatThreadOpen && <Footer />}
-      <FrederickWidget />
-      <PWARegister />
-      <InstallPrompt />
-      <OfflineBanner />
-    </div>
+        {!isDiscoverMode && !isChatThreadOpen && <Footer />}
+        <FrederickWidget />
+        <PWARegister />
+        <InstallPrompt />
+        <OfflineBanner />
+      </div>
+    </PullToRefresh>
   );
 };
 
