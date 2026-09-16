@@ -1,7 +1,7 @@
 // src/pages/RegisterPage.jsx
 
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
@@ -125,9 +125,26 @@ const ROLE_OPTIONS = [
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const reduced = useReducedMotion();
 
   const [role, setRole] = useState("BUYER");
+  const [referralCode, setReferralCode] = useState(() => {
+    const q = searchParams.get("ref") || searchParams.get("referral") || searchParams.get("ref_code");
+    if (q) {
+      const n = q.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+      if (n.length >= 4) { localStorage.setItem("tt_referral", n); return n; }
+    }
+    return localStorage.getItem("tt_referral") || "";
+  });
+
+  useEffect(() => {
+    const q = searchParams.get("ref") || searchParams.get("referral") || searchParams.get("ref_code");
+    if (q) {
+      const n = q.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+      if (n.length >= 4) { localStorage.setItem("tt_referral", n); setReferralCode(n); }
+    }
+  }, [searchParams]);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -276,6 +293,7 @@ const RegisterPage = () => {
         school: role === "SELLER" ? formData.school.trim() : "",
         matricNumber: role === "SELLER" ? formData.matricNumber.trim() : "",
         whatsapp: role === "SELLER" ? formData.whatsapp.trim() : "",
+        referralCode: referralCode || localStorage.getItem("tt_referral") || undefined,
       };
       await api.post("/auth/register", payload);
       navigate("/verify-registration", {
@@ -351,6 +369,12 @@ const RegisterPage = () => {
                   />
                 )}
 
+                {referralCode && (
+                  <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm">
+                    <span className="text-amber-800">Referred by <span className="font-mono font-bold">{referralCode}</span></span>
+                    <button type="button" onClick={() => { localStorage.removeItem("tt_referral"); setReferralCode(""); }} className="text-amber-600 hover:text-amber-800 text-xs underline">Clear</button>
+                  </div>
+                )}
                 {/* Role selector */}
                 <div className="flex flex-col gap-3">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">

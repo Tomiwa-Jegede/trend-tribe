@@ -35,12 +35,27 @@ const primaryClientUrl =
     ? clientUrlList.find((u) => u.includes("trendtribe.app") && u.startsWith("https://")) || clientUrlList.find((u) => u.startsWith("https://")) || clientUrlList[0]
     : clientUrlList[0] || "http://localhost:5173";
 
+const referralRateRaw = process.env.REFERRAL_COMMISSION_RATE;
+const referralRate = referralRateRaw != null ? parseFloat(referralRateRaw) : 0.05;
+if (isNaN(referralRate) || referralRate < 0 || referralRate > 1) {
+  console.error("❌ REFERRAL_COMMISSION_RATE must be 0-1 (e.g. 0.05 for 5%)");
+  process.exit(1);
+}
+const referralDurationRaw = process.env.REFERRAL_DURATION_MONTHS;
+const referralDurationMonths = referralDurationRaw != null ? parseInt(referralDurationRaw, 10) : 6;
+if (!Number.isInteger(referralDurationMonths) || referralDurationMonths < 1 || referralDurationMonths > 24) {
+  console.error("❌ REFERRAL_DURATION_MONTHS must be integer 1-24");
+  process.exit(1);
+}
+
 const config = {
   port: parseInt(process.env.PORT, 10) || 5050,
   nodeEnv: process.env.NODE_ENV || "development",
   isDev: process.env.NODE_ENV !== "production",
 
   databaseUrl: process.env.DATABASE_URL,
+
+  referral: { rate: referralRate, durationMonths: referralDurationMonths },
 
   jwt: {
     secret: process.env.JWT_SECRET,

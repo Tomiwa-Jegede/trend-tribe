@@ -66,6 +66,11 @@ model User {
   pwaInstalls               PWAInstall[]
   supportThread             SupportThread?         @relation("SupportUser")
   supportClaims             SupportThread[]        @relation("SupportClaimer")
+  referralCode              String?                @unique
+  referralsMade             Referral[]             @relation("Referrer")
+  referralReceived          Referral?              @relation("Referred")
+  commissionsEarned         ReferralCommission[]   @relation("CommissionReferrer")
+  commissionsGenerated      ReferralCommission[]   @relation("CommissionReferred")
 
   @@map("users")
 }
@@ -84,6 +89,7 @@ model PendingRegistration {
   createdAt    DateTime @default(now())
   role         Role     @default(BUYER)
   whatsapp     String?
+  referralCode String?
 
   @@map("pending_registrations")
 }
@@ -425,7 +431,7 @@ model PlatformProfit {
 model GigWalletTransaction {
   id        Int      @id @default(autoincrement())
   userId    Int
-  type      String // e.g. GIG_CREATE | GIG_PAYOUT | GIG_CANCEL_REFUND | TOPUP | WITHDRAW | TRANSFER_SENT | TRANSFER_RECEIVED | SERVICE_BOOK | SERVICE_FEE | SERVICE_REFUND | SERVICE_PAYOUT | TOKEN_BUY | ADMIN_REFUND | ADMIN_RELEASE | ADMIN_SPLIT
+  type      String // e.g. GIG_CREATE | GIG_PAYOUT | GIG_CANCEL_REFUND | TOPUP | WITHDRAW | TRANSFER_SENT | TRANSFER_RECEIVED | SERVICE_BOOK | SERVICE_FEE | SERVICE_REFUND | SERVICE_PAYOUT | TOKEN_BUY | ADMIN_REFUND | ADMIN_RELEASE | ADMIN_SPLIT | REFERRAL_CREDIT | REFERRAL_REVERSAL
   direction String // CREDIT | DEBIT
   amount    Int // kobo principal (without fee)
   fee       Int      @default(0) // kobo fee if any
@@ -438,6 +444,50 @@ model GigWalletTransaction {
   @@index([userId, createdAt])
   @@index([type, createdAt])
   @@map("gig_wallet_transactions")
+}
+
+model Referral {
+  id                Int                  @id @default(autoincrement())
+  referrerId        Int
+  referredId        Int                  @unique
+  referralCode      String
+  commissionStartAt DateTime             @default(now())
+  commissionEndAt   DateTime
+  status            String               @default("ACTIVE")
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  referrer          User                 @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred          User                 @relation("Referred", fields: [referredId], references: [id], onDelete: Cascade)
+  commissions       ReferralCommission[]
+
+  @@index([referrerId, status])
+  @@index([commissionEndAt])
+  @@index([createdAt])
+  @@map("referrals")
+}
+
+model ReferralCommission {
+  id               Int       @id @default(autoincrement())
+  referralId       Int
+  referrerId       Int
+  referredId       Int
+  transactionType  String
+  transactionId    String
+  amountKobo       Int
+  rate             Float
+  commissionAmount Int
+  status           String    @default("CREDITED")
+  createdAt        DateTime  @default(now())
+  reversedAt       DateTime?
+  referral         Referral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  referrer         User      @relation("CommissionReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred         User      @relation("CommissionReferred", fields: [referredId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionType, transactionId])
+  @@index([referrerId, createdAt])
+  @@index([referralId])
+  @@index([referredId])
+  @@map("referral_commissions")
 }
 
 enum Role {

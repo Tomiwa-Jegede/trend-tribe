@@ -67,6 +67,10 @@ async function creditGigPurchase(purchase, flutterwaveTransactionId) {
     await tx.user.update({ where: { id: purchase.userId }, data: { gigBalance: { increment: purchase.amount } } });
     const { recordWalletMovement } = require("../utils/wallet");
     await recordWalletMovement({ userId: purchase.userId, direction: "CREDIT", amount: purchase.amount, fee: 0, type: "TOPUP", title: "Gig wallet top-up", body: `Credit: ₦${(purchase.amount/100).toLocaleString()} top-up credited — ref ${purchase.reference}.`, meta: { purchaseId: purchase.id, reference: purchase.reference }, tx });
+    try {
+      const { maybeCreditReferral } = require("../utils/referral");
+      await maybeCreditReferral({ referredId: purchase.userId, transactionType: "GIG_TOPUP", transactionId: purchase.reference, amountKobo: purchase.amount, tx });
+    } catch (e) { console.warn("[REFERRAL GIG_TOPUP CREDIT FAIL]", e.message); }
     return true;
   });
   if (credited) {

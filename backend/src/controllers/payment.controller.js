@@ -177,23 +177,26 @@ const handleWebhook = async (req, res) => {
 // between /verify and the webhook firing close together.
 // ─────────────────────────────────────────────────────────────
 async function creditPurchase(purchase, flutterwaveTransactionId) {
-  const { count } = await prisma.tokenPurchase.updateMany({
-    where: { reference: purchase.reference, status: "PENDING" },
-    data: { status: "SUCCESS", flutterwaveTransactionId },
-  });
-
-  if (count === 1) {
-    await prisma.user.update({
-      where: { id: purchase.userId },
-      data: { tokenBalance: { increment: purchase.quantity } },
+  const credited = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.tokenPurchase.updateMany({
+      where: { reference: purchase.reference, status: "PENDING" },
+      data: { status: "SUCCESS", flutterwaveTransactionId },
     });
+    if (count !== 1) return false;
+    await tx.user.update({ where: { id: purchase.userId }, data: { tokenBalance: { increment: purchase.quantity } } });
     const gross = purchase.quantity * TOKEN_PRICE_NAIRA * 100;
     try {
-      const buyer = await prisma.user.findUnique({ where: { id: purchase.userId }, select: { role: true } });
+      const buyer = await tx.user.findUnique({ where: { id: purchase.userId }, select: { role: true } });
       const isAdminBuyer = buyer?.role === "ADMIN";
-      if (!isAdminBuyer) await prisma.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: gross, netFee: gross, refId: purchase.reference, meta: { tokenPurchaseId: purchase.reference, quantity: purchase.quantity } } });
+      if (!isAdminBuyer) await tx.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: gross, netFee: gross, refId: purchase.reference, meta: { tokenPurchaseId: purchase.reference, quantity: purchase.quantity } } });
     } catch {}
-  }
+    try {
+      const { maybeCreditReferral } = require("../utils/referral");
+      await maybeCreditReferral({ referredId: purchase.userId, transactionType: "TOKEN", transactionId: purchase.reference, amountKobo: purchase.amount * 100, tx });
+    } catch (e) { console.warn("[REFERRAL TOKEN CREDIT FAIL]", e.message); }
+    return true;
+  });
+  void credited;
 }
 
 const buyWithGigBalance = async (req, res) => {

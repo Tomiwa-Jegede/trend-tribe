@@ -53,6 +53,7 @@ const AdminWithdrawalsPage = lazy(() => import("./pages/AdminWithdrawalsPage"));
 const AdminDisputesPage = lazy(() => import("./pages/AdminDisputesPage"));
 const SupportPage = lazy(() => import("./pages/SupportPage"));
 const AdminSupportPage = lazy(() => import("./pages/AdminSupportPage"));
+const ReferralPage = lazy(() => import("./pages/ReferralPage"));
 
 const NotFoundPage = () => (
   <div className="container-app py-20 text-center">
@@ -298,6 +299,7 @@ const App = () => {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/coming-soon" element={<ComingSoonPage />} />
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+            <Route path="/referrals" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
             <Route path="/admin/support" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
             {/* In-app chat removed — WhatsApp only. Keep routes as redirects to avoid 404 for old links */}
             <Route path="/messages" element={<Navigate to="/marketplace" replace />} />

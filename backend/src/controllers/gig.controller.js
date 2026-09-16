@@ -126,8 +126,8 @@ const confirmGig = async (req, res) => {
       if (count === 0) throw new Error("ALREADY");
       await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
       if (!isAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(id), meta: { gigId: id, posterId: gig.posterId, claimerId: gig.claimerId } } });
-      // ledger write now atomic with the payout above — can't diverge from the balance change
       await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_PAYOUT", title: "Gig payout — credited", body: `Credit: ₦${(pay/100).toLocaleString()} from gig #${id}${isAdmin ? " (admin free — no fee)" : ` (fee ₦${(gross/100).toLocaleString()} retained)`} — credited to Gig wallet.`, meta: { gigId: id, fee: gross, adminFree: isAdmin }, tx });
+      try { const { maybeCreditReferral } = require("../utils/referral"); await maybeCreditReferral({ referredId: gig.claimerId, transactionType: "GIG", transactionId: String(id), amountKobo: pay, tx }); } catch (e) { console.warn("[REFERRAL GIG CREDIT FAIL]", e.message); }
     });
     return res.json({ message: isAdmin ? `Confirmed (admin free) — ₦${(pay/100).toLocaleString()} sent to claimer.` : `Confirmed — ₦${(pay/100).toLocaleString()} sent to claimer, ₦${(gross/100).toLocaleString()} fee retained.`, payout: pay, fee: gross });
   } catch (err) {
@@ -907,6 +907,7 @@ const autoReleaseGigs = async () => {
         await tx.user.update({ where: { id: g.claimerId }, data: { gigBalance: { increment: pay } } });
         if (!isPosterAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: gross, netFee: gross, refId: String(g.id), meta: { gigId: g.id, autoReleased: true } } });
         await recordWalletMovement({ userId: g.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_AUTO_RELEASE", title: "Gig auto-released — credited", body: `Credit: ₦${(pay/100).toLocaleString()} auto-released for gig #${g.id}${isPosterAdmin ? " (admin free — no fee)" : ` (fee ₦${(gross/100).toLocaleString()} retained)`} — 72h`, meta: { gigId: g.id, autoReleased: true, adminFree: isPosterAdmin }, tx });
+        try { const { maybeCreditReferral } = require("../utils/referral"); await maybeCreditReferral({ referredId: g.claimerId, transactionType: "GIG", transactionId: String(g.id), amountKobo: pay, tx }); } catch (e) { console.warn("[REFERRAL GIG AUTO CREDIT FAIL]", e.message); }
         return true;
       });
       if (!updated) continue;

@@ -406,6 +406,7 @@ const Navbar = () => {
                   )}
                 </AnimatePresence>
               </div>
+              <Link to="/referrals" className="relative text-sm font-medium pb-1 text-gray-600 hover:text-primary-600">Referrals</Link>
               <div className="relative" ref={moreRef}>
                 <button
                   onClick={() => setShowMore((v) => !v)}
@@ -628,7 +629,8 @@ const Navbar = () => {
                       className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
                     >
                       <MobileNavLink path="/features" label="Features" index={3} />
-                      <MobileNavLink path="/pricing" label="Pricing" index={3} />
+                       <MobileNavLink path="/pricing" label="Pricing" index={3} />
+                      <MobileNavLink path="/referrals" label="Referrals" index={3} />
                       <MobileNavLink path="/about" label="About" index={3} />
                     </motion.div>
                   )}

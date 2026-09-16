@@ -50,7 +50,7 @@ const buildTokenPayload = (user) => ({
 // ─────────────────────────────────────────────────────────────
 const register = async (req, res) => {
   try {
-    const { email, username, password, fullName, school, matricNumber, whatsapp, bio, role } =
+    const { email, username, password, fullName, school, matricNumber, whatsapp, bio, role, referralCode: referralCodeRaw } =
       req.body;
 
     const accountRole = role === "SELLER" ? "SELLER" : "BUYER";
@@ -98,6 +98,16 @@ const register = async (req, res) => {
       where: { otpExpiresAt: { lt: new Date() } },
     });
 
+    let normalizedReferralCode = null;
+    if (referralCodeRaw) {
+      const { normalizeReferralCode, resolveReferralCode } = require("../utils/referral");
+      normalizedReferralCode = normalizeReferralCode(referralCodeRaw);
+      if (!normalizedReferralCode) return res.status(400).json({ error: "Invalid referral code" });
+      const referrer = await resolveReferralCode(normalizedReferralCode);
+      if (!referrer) return res.status(400).json({ error: "Invalid referral code" });
+      if (referrer.email.toLowerCase() === email.toLowerCase()) return res.status(400).json({ error: "You cannot refer yourself" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
     const otpCode = generateOTP();
     const otpExpiresAt = getOTPExpiry();
@@ -114,6 +124,7 @@ const register = async (req, res) => {
         role: accountRole,
         otpCode,
         otpExpiresAt,
+        referralCode: normalizedReferralCode,
       },
       create: {
         email,
@@ -127,6 +138,7 @@ const register = async (req, res) => {
         role: accountRole,
         otpCode,
         otpExpiresAt,
+        referralCode: normalizedReferralCode,
       },
     });
 
@@ -191,7 +203,7 @@ const resendRegistrationOtp = async (req, res) => {
 
 const verifyRegistration = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email, otp, referralCode: referralCodeBodyRaw } = req.body;
 
     const pending = await prisma.pendingRegistration.findUnique({
       where: { email },
@@ -226,22 +238,70 @@ const verifyRegistration = async (req, res) => {
 
     const slug = await generateUniqueUserSlug(prisma, pending.username);
     const gigAccountNumber = await generateGigAccountNumber();
-    const newUser = await prisma.user.create({
-      data: {
-        slug,
-        email: pending.email,
-        username: pending.username,
-        password: pending.password,
-        fullName: pending.fullName,
-        school: pending.school,
-        matricNumber: pending.matricNumber,
-        whatsapp: pending.whatsapp ? normalizeWhatsapp(pending.whatsapp) : null,
-        bio: pending.bio,
-        role: pending.role,
-        isVerified: true,
-        gigAccountNumber,
-      },
+    const { normalizeReferralCode, resolveReferralCode, generateReferralCode } = require("../utils/referral");
+    let referrer = null;
+    const referralCodeToResolve = normalizeReferralCode(referralCodeBodyRaw) || pending.referralCode;
+    if (referralCodeToResolve) {
+      const norm = normalizeReferralCode(referralCodeToResolve);
+      if (norm) {
+        referrer = await resolveReferralCode(norm);
+        if (referralCodeBodyRaw && !referrer) return res.status(400).json({ error: "Invalid referral code" });
+        if (referrer && referrer.email.toLowerCase() === pending.email.toLowerCase()) return res.status(400).json({ error: "You cannot refer yourself" });
+        if (referrer) {
+          const existingReferral = await prisma.referral.findUnique({ where: { referredId: referrer.id } }).catch(() => null);
+          void existingReferral;
+        }
+      }
+    }
+    const referralCodeForNewUser = await generateReferralCode();
+    const commissionEndAt = new Date();
+    commissionEndAt.setMonth(commissionEndAt.getMonth() + config.referral.durationMonths);
+    const newUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          slug,
+          email: pending.email,
+          username: pending.username,
+          password: pending.password,
+          fullName: pending.fullName,
+          school: pending.school,
+          matricNumber: pending.matricNumber,
+          whatsapp: pending.whatsapp ? normalizeWhatsapp(pending.whatsapp) : null,
+          bio: pending.bio,
+          role: pending.role,
+          isVerified: true,
+          gigAccountNumber,
+          referralCode: referralCodeForNewUser,
+        },
+      });
+      if (referrer) {
+        try {
+          await tx.referral.create({
+            data: {
+              referrerId: referrer.id,
+              referredId: user.id,
+              referralCode: referrer.referralCode,
+              commissionStartAt: new Date(),
+              commissionEndAt,
+              status: "ACTIVE",
+            },
+          });
+          await tx.notification.create({ data: { userId: referrer.id, actorId: user.id, type: "REFERRAL_NEW_USER" } }).catch(() => {});
+        } catch (e) {
+          if (e.code !== "P2002") throw e;
+        }
+      }
+      await tx.pendingRegistration.delete({ where: { email } }).catch(() => {});
+      return user;
     });
+    if (referrer) {
+      try {
+        const { sendPushToUser } = require("../utils/push");
+        const { emitNotification } = require("../realtime");
+        sendPushToUser(prisma, referrer.id, { title: "You referred a new user", body: `@${pending.username} just signed up with your referral`, url: "/referrals", tag: `referral-new-${newUser.id}` }).catch(() => {});
+        emitNotification(referrer.id, { type: "REFERRAL_NEW_USER" });
+      } catch {}
+    }
 
     // Admin bell: new user signed up (Wayfinder admin signal) + push
     try {
@@ -250,7 +310,6 @@ const verifyRegistration = async (req, res) => {
         await prisma.notification.createMany({
           data: admins.map((a) => ({ userId: a.id, actorId: newUser.id, type: "NEW_USER" })),
         });
-        // push to admins (even when PWA closed) — keep FAVORITE/NEW_LISTING/MESSAGE as is
         try {
           const { emitNotification } = require("../realtime");
           const { sendPushToUser } = require("../utils/push");
@@ -273,8 +332,6 @@ const verifyRegistration = async (req, res) => {
     } catch (e) {
       console.error("[ADMIN NOTIF NEW_USER ERROR]", e.message);
     }
-
-    await prisma.pendingRegistration.delete({ where: { email } });
 
     return res.status(200).json({
       message: "Email verified successfully ✅ You can now log in.",
@@ -341,7 +398,7 @@ const login = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 const getMe = async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
         id: true,
@@ -357,6 +414,8 @@ const getMe = async (req, res) => {
         isVerified: true,
         role: true,
         tokenBalance: true,
+        gigBalance: true,
+        referralCode: true,
         aiUsesRemaining: true,
         numberViewsRemaining: true,
         createdAt: true,
@@ -366,6 +425,18 @@ const getMe = async (req, res) => {
     });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
+    }
+    if (!user.referralCode) {
+      try {
+        const { generateReferralCode } = require("../utils/referral");
+        const code = await generateReferralCode();
+        const updated = await prisma.user.updateMany({ where: { id: user.id, referralCode: null }, data: { referralCode: code } });
+        if (updated.count === 1) user.referralCode = code;
+        else {
+          const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { referralCode: true } });
+          if (fresh?.referralCode) user.referralCode = fresh.referralCode;
+        }
+      } catch {}
     }
 
      const { listings, ...userFields } = user;

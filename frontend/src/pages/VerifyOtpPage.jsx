@@ -57,7 +57,9 @@ const VerifyOtpPage = () => {
 
     try {
       if (isPreLogin) {
-        await api.post("/auth/verify-registration", { email: preLoginEmail, otp });
+        const referralCode = localStorage.getItem("tt_referral") || undefined;
+        await api.post("/auth/verify-registration", { email: preLoginEmail, otp, referralCode });
+        localStorage.removeItem("tt_referral");
         navigate("/login", { replace: true, state: { emailVerified: true } });
       } else {
         await verifyEmail(otp);

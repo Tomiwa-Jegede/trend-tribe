@@ -143,6 +143,7 @@ const completeServiceBooking = async (req, res) => {
       if (releaseOk.count === 0) return { released: false }; // already released by the other request
       await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
       await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_PAYOUT", title: "Service completed — payout", body: `Credit: ₦${(booking.amount/100).toLocaleString()} escrow released for booking #${id} — credited to Gig wallet.`, meta: { bookingId: id }, tx });
+      try { const { maybeCreditReferral } = require("../utils/referral"); await maybeCreditReferral({ referredId: booking.providerId, transactionType: "SERVICE", transactionId: String(id), amountKobo: booking.amount, tx }); } catch (e) { console.warn("[REFERRAL SERVICE CREDIT FAIL]", e.message); }
       return { released: true };
     });
 

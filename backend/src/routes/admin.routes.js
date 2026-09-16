@@ -9,7 +9,13 @@ const config = require("../config/env");
 const { sendWeeklyEmail } = require("../scripts/sendWeeklyEmail");
 const { sendInboxEmail } = require("../utils/email");
 
+const { getReferralStats, listReferrals, listAllCommissions, getReferralCommissions } = require("../controllers/adminReferral.controller");
 const router = express.Router();
+
+router.get("/referrals/stats", protect, requireAdmin, getReferralStats);
+router.get("/referrals", protect, requireAdmin, listReferrals);
+router.get("/referrals/commissions", protect, requireAdmin, listAllCommissions);
+router.get("/referrals/:id/commissions", protect, requireAdmin, getReferralCommissions);
 
 router.get("/", protect, requireAdmin, (req, res) => {
   res.status(200).json({ message: "Admin access granted" });
