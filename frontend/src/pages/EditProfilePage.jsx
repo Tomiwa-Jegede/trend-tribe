@@ -135,7 +135,7 @@ const EditProfilePage = () => {
               <div className="relative flex-shrink-0">
                 <div className="w-20 h-20 rounded-full overflow-hidden bg-primary-800 flex items-center justify-center border-2 border-white/20">
                   {avatarPreview ? (
-                    <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                    <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover"  loading="lazy" decoding="async" />
                   ) : (
                     <FiUser className="w-8 h-8 text-white/50" />
                   )}

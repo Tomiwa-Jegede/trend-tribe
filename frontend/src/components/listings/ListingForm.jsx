@@ -424,7 +424,7 @@ const ListingForm = ({
                   style={{
                     objectPosition: `${formData.coverPosition?.x ?? 50}% ${formData.coverPosition?.y ?? 50}%`,
                   }}
-                />
+                 loading="lazy" decoding="async" />
 
                 {/* Drag hint */}
                 <div
@@ -503,7 +503,7 @@ const ListingForm = ({
                 className="relative aspect-square rounded-xl overflow-hidden
                            border border-gray-200 group"
               >
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                <img src={url} alt="" className="w-full h-full object-cover"  loading="lazy" decoding="async" />
                 <button
                   type="button"
                   onClick={() => removeImage(i + 1)}

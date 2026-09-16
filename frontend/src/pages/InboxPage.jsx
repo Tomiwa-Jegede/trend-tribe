@@ -48,7 +48,7 @@ const PendingChatRow = ({ listingId, otherId, otherUser, onOpen }) => {
   return (
     <div className="card p-4 cursor-pointer hover:border-primary-200 transition-colors" onClick={onOpen}>
       <div className="flex gap-3 items-center">
-        {avatar && avatar.startsWith("http") ? <img src={avatar} alt={displayName} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{displayName?.[0] || "?"}</div>}
+        {avatar && avatar.startsWith("http") ? <img src={avatar} alt={displayName} className="w-10 h-10 rounded-full object-cover"  loading="lazy" decoding="async" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{displayName?.[0] || "?"}</div>}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{displayName} · {listing?.title || `Listing #${listingId}`}</p>
           <p className="text-xs text-gray-500 truncate">No messages yet — tap to open chat</p>
@@ -464,7 +464,7 @@ const InboxPage = () => {
                 <div key={key} className={`card p-4 ${isSelected ? "ring-2 ring-primary-200" : ""}`}>
                   <div className="flex gap-3 items-center cursor-pointer" onClick={() => selectingChats ? toggleChatSelect(key) : openThread(c.listing.id, c.otherUser.id)}>
                     {selectingChats && (isSelected ? <FiCheckSquare className="w-5 h-5 text-primary-600 shrink-0" /> : <FiSquare className="w-5 h-5 text-gray-300 shrink-0" />)}
-                    {c.otherUser?.avatar ? <img src={c.otherUser.avatar} alt={c.otherUser.username} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{c.otherUser?.fullName?.[0] || c.otherUser?.username?.[0] || "?"}</div>}
+                    {c.otherUser?.avatar ? <img src={c.otherUser.avatar} alt={c.otherUser.username} className="w-10 h-10 rounded-full object-cover"  loading="lazy" decoding="async" /> : <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">{c.otherUser?.fullName?.[0] || c.otherUser?.username?.[0] || "?"}</div>}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{c.otherUser?.fullName || c.otherUser?.username} · {c.listing?.title || "Chat"}</p>
                       <p className="text-xs text-gray-500 truncate">{c.lastMessage?.body?.slice(0, 60) || "No messages"} {c.unreadCount > 0 && <span className="ml-2 bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{c.unreadCount} new</span>}</p>

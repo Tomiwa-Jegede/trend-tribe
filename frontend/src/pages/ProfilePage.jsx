@@ -198,7 +198,7 @@ const ProfilePage = () => {
                   src={seller.avatar}
                   alt={seller.fullName}
                   className="w-full h-full object-cover"
-                />
+                 loading="lazy" decoding="async" />
               ) : (
                 <FiUser className="w-8 h-8 text-primary-600" />
               )}

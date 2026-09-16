@@ -470,7 +470,7 @@ const Navbar = () => {
                       >
                         <div className="w-8 h-8 bg-sage-100 rounded-full overflow-hidden flex items-center justify-center">
                           {user?.avatar ? (
-                            <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                            <img src={user.avatar} alt={user.username} className="w-full h-full object-cover"  loading="lazy" decoding="async" />
                           ) : (
                             <FiUser className="w-4 h-4 text-primary-600" />
                           )}

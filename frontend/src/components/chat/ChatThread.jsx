@@ -309,7 +309,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
           </button>
         )}
         <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700 overflow-hidden shrink-0">
-          {displayUser?.avatar ? <img src={displayUser.avatar} alt={displayUser.username} className="w-full h-full object-cover" /> : <span>{displayUser?.fullName?.[0] || displayUser?.username?.[0] || "?"}</span>}
+          {displayUser?.avatar ? <img src={displayUser.avatar} alt={displayUser.username} className="w-full h-full object-cover"  loading="lazy" decoding="async" /> : <span>{displayUser?.fullName?.[0] || displayUser?.username?.[0] || "?"}</span>}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 flex items-center gap-2 truncate">
@@ -321,7 +321,7 @@ export default function ChatThread({ listingId, withUser, onClose }) {
       </div>
       {product && (
         <Link to={`/listings/${product.slug || product.id}`} className="mx-4 mt-3 p-3 bg-white border border-gray-200 rounded-xl flex gap-3 items-center hover:border-primary-200 transition-colors shrink-0">
-          {product.images?.[0] ? <img src={product.images[0]} alt={product.title} className="w-14 h-14 rounded-lg object-cover" /> : <div className="w-14 h-14 bg-gray-100 rounded-lg" />}
+          {product.images?.[0] ? <img src={product.images[0]} alt={product.title} className="w-14 h-14 rounded-lg object-cover"  loading="lazy" decoding="async" /> : <div className="w-14 h-14 bg-gray-100 rounded-lg" />}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{product.title}</p>
             <p className="text-xs text-primary-600">₦{Number(product.price).toLocaleString()} · Tap to view product →</p>

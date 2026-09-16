@@ -322,7 +322,7 @@ const FrederickWidget = () => {
               src="/jegede.jpeg"
               alt="Jegede"
               className="w-full h-full rounded-full object-cover relative z-10"
-            />
+             loading="lazy" decoding="async" />
           )}
           <div
             className="pointer-events-none absolute inset-0 rounded-full"
@@ -389,7 +389,7 @@ const FrederickWidget = () => {
                         src={m.imagePreview}
                         alt="Sent attachment"
                         className="mb-1 max-h-32 rounded-lg object-cover"
-                      />
+                       loading="lazy" decoding="async" />
                     )}
                     <p className="whitespace-pre-line">{m.text}</p>
                     {m.jegedeBriefing && (
@@ -435,7 +435,7 @@ const FrederickWidget = () => {
                           >
                             <div className="w-10 h-10 rounded-md bg-sage-100 overflow-hidden flex-shrink-0">
                               {p.image && (
-                                <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
+                                <img src={p.image} alt={p.title} className="w-full h-full object-cover"  loading="lazy" decoding="async" />
                               )}
                             </div>
                             <div className="min-w-0">
@@ -481,7 +481,7 @@ const FrederickWidget = () => {
                     src={pendingImagePreview}
                     alt="Attached preview"
                     className="h-14 w-14 rounded-lg object-cover border border-sage-200"
-                  />
+                   loading="lazy" decoding="async" />
                   <button
                     type="button"
                     onClick={clearPendingImage}
