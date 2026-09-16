@@ -68,7 +68,7 @@ const ReferralPage = () => {
     <div className="max-w-3xl mx-auto p-4 md:p-6 flex flex-col gap-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Referrals</h1>
+          <h1 className="text-2xl font-bold">Refer and Earn</h1>
           <InfoModal title="How referrals work">
             <p><span className="font-semibold text-gray-900">1. Get your code/link.</span> Everyone has a code like <span className="font-mono bg-gray-100 px-1 rounded">K8P2QX</span> and a link like <span className="font-mono text-xs break-all">trendtribe.app/signup?ref=K8P2QX</span>. You can also set your own code (4–12 letters/numbers, e.g. <span className="font-mono bg-gray-100 px-1 rounded">TOMIWA01</span>) with Edit code.</p>
             <p><span className="font-semibold text-gray-900">2. Share it.</span> Send the link to friends. They must open your link and sign up with it. One person = one referrer forever. You can’t refer yourself and you can’t change who referred you later.</p>
