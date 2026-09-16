@@ -29,12 +29,12 @@ const PricingPage = () => {
     setBuyingGig(qty);
     setErr("");
     try {
-      const { data } = await api.post("/payments/buy-with-gig", { quantity: qty });
+      const { data } = await api.post("/payments/buy-with-task", { quantity: qty });
       // refresh auth user tokenBalance/gigBalance
       window.location.reload();
       // toast handled, but reload will show new balance
     } catch (e) {
-      setErr(e.response?.data?.error || "Could not buy with Gig balance.");
+      setErr(e.response?.data?.error || "Could not buy with TrendTribe Wallet balance.");
     } finally {
       setBuyingGig(null);
     }
@@ -80,7 +80,7 @@ const PricingPage = () => {
         <h2 className="text-gray-900 text-center">Buy tokens</h2>
         {err && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mt-4 text-sm text-center">{err}</div>}
         {isAuthenticated && gigBalance !== null && (
-          <p className="text-sm text-center mt-4 text-gray-600">Gig wallet: <span className="font-bold text-indigo-700">₦{(gigBalance/100).toLocaleString()}</span> · 1 token = ₦200 — you can pay directly with Gig balance, no card.</p>
+          <p className="text-sm text-center mt-4 text-gray-600">TrendTribe Wallet: <span className="font-bold text-indigo-700">₦{(gigBalance/100).toLocaleString()}</span> · 1 token = ₦200 — you can pay directly with TrendTribe Wallet balance, no card.</p>
         )}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mt-6">
           {PACKAGES.map((p) => {
@@ -104,10 +104,10 @@ const PricingPage = () => {
                   onClick={() => handleBuyWithGig(p.qty)}
                   disabled={buying !== null || buyingGig !== null || !canGig}
                   className={`mt-2 w-full font-bold px-4 py-2.5 rounded-2xl text-sm flex items-center justify-center gap-2 border disabled:opacity-60 ${canGig ? "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100" : "bg-gray-50 border-gray-200 text-gray-400"}`}
-                  title={canGig ? `Pay ₦${p.price.toLocaleString()} from Gig wallet` : `Need ₦${p.price.toLocaleString()} in Gig wallet — you have ₦${((gigBalance||0)/100).toLocaleString()}`}
+                  title={canGig ? `Pay ₦${p.price.toLocaleString()} from TrendTribe Wallet` : `Need ₦${p.price.toLocaleString()} in TrendTribe Wallet — you have ₦${((gigBalance||0)/100).toLocaleString()}`}
                 >
                   <FiZap className="w-4 h-4" />
-                  {buyingGig === p.qty ? "Buying..." : canGig ? `Pay with Gig` : `Need ₦${p.price.toLocaleString()} in Gig`}
+                  {buyingGig === p.qty ? "Buying..." : canGig ? `Pay with TrendTribe Wallet` : `Need ₦${p.price.toLocaleString()} in TrendTribe Wallet`}
                 </button>
               )}
             </div>

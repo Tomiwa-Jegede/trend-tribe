@@ -88,11 +88,11 @@ export default function GigWalletPage() {
       const ledger = (walletHist.transactions || []).map(tx => {
         const isCredit = tx.direction === "CREDIT";
         const labelMap = {
-          GIG_CREATE: "Gig escrow held",
-          GIG_PAYOUT: "Gig payout",
-          GIG_CANCEL_REFUND: "Gig cancel refund",
-          GIG_EXPIRED_REFUND: "Expired gig refund",
-          GIG_AUTO_RELEASE: "Gig auto-release",
+          GIG_CREATE: "Task escrow held",
+          GIG_PAYOUT: "Task payout",
+          GIG_CANCEL_REFUND: "Task cancel refund",
+          GIG_EXPIRED_REFUND: "Expired task refund",
+          GIG_AUTO_RELEASE: "Task auto-release",
           GIG_DISPUTE_REFUND: "Dispute refund",
           GIG_DISPUTE_RELEASE: "Dispute release",
           GIG_DISPUTE_SPLIT: "Dispute split",
@@ -235,7 +235,7 @@ export default function GigWalletPage() {
     canvas.width = 800; canvas.height = 500;
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#0F1F3D"; ctx.fillRect(0,0,800,500);
-    ctx.fillStyle = "#ffffff"; ctx.font = "bold 32px sans-serif"; ctx.fillText("Trend Tribe — Gig Transfer Receipt", 40, 60);
+    ctx.fillStyle = "#ffffff"; ctx.font = "bold 32px sans-serif"; ctx.fillText("Trend Tribe — Transfer Receipt", 40, 60);
     ctx.font = "20px sans-serif"; ctx.fillText(`Amount: ₦${transferResult.amount.toLocaleString()}`, 40, 140);
     ctx.fillText(`Fee (1%): ₦${(transferResult.fee/100).toFixed(2)}`, 40, 180);
     ctx.fillText(`To: ${transferResult.recipient.fullName} @${transferResult.recipient.username}`, 40, 220);
@@ -261,17 +261,17 @@ export default function GigWalletPage() {
 
   return (
     <div className="container-app py-6 sm:py-8 max-w-lg lg:max-w-2xl mx-auto">
-      <Helmet><title>Gig Wallet — Trend Tribe</title></Helmet>
+      <Helmet><title>TrendTribe Wallet — Trend Tribe</title></Helmet>
 
       <div className="flex items-center gap-2 mb-6">
-        <h1 className="text-2xl font-extrabold text-gray-900">Gig Wallet</h1>
-        <InfoModal title="How Gig Wallet works">
-          <p>Your Gig Wallet is Naira (kobo), separate but you can convert directly to tokens.</p>
+        <h1 className="text-2xl font-extrabold text-gray-900">TrendTribe Wallet</h1>
+        <InfoModal title="How TrendTribe Wallet works">
+          <p>Your TrendTribe Wallet is Naira (kobo), separate but you can convert directly to tokens.</p>
           <ul className="list-disc ml-5">
-            <li><b>Top up</b> adds Naira to your Gig balance (buyable via Flutterwave).</li>
-            <li><b>Transfer</b> to another 10-digit Gig account is instant — enter account, see name, enter amount, enter PIN.</li>
+            <li><b>Top up</b> adds Naira to your TrendTribe Wallet balance (buyable via Flutterwave).</li>
+            <li><b>Transfer</b> to another 10-digit TrendTribe Wallet account is instant — enter account, see name, enter amount, enter PIN.</li>
             <li><b>Withdraw</b> to your bank needs your PIN and admin approval — money is sent via Flutterwave to your saved bank.</li>
-            <li><b>Buy tokens</b> with Gig Naira instantly — ₦200/token, no card needed (uses Gig balance directly).</li>
+            <li><b>Buy tokens</b> with TrendTribe Wallet Naira instantly — ₦200/token, no card needed (uses TrendTribe Wallet balance directly).</li>
           </ul>
         </InfoModal>
       </div>
@@ -365,7 +365,7 @@ export default function GigWalletPage() {
             return (
               <div className={`rounded-xl px-3 py-2.5 text-[13px] border ${enough ? "bg-amber-50 border-amber-200 text-amber-900" : "bg-red-50 border-red-200 text-red-700"}`}>
                 <p className="font-bold">Total to be deducted: {formatNaira(total)} <span className="font-normal text-xs">({formatNaira(amt*100)} + fee {formatNaira(fee)}{isAdmin ? " — admin free" : ""} = {formatNaira(total)})</span></p>
-                <p className="text-xs mt-1">Gig balance: {formatNaira(balance)} → after: <span className={enough ? "font-bold" : "font-bold text-red-700"}>{formatNaira(balance - total)}</span> {enough ? "" : "· Insufficient"}</p>
+                <p className="text-xs mt-1">TrendTribe Wallet balance: {formatNaira(balance)} → after: <span className={enough ? "font-bold" : "font-bold text-red-700"}>{formatNaira(balance - total)}</span> {enough ? "" : "· Insufficient"}</p>
               </div>
             );
           })()}
@@ -412,25 +412,25 @@ export default function GigWalletPage() {
         )}
       </div>
 
-      {/* ── Buy tokens directly with Gig balance — instant, no card ── */}
+      {/* ── Buy tokens directly with TrendTribe Wallet balance — instant, no card ── */}
       <div className="mt-4 card p-4 border border-indigo-100 bg-indigo-50/50">
-        <p className="text-sm font-bold text-indigo-900">Buy tokens with Gig balance</p>
-        <p className="text-xs text-gray-500 mt-1">1 token = ₦200 · Instant from Gig Naira, no Flutterwave. Balance: <span className="font-bold text-indigo-700">{formatNaira(balance)}</span></p>
+        <p className="text-sm font-bold text-indigo-900">Buy tokens with TrendTribe Wallet</p>
+        <p className="text-xs text-gray-500 mt-1">1 token = ₦200 · Instant from TrendTribe Wallet Naira, no Flutterwave. Balance: <span className="font-bold text-indigo-700">{formatNaira(balance)}</span></p>
         <div className="flex flex-col sm:flex-row gap-2 mt-3">
           <input type="number" min="1" value={tokenQty} onChange={e=>setTokenQty(e.target.value.replace(/\D/g,""))} placeholder="Qty (e.g. 5)" className="input-field flex-1 text-sm" />
           <button disabled={buyingTokens || !tokenQty} onClick={async()=>{
             const qty = parseInt(tokenQty,10);
             if (!qty || qty<1) return toast.error("Enter quantity ≥1");
             const cost = qty*200;
-            if (qty*200*100 > balance) return toast.error(`Need ₦${cost.toLocaleString()} in Gig wallet — you have ${formatNaira(balance)}`);
-            if (!confirm(`Buy ${qty} token${qty!==1?"s":""} for ₦${cost.toLocaleString()}?\n\n₦${cost.toLocaleString()} will be debited from your Gig wallet and ${qty} token${qty!==1?"s":""} credited instantly.\n\nContinue?`)) return;
+            if (qty*200*100 > balance) return toast.error(`Need ₦${cost.toLocaleString()} in TrendTribe Wallet — you have ${formatNaira(balance)}`);
+            if (!confirm(`Buy ${qty} token${qty!==1?"s":""} for ₦${cost.toLocaleString()}?\n\n₦${cost.toLocaleString()} will be debited from your TrendTribe Wallet and ${qty} token${qty!==1?"s":""} credited instantly.\n\nContinue?`)) return;
             setBuyingTokens(true);
-            try { const { data } = await api.post("/payments/buy-with-gig", { quantity: qty }); toast.success(data.message || `${qty} token(s) credited`); setTokenQty(""); fetchAll(); } catch(e){ toast.error(e.response?.data?.error || "Could not buy tokens"); } finally { setBuyingTokens(false); }
+            try { const { data } = await api.post("/payments/buy-with-task", { quantity: qty }); toast.success(data.message || `${qty} token(s) credited`); setTokenQty(""); fetchAll(); } catch(e){ toast.error(e.response?.data?.error || "Could not buy tokens"); } finally { setBuyingTokens(false); }
           }} className="btn-primary px-5 py-2 text-sm disabled:opacity-60 whitespace-nowrap">
             {buyingTokens ? "Buying..." : tokenQty ? `Buy ${tokenQty} for ₦${(parseInt(tokenQty||0)*200).toLocaleString()}` : "Buy tokens"}
           </button>
         </div>
-        {tokenQty && parseInt(tokenQty,10)>=1 && <p className="text-[11px] text-gray-500 mt-1">Cost: ₦{(parseInt(tokenQty,10)*200).toLocaleString()} will be debited from Gig wallet, tokens added instantly.</p>}
+        {tokenQty && parseInt(tokenQty,10)>=1 && <p className="text-[11px] text-gray-500 mt-1">Cost: ₦{(parseInt(tokenQty,10)*200).toLocaleString()} will be debited from TrendTribe Wallet, tokens added instantly.</p>}
       </div>
 
       {/* ── Recent transactions — inline, scrollable ── */}

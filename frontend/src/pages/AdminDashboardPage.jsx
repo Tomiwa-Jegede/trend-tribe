@@ -336,12 +336,12 @@ const AdminDashboardPage = () => {
                 <InfoModal title="What each profit means (simple English)">
                   <p className="text-sm text-gray-600 mb-2">This is money Trend Tribe keeps as platform fee. Not user balance.</p>
                   <ul className="list-disc ml-5 space-y-2 text-sm">
-                    <li><b>Gig Confirm 20%</b> — When you confirm a gig is done, worker gets 80%, you keep 20%. Example: ₦1000 gig → ₦800 to worker, <b>₦200 profit</b>.</li>
-                    <li><b>Gig Cancel 5%</b> — When poster cancels before anyone claims, 95% goes back, you keep 5%. Example: ₦1000 gig → <b>₦50 profit</b>.</li>
+                    <li><b>Task Confirm 20%</b> — When you confirm a task is done, worker gets 80%, you keep 20%. Example: ₦1000 task → ₦800 to worker, <b>₦200 profit</b>.</li>
+                    <li><b>Task Cancel 5%</b> — When poster cancels before anyone claims, 95% goes back, you keep 5%. Example: ₦1000 task → <b>₦50 profit</b>.</li>
                     <li><b>Service Confirm 20%</b> — When provider confirms a service booking, provider pays 20% of the service price. Example: ₦5000 service → <b>₦1000 profit</b>.</li>
-                    <li><b>Gig Transfer 1%</b> — When user sends Gig Naira to another user (10-digit account), you keep 1%. Example: send ₦1000 → <b>₦10 profit</b>.</li>
-                    <li><b>Gig Withdraw 1%</b> — When user withdraws to bank (Kuda/OPay), you keep 1%. Example: withdraw ₦1000 → <b>₦10 profit</b> (user already debited ₦1010).</li>
-                    <li><b>Token Sold</b> — When someone buys tokens with card or Gig balance, you keep all. Example: 5 tokens × ₦200 = <b>₦1000 profit</b>.</li>
+                    <li><b>Wallet Transfer 1%</b> — When user sends TrendTribe Wallet Naira to another user (10-digit account), you keep 1%. Example: send ₦1000 → <b>₦10 profit</b>.</li>
+                    <li><b>Wallet Withdraw 1%</b> — When user withdraws to bank (Kuda/OPay), you keep 1%. Example: withdraw ₦1000 → <b>₦10 profit</b> (user already debited ₦1010).</li>
+                    <li><b>Token Sold</b> — When someone buys tokens with card or TrendTribe Wallet balance, you keep all. Example: 5 tokens × ₦200 = <b>₦1000 profit</b>.</li>
                   </ul>
                   <p className="text-xs text-gray-400 mt-3">Total combined = all above added. Today/7d shows recent earnings.</p>
                 </InfoModal>
@@ -358,13 +358,13 @@ const AdminDashboardPage = () => {
                       <p className="text-xs text-gray-400">{s.count} ×</p>
                     </div>
                   ))}
-                  {profit.bySource.length===0 && <p className="text-sm text-gray-400 col-span-6">No profits yet — gig confirm/cancel/service/transfer/withdraw/token will appear here</p>}
+                  {profit.bySource.length===0 && <p className="text-sm text-gray-400 col-span-6">No profits yet — task confirm/cancel/service/transfer/withdraw/token will appear here</p>}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mt-4 pt-4 border-t border-sage-100">
                   <div><p className="text-xs text-gray-400">Token sold</p><p className="font-bold text-navy-900">{profit.tokenSold.quantity} tokens · {formatNaira(profit.tokenSold.grossKobo)}</p><p className="text-[11px] text-gray-400">{profit.tokenSold.count} purchases</p></div>
                   <div><p className="text-xs text-gray-400">Today</p><p className="font-bold text-navy-900">{formatNaira(profit.today.grossKobo)}</p><p className="text-[11px] text-gray-400">{profit.today.count} events</p></div>
                   <div><p className="text-xs text-gray-400">Last 7d</p><p className="font-bold text-navy-900">{formatNaira(profit.last7d.grossKobo)}</p></div>
-                  <div><p className="text-xs text-gray-400">Total combined</p><p className="font-bold text-indigo-700 text-base">{formatNaira(profit.totalGrossKobo)}</p><p className="text-[11px] text-gray-400">gig cancel + confirm + service + transfer + withdraw + token</p></div>
+                  <div><p className="text-xs text-gray-400">Total combined</p><p className="font-bold text-indigo-700 text-base">{formatNaira(profit.totalGrossKobo)}</p><p className="text-[11px] text-gray-400">task cancel + confirm + service + transfer + withdraw + token</p></div>
                 </div>
               </>
             ) : profitError ? <p className="text-sm text-red-500">{profitError}</p> : <div className="flex items-center gap-2 text-sm text-gray-500"><MiniSpinner size={14}/> Loading profit…</div>}

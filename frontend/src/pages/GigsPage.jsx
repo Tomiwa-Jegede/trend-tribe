@@ -33,7 +33,7 @@ export default function GigsPage() {
       ]);
       setGigs(feed.gigs || []);
       setMy(mine);
-    } catch (e) { toast.error(e.response?.data?.error || "Failed to load gigs"); }
+    } catch (e) { toast.error(e.response?.data?.error || "Failed to load tasks"); }
     finally { setLoading(false); }
   };
   useEffect(() => { fetch(); }, []);
@@ -46,11 +46,11 @@ export default function GigsPage() {
     setSubmitting(true);
     try {
       await createGig({ description: form.description, whatsapp: form.whatsapp, amount: parseInt(form.amount,10), timerHours: parseInt(form.timerHours,10)||24 });
-      toast.success("Gig posted — escrow locked.");
+      toast.success("Task posted — escrow locked.");
       setForm({ description: "", whatsapp: user?.whatsapp||"", amount: "", timerHours: 24 });
       setShowPost(false);
       fetch();
-    } catch (err) { toast.error(err.response?.data?.error || "Could not post gig"); }
+    } catch (err) { toast.error(err.response?.data?.error || "Could not post task"); }
     finally { setSubmitting(false); }
   };
 
@@ -61,14 +61,14 @@ export default function GigsPage() {
     const g = gigs.find(x=>x.id===id) || my?.posted?.find(x=>x.id===id);
     const fee = g ? Math.floor(g.amount*0.2) : 0;
     const pay = g ? g.amount - fee : 0;
-    if (!confirm(`Confirm gig "${g?.description?.slice(0,40)||id}"?\n\n80% ₦${(pay/100).toLocaleString()} will be sent to claimer\n20% fee ₦${(fee/100).toLocaleString()} retained by platform\n\nContinue?`)) return;
+    if (!confirm(`Confirm task "${g?.description?.slice(0,40)||id}"?\n\n80% ₦${(pay/100).toLocaleString()} will be sent to claimer\n20% fee ₦${(fee/100).toLocaleString()} retained by platform\n\nContinue?`)) return;
     try { const r=await confirmGig(id); toast.success(r.message); fetch(); } catch(e){ toast.error(e.response?.data?.error||"Confirm failed"); }
   };
   const handleCancel = async (id) => {
     const g = gigs.find(x=>x.id===id) || my?.posted?.find(x=>x.id===id);
     const fee = g ? Math.floor(g.amount*0.05) : 0;
     const refund = g ? g.amount - fee : 0;
-    if(!confirm(`Cancel gig "${g?.description?.slice(0,40)||id}"?\n\n5% fee ₦${(fee/100).toLocaleString()} will be kept\n95% refund ₦${(refund/100).toLocaleString()} to your Gig wallet\n\nContinue?`)) return;
+    if(!confirm(`Cancel task "${g?.description?.slice(0,40)||id}"?\n\n5% fee ₦${(fee/100).toLocaleString()} will be kept\n95% refund ₦${(refund/100).toLocaleString()} to your TrendTribe Wallet\n\nContinue?`)) return;
     try{ const r=await cancelGig(id); toast.success(r.message); fetch(); }catch(e){ toast.error(e.response?.data?.error||"Cancel failed"); }
   };
   const [disputeId, setDisputeId] = useState(null);
@@ -86,12 +86,12 @@ export default function GigsPage() {
 
   return (
     <div className="container-app py-6 sm:py-8">
-      <Helmet><title>Gigs — Trend Tribe</title></Helmet>
+      <Helmet><title>Tasks — Trend Tribe</title></Helmet>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Gigs</h1>
-            <InfoModal title="How Gigs work">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Tasks</h1>
+            <InfoModal title="How Tasks work">
               <p>Post a task, someone claims it, you confirm when done.</p>
               <ul className="list-disc ml-5">
                 <li><b>Post:</b> Your Naira is held safely (escrow) — not sent yet.</li>
@@ -101,12 +101,12 @@ export default function GigsPage() {
                 <li><b>Timer:</b> If no one claims before the timer ends, it expires — you can renew or get a full refund.</li>
                 <li><b>Auto-release:</b> If claimed but you don't confirm in 72h, it auto-pays the claimer.</li>
               </ul>
-              <p>Your Gig wallet is separate from marketplace tokens — no mixing.</p>
+              <p>Your TrendTribe Wallet is separate from marketplace tokens — no mixing.</p>
             </InfoModal>
           </div>
           {my && <p className="text-xs text-gray-500 mt-1">Posted {my.posted?.length||0} · Claimed {my.claimed?.length||0}</p>}
         </div>
-        <button onClick={()=>setShowPost(v=>!v)} className="btn-primary px-6 py-3 rounded-2xl text-sm font-bold">Post Gig</button>
+        <button onClick={()=>setShowPost(v=>!v)} className="btn-primary px-6 py-3 rounded-2xl text-sm font-bold">Post Task</button>
       </div>
 
 
@@ -118,7 +118,7 @@ export default function GigsPage() {
               <FiPlus className="w-4 h-4 text-primary-600" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-sm">Post a Gig</h3>
+              <h3 className="font-bold text-gray-900 text-sm">Post a Task</h3>
               <p className="text-xs text-gray-500">Describe the task, set the price, and escrow locks it instantly.</p>
             </div>
           </div>
@@ -128,7 +128,7 @@ export default function GigsPage() {
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700">WhatsApp for this gig</label>
+              <label className="text-xs font-semibold text-gray-700">WhatsApp for this task</label>
               <input value={form.whatsapp} onChange={e=>setForm(f=>({...f, whatsapp:e.target.value}))} placeholder="080..." className="input-field mt-1.5" />
             </div>
             <div>
@@ -141,13 +141,13 @@ export default function GigsPage() {
             </div>
           </div>
           <button type="submit" disabled={submitting} className="w-full btn-primary py-3 rounded-full text-sm font-bold disabled:opacity-60">
-            {submitting?"Posting...":"Post Gig — lock escrow"}
+            {submitting?"Posting...":"Post Task — lock escrow"}
           </button>
         </form>
       )}
 
       <div data-gigs-feed />
-      {loading ? <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div> : gigs.length===0 ? <div className="text-center py-16 card text-gray-500">No open gigs — post one.</div> : (
+      {loading ? <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div> : gigs.length===0 ? <div className="text-center py-16 card text-gray-500">No open tasks — post one.</div> : (
         <div className="grid gap-4">
           {gigs.map(g=> (
             <div key={g.id} className="card p-4">

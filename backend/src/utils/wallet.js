@@ -50,7 +50,7 @@ async function recordWalletMovement({ userId, direction, amount, fee = 0, type, 
     try {
       const { sendPushToUser } = require("./push");
       const { emitNotification, isOnline } = require("../realtime");
-      const pushTitle = direction === "CREDIT" ? `Gig Wallet — Credit: ${formatNaira(amount)}` : `Gig Wallet — Debit: ${formatNaira(total)}`;
+      const pushTitle = direction === "CREDIT" ? `TrendTribe Wallet — Credit: ${formatNaira(amount)}` : `TrendTribe Wallet — Debit: ${formatNaira(total)}`;
       if (!isOnline(userId)) sendPushToUser(prisma, userId, { title: pushTitle, body: body.slice(0, 120), url: "/gigs/wallet", tag: `gig-wallet-${Date.now()}-${userId}` }).catch(() => {});
       try { emitNotification(userId, { type: specificType }); } catch {}
     } catch {}
@@ -81,7 +81,7 @@ async function recordWalletMovement({ userId, direction, amount, fee = 0, type, 
     try {
       const { sendPushToUser } = require("./push");
       const { emitNotification, isOnline } = require("../realtime");
-      const pushTitle = direction === "CREDIT" ? `Gig Wallet — Credit: ${formatNaira(amount)}` : `Gig Wallet — Debit: ${formatNaira(total)}`;
+      const pushTitle = direction === "CREDIT" ? `TrendTribe Wallet — Credit: ${formatNaira(amount)}` : `TrendTribe Wallet — Debit: ${formatNaira(total)}`;
       if (!isOnline(userId)) sendPushToUser(prisma, userId, { title: pushTitle, body: body.slice(0, 120), url: "/gigs/wallet", tag: `gig-wallet-${Date.now()}-${userId}` }).catch(() => {});
       try { emitNotification(userId, { type: specificType }); } catch {}
     } catch {}

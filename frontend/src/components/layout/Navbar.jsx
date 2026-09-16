@@ -403,12 +403,12 @@ const Navbar = () => {
                       transition={{ duration: 0.18 }}
                       className="absolute top-8 left-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-56 z-50"
                     >
-                      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Gigs</p>
+                      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Tasks</p>
                       <Link to="/gigs?view=post" onClick={() => setShowGigsMenu(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                        Post Gig
+                        Post Task
                       </Link>
                       <Link to="/gigs/available" onClick={() => setShowGigsMenu(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                        <span>Available Gigs</span>
+                        <span>Available Tasks</span>
                         {availableGigsCount > 0 && (
                           <span className="bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                             {availableGigsCount > 99 ? "99+" : availableGigsCount}
@@ -614,9 +614,9 @@ const Navbar = () => {
                       exit={{ opacity: 0, height: 0 }}
                       className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
                     >
-                      <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase pt-1">Gigs</p>
-                      <MobileNavLink path="/gigs?view=post" label="Post Gig" index={2} />
-                      <MobileNavLink path="/gigs/available" label="Available Gigs" index={2} />
+                      <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase pt-1">Tasks</p>
+                      <MobileNavLink path="/gigs?view=post" label="Post Task" index={2} />
+                      <MobileNavLink path="/gigs/available" label="Available Tasks" index={2} />
                       <MobileNavLink path="/gigs/wallet" label="Wallet" index={2} />
                       <div className="border-t border-gray-100 my-1" />
                       <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Bookings</p>

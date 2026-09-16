@@ -20,7 +20,7 @@ export default function GigAvailablePage() {
       const data = await getGigs({ limit: 50 });
       setGigs((data.gigs || []).filter((g) => g.status === "OPEN"));
     } catch (e) {
-      toast.error(e.response?.data?.error || "Failed to load gigs");
+      toast.error(e.response?.data?.error || "Failed to load tasks");
     } finally {
       setLoading(false);
     }
@@ -43,14 +43,14 @@ export default function GigAvailablePage() {
 
   return (
     <div className="container-app py-6 sm:py-8">
-      <Helmet><title>Available Gigs — Trend Tribe</title></Helmet>
+      <Helmet><title>Available Tasks — Trend Tribe</title></Helmet>
       <div className="flex items-center gap-2 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Available Gigs</h1>
-        <InfoModal title="How Available Gigs work">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Available Tasks</h1>
+        <InfoModal title="How Available Tasks work">
           <p>These are tasks posted by other students that no one has claimed yet.</p>
           <ul className="list-disc ml-5">
-            <li><b>Claim</b> any gig for free — you’ll get the poster’s WhatsApp to chat.</li>
-            <li>Your claim is instant, the gig disappears from this list.</li>
+            <li><b>Claim</b> any task for free — you’ll get the poster’s WhatsApp to chat.</li>
+            <li>Your claim is instant, the task disappears from this list.</li>
             <li>Do the work off-app, then the poster taps <b>Confirm</b> to release 80% of the Naira to you.</li>
             <li>If the poster never confirms in 72h, it auto-pays you.</li>
           </ul>
@@ -62,7 +62,7 @@ export default function GigAvailablePage() {
           <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : gigs.length === 0 ? (
-        <div className="text-center py-16 card text-gray-500">No open gigs right now.</div>
+        <div className="text-center py-16 card text-gray-500">No open tasks right now.</div>
       ) : (
         <div className="grid gap-4">
           {gigs.map((g) => (

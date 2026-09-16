@@ -39,11 +39,11 @@ export default function GigTransactionHistoryPage() {
         const ledger = (walletHist.transactions || []).map(tx => {
           const isCredit = tx.direction === "CREDIT";
           const labelMap = {
-            GIG_CREATE: "Gig escrow held",
-            GIG_PAYOUT: "Gig payout",
-            GIG_CANCEL_REFUND: "Gig cancel refund",
-            GIG_EXPIRED_REFUND: "Expired gig refund",
-            GIG_AUTO_RELEASE: "Gig auto-release",
+            GIG_CREATE: "Task escrow held",
+            GIG_PAYOUT: "Task payout",
+            GIG_CANCEL_REFUND: "Task cancel refund",
+            GIG_EXPIRED_REFUND: "Expired task refund",
+            GIG_AUTO_RELEASE: "Task auto-release",
             GIG_DISPUTE_REFUND: "Dispute refund",
             GIG_DISPUTE_RELEASE: "Dispute release",
             GIG_DISPUTE_SPLIT: "Dispute split",
@@ -81,7 +81,7 @@ export default function GigTransactionHistoryPage() {
   return (
     <div className="container-app py-6 sm:py-8 max-w-lg mx-auto">
       <Helmet>
-        <title>Transaction History — Gig Wallet — Trend Tribe</title>
+        <title>Transaction History — TrendTribe Wallet — Trend Tribe</title>
       </Helmet>
 
       <button

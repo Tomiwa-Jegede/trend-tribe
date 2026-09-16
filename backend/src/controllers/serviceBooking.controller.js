@@ -20,7 +20,7 @@ const bookService = async (req, res) => {
     // For SERVICES, escrow is whole amount from booker's Gig wallet (Naira kobo)
     const booker = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true } });
     if ((booker?.gigBalance || 0) < amountKobo) {
-      return res.status(402).json({ error: `Insufficient Gig balance. Need ₦${(amountKobo/100).toLocaleString()} in Gig wallet to book. You have ₦${((booker?.gigBalance||0)/100).toLocaleString()}. Please fund your Gig wallet.`, requiredKobo: amountKobo, gigBalance: booker?.gigBalance||0 });
+      return res.status(402).json({ error: `Insufficient TrendTribe Wallet balance. Need ₦${(amountKobo/100).toLocaleString()} in TrendTribe Wallet to book. You have ₦${((booker?.gigBalance||0)/100).toLocaleString()}. Please fund your TrendTribe Wallet.`, requiredKobo: amountKobo, gigBalance: booker?.gigBalance||0 });
     }
 
     const booking = await prisma.$transaction(async (tx) => {
@@ -30,7 +30,7 @@ const bookService = async (req, res) => {
         data: { listingId, bookerId: req.user.id, providerId: listing.sellerId, amount: amountKobo, status: "PENDING", expiresAt },
       });
       const { recordWalletMovement } = require("../utils/wallet");
-      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "SERVICE_BOOK", title: "Service booked — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for service booking #${b.id} — escrow from Gig wallet.`, meta: { bookingId: b.id, listingId }, tx });
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "SERVICE_BOOK", title: "Service booked — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for service booking #${b.id} — escrow from TrendTribe Wallet.`, meta: { bookingId: b.id, listingId }, tx });
       return b;
     });
 
@@ -44,7 +44,7 @@ const bookService = async (req, res) => {
       }
     } catch {}
 
-    return res.status(201).json({ booking, message: `Booked — ₦${(amountKobo/100).toLocaleString()} held from Gig wallet. Provider has 1 hour to confirm.` });
+    return res.status(201).json({ booking, message: `Booked — ₦${(amountKobo/100).toLocaleString()} held from TrendTribe Wallet. Provider has 1 hour to confirm.` });
   } catch (err) {
     if (err.message.includes("TOKEN")) return res.status(402).json({ error: "Balance changed" });
     console.error("[BOOK SERVICE ERROR]", err);
@@ -64,7 +64,7 @@ const confirmServiceBooking = async (req, res) => {
     const isAdminProvider = req.user.role === "ADMIN";
     const feeKobo = isAdminProvider ? 0 : Math.floor(booking.amount * 0.2);
     const provider = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true } });
-    if (!isAdminProvider && (provider?.gigBalance || 0) < feeKobo) return res.status(402).json({ error: `Insufficient Gig balance for 20% fee. Need ₦${(feeKobo/100).toLocaleString()} in Gig wallet. You have ₦${((provider?.gigBalance||0)/100).toLocaleString()}. Please fund your Gig wallet.`, feeKobo });
+    if (!isAdminProvider && (provider?.gigBalance || 0) < feeKobo) return res.status(402).json({ error: `Insufficient TrendTribe Wallet balance for 20% fee. Need ₦${(feeKobo/100).toLocaleString()} in TrendTribe Wallet. You have ₦${((provider?.gigBalance||0)/100).toLocaleString()}. Please fund your TrendTribe Wallet.`, feeKobo });
 
     const { recordWalletMovement } = require("../utils/wallet");
     await prisma.$transaction(async (tx) => {
@@ -78,7 +78,7 @@ const confirmServiceBooking = async (req, res) => {
         if (ok.count === 0) throw new Error("FEE_RACE");
         await tx.platformProfit.create({ data: { source: "SERVICE_CONFIRM_20", grossFee: feeKobo, netFee: feeKobo, refId: String(id), meta: { bookingId: id, listingId: booking.listingId } } });
         // ledger debit for provider fee, atomic with the deduction above — admin free skips
-        await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: feeKobo, fee: 0, type: "SERVICE_FEE", title: "Service confirm fee — 20%", body: `Debit: ₦${(feeKobo/100).toLocaleString()} fee for confirming booking #${id} — debited from Gig wallet.`, meta: { bookingId: id }, tx });
+        await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: feeKobo, fee: 0, type: "SERVICE_FEE", title: "Service confirm fee — 20%", body: `Debit: ₦${(feeKobo/100).toLocaleString()} fee for confirming booking #${id} — debited from TrendTribe Wallet.`, meta: { bookingId: id }, tx });
       }
       // Keep escrow held — do NOT refund booker yet. Booker paid at booking time, funds stay in escrow until service completed.
     });
@@ -142,7 +142,7 @@ const completeServiceBooking = async (req, res) => {
       const releaseOk = await tx.serviceBooking.updateMany({ where: { id, status: "CONFIRMED" }, data: { status: "COMPLETED" } });
       if (releaseOk.count === 0) return { released: false }; // already released by the other request
       await tx.user.update({ where: { id: booking.providerId }, data: { gigBalance: { increment: booking.amount } } });
-      await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_PAYOUT", title: "Service completed — payout", body: `Credit: ₦${(booking.amount/100).toLocaleString()} escrow released for booking #${id} — credited to Gig wallet.`, meta: { bookingId: id }, tx });
+      await recordWalletMovement({ userId: booking.providerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_PAYOUT", title: "Service completed — payout", body: `Credit: ₦${(booking.amount/100).toLocaleString()} escrow released for booking #${id} — credited to TrendTribe Wallet.`, meta: { bookingId: id }, tx });
       try { const { maybeCreditReferral } = require("../utils/referral"); await maybeCreditReferral({ referredId: booking.providerId, transactionType: "SERVICE", transactionId: String(id), amountKobo: booking.amount, tx }); } catch (e) { console.warn("[REFERRAL SERVICE CREDIT FAIL]", e.message); }
       return { released: true };
     });
@@ -231,7 +231,7 @@ const cancelServiceBooking = async (req, res) => {
       await tx.user.update({ where: { id: booking.bookerId }, data: { gigBalance: { increment: booking.amount } } });
       await recordWalletMovement({ userId: booking.bookerId, direction: "CREDIT", amount: booking.amount, fee: 0, type: "SERVICE_REFUND", title: "Booking cancelled — refund", body: `Credit: ₦${(booking.amount/100).toLocaleString()} refunded for cancelled booking #${id}.`, meta: { bookingId: id }, tx });
     });
-    return res.json({ message: `Cancelled — ₦${(booking.amount/100).toLocaleString()} refunded to your Gig wallet.` });
+    return res.json({ message: `Cancelled — ₦${(booking.amount/100).toLocaleString()} refunded to your TrendTribe Wallet.` });
   } catch (err) {
     if (err.message === "ALREADY_RESOLVED") return res.status(400).json({ error: "Booking was already confirmed, cancelled, or expired" });
     console.error("[CANCEL SERVICE BOOKING ERROR]", err);
@@ -256,7 +256,7 @@ const expireServiceBookings = async () => {
           await recordWalletMovement({ userId: b.bookerId, direction: "CREDIT", amount: b.amount, fee: 0, type: "SERVICE_EXPIRED_REFUND", title: "Booking expired — refund", body: `Credit: ₦${(b.amount/100).toLocaleString()} refunded for expired booking #${b.id} (1h).`, meta: { bookingId: b.id }, tx });
           return true;
         });
-        if (released) console.log(`[SERVICE BOOKING] Auto-expired ${b.id} after 1h — refunded to Gig wallet`);
+        if (released) console.log(`[SERVICE BOOKING] Auto-expired ${b.id} after 1h — refunded to TrendTribe Wallet`);
       } catch (e) { console.error(`[SERVICE BOOKING EXPIRE ${b.id} ERROR]`, e.message); }
     }
   } catch (e) { console.error("[SERVICE BOOKING EXPIRE ERROR]", e.message); }

@@ -31,8 +31,8 @@ const FEATURES = [
   },
   {
     icon: <FiBriefcase className="w-6 h-6 text-primary-600" />,
-    title: "Gigs, Services & Tasks",
-    desc: "Book a service, post a task, or pick up gigs on campus — get paid straight into your Gig Wallet.",
+    title: "Tasks, Services & Tasks",
+    desc: "Book a service, post a task, or pick up tasks on campus — get paid straight into your TrendTribe Wallet.",
   },
   {
     icon: <FiShield className="w-6 h-6 text-primary-600" />,
@@ -305,7 +305,7 @@ const HomePage = () => {
                 variants={reduced ? {} : fadeIn}
                 className="text-base lg:text-lg text-white/75 leading-relaxed mb-5"
               >
-                Buy and sell with students on campus, book services, post tasks, or pick up gigs and get paid straight to your wallet. 3 items free. Meet on campus. No delivery.
+                Buy and sell with students on campus, book services, post tasks, or pick up tasks and get paid straight to your wallet. 3 items free. Meet on campus. No delivery.
               </motion.p>
 
               {/* Live stats — same fadeIn + ping like Now open */}

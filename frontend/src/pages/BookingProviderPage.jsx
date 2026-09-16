@@ -27,7 +27,7 @@ export default function BookingProviderPage() {
   const handleConfirm = async (id) => {
     const b = bookings.find(x=>x.id===id);
     const fee = b ? Math.floor(b.amount*0.2) : 0;
-    if (!confirm(`Confirm booking "${b?.listing?.title||id}"?\n\n20% fee ₦${(fee/100).toLocaleString()} will be charged from your Gig wallet\nBooker gets your WhatsApp\n\nContinue?`)) return;
+    if (!confirm(`Confirm booking "${b?.listing?.title||id}"?\n\n20% fee ₦${(fee/100).toLocaleString()} will be charged from your TrendTribe Wallet\nBooker gets your WhatsApp\n\nContinue?`)) return;
     try {
       const r = await confirmServiceBooking(id);
       toast.success(r.message);
@@ -92,8 +92,8 @@ export default function BookingProviderPage() {
         <InfoModal title="How service bookings work">
           <p>Someone booked your service — you have 1 hour to act.</p>
           <ul className="list-disc ml-5">
-            <li><b>Confirm:</b> You pay a 20% fee from your Gig wallet, escrow stays held, and booker gets your WhatsApp.</li>
-            <li><b>Cancel:</b> Full refund to the booker’s Gig wallet, no fee.</li>
+            <li><b>Confirm:</b> You pay a 20% fee from your TrendTribe Wallet, escrow stays held, and booker gets your WhatsApp.</li>
+            <li><b>Cancel:</b> Full refund to the booker’s TrendTribe Wallet, no fee.</li>
             <li><b>Timer:</b> If you don’t act in 1h, it auto-cancels to avoid keeping them waiting.</li>
             <li>After Confirm, both must mark as completed to release escrow — or log dispute for admin.</li>
           </ul>

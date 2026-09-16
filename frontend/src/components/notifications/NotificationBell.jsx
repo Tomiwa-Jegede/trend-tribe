@@ -372,17 +372,17 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
                         )}
                         {["GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED"].includes(n.type) && (
                           <>
-                            <span className="font-semibold">{n.type==="GIG_TRANSFER_SENT"?"Sent":"Received"} — Gig wallet</span> <span className="block text-xs text-gray-500 mt-1">Tap to view wallet</span>
+                            <span className="font-semibold">{n.type==="GIG_TRANSFER_SENT"?"Sent":"Received"} — TrendTribe Wallet</span> <span className="block text-xs text-gray-500 mt-1">Tap to view wallet</span>
                           </>
                         )}
                         {["GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN","ADMIN_WITHDRAW_PENDING"].includes(n.type) && (
                           <>
-                            <span className="font-semibold">Gig wallet update</span> <span className="block text-xs text-gray-500 mt-1">Tap to view</span>
+                            <span className="font-semibold">TrendTribe Wallet update</span> <span className="block text-xs text-gray-500 mt-1">Tap to view</span>
                           </>
                         )}
                         {((n.type.startsWith("GIG_") || n.type.startsWith("SERVICE_") || n.type.startsWith("TOKEN_")) && (n.type.endsWith("_CREDIT") || n.type.endsWith("_DEBIT")) || ["GIG_WALLET_CREDIT","GIG_WALLET_DEBIT","GIG_TOPUP"].includes(n.type)) && !["GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN"].includes(n.type) && (
                           <>
-                            <span className="font-semibold">{n.type.includes("CREDIT") ? "Credit" : "Debit"} — Gig wallet</span> <span className="block text-xs text-gray-500 mt-1">{n.type.replaceAll("_"," ")} — tap to view wallet</span>
+                            <span className="font-semibold">{n.type.includes("CREDIT") ? "Credit" : "Debit"} — TrendTribe Wallet</span> <span className="block text-xs text-gray-500 mt-1">{n.type.replaceAll("_"," ")} — tap to view wallet</span>
                           </>
                         )}
                         {!["FAVORITE", "NEW_USER", "NEW_LISTING", "MESSAGE", "SERVICE_BOOKING", "SERVICE_CONFIRMED", "SERVICE_COMPLETED","SERVICE_DISPUTED","SERVICE_DISPUTED_ADMIN","GIG_DISPUTED_ADMIN","GIG_DISPUTED","GIG_DISPUTED_RESOLVED","SERVICE_DISPUTED_RESOLVED","GIG_TRANSFER_SENT","GIG_TRANSFER_RECEIVED","GIG_WITHDRAW_PENDING","GIG_WITHDRAW_COMPLETED","GIG_WITHDRAW_REJECTED","GIG_WITHDRAW_CANCELLED","GIG_TO_TOKEN","ADMIN_WITHDRAW_PENDING"].includes(n.type) && !n.type.startsWith("GIG_") && !n.type.startsWith("SERVICE_") && !n.type.startsWith("TOKEN_") && !["GIG_WALLET_CREDIT","GIG_WALLET_DEBIT","GIG_TOPUP"].includes(n.type) && <>{n.type}</>}

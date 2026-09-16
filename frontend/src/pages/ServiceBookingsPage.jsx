@@ -26,7 +26,7 @@ export default function ServiceBookingsPage() {
     <div className="container-app py-6 sm:py-8">
       <Helmet><title>Service Bookings — Trend Tribe</title></Helmet>
       <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Service Bookings</h1>
-      <p className="text-sm text-gray-600 mb-6">Payments held in Gig wallet — refunded if not confirmed within 1 hour.</p>
+      <p className="text-sm text-gray-600 mb-6">Payments held in TrendTribe Wallet — refunded if not confirmed within 1 hour.</p>
 
       <div className="grid md:grid-cols-2 gap-6">
         <div>
@@ -37,7 +37,7 @@ export default function ServiceBookingsPage() {
                 <div key={b.id} className="card p-4">
                   <p className="font-medium text-gray-900">{b.listing?.title} · ₦{b.listing?.price} · {b.status}</p>
                   <p className="text-xs text-gray-500">Booker @{b.booker?.username} · <FiClock className="inline w-3 h-3"/> expires {new Date(b.expiresAt).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">₦{(b.amount/100).toLocaleString()} held · 20% fee from Gig wallet on Confirm</p>
+                  <p className="text-xs text-gray-500">₦{(b.amount/100).toLocaleString()} held · 20% fee from TrendTribe Wallet on Confirm</p>
                   {b.status==="PENDING" && (
                     <div className="flex gap-2 mt-3">
                       <button onClick={()=>handleConfirm(b.id)} className="btn-primary px-4 py-1.5 text-xs"><FiCheck className="inline w-3 h-3"/> Confirm</button>

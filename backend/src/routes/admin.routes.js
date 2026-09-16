@@ -748,7 +748,7 @@ router.post("/send-weekly-email", async (req, res) => {
   }
 });
 
-// ─── Gig withdrawals — admin approve → Flutterwave transfer ──
+// ─── TrendTribe Wallet withdrawals — admin approve → Flutterwave transfer ──
 const { listGigWithdrawals, approveGigWithdrawal, rejectGigWithdrawal } = require("../controllers/gig.controller");
 router.get("/gig-withdrawals", protect, requireTopAdmin, listGigWithdrawals);
 router.get("/gig-withdrawals/export", protect, requireTopAdmin, async (req, res) => {
@@ -854,7 +854,7 @@ router.delete("/profit/clear", protect, requireTopAdmin, async (req, res) => {
   }
 });
 
-// ─── Disputes — gigs + service bookings DISPUTED ──
+// ─── Disputes — tasks + service bookings DISPUTED ──
 router.get("/disputes", protect, requireAdmin, async (req, res) => {
   try {
     const gigs = await prisma.gig.findMany({ where: { status: "DISPUTED" }, orderBy: { updatedAt: "desc" }, include: { poster: { select: { id:true, username:true, fullName:true } }, claimer: { select: { id:true, username:true, fullName:true } } } });
@@ -876,7 +876,7 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
     if (type === "gig") {
       const gigId = parseInt(id,10);
       const gig = await prisma.gig.findUnique({ where: { id: gigId } });
-      if (!gig || gig.status !== "DISPUTED") return res.status(400).json({ error: "Gig not in DISPUTED" });
+      if (!gig || gig.status !== "DISPUTED") return res.status(400).json({ error: "Task not in DISPUTED" });
       // Every branch below guards its status transition with an atomic updateMany
       // (status: "DISPUTED" in the WHERE). Previously the status check happened once,
       // outside any transaction, before three separate unguarded update blocks — an
@@ -888,7 +888,7 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
           const flip = await tx.gig.updateMany({ where: { id: gigId, status: "DISPUTED" }, data: { status: "CANCELLED" } });
           if (flip.count === 0) return false;
           await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: gig.escrowAmount } } });
-          await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_DISPUTE_REFUND", title: "Dispute resolved — refunded", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for gig #${gigId} (admin decision: refund).`, meta: { gigId }, tx });
+          await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: gig.escrowAmount, fee: 0, type: "GIG_DISPUTE_REFUND", title: "Dispute resolved — refunded", body: `Credit: ₦${(gig.escrowAmount/100).toLocaleString()} refunded for task #${gigId} (admin decision: refund).`, meta: { gigId }, tx });
           return true;
         });
         if (!ok) return res.status(400).json({ error: "Dispute was already resolved" });
@@ -902,7 +902,7 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
           if (flip.count === 0) return false;
           await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: pay } } });
           if (!isPosterAdmin) await tx.platformProfit.create({ data: { source: "GIG_CONFIRM_20", grossFee: fee, netFee: fee, refId: String(gigId), meta: { gigId, disputed: true, decision } } });
-          await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_DISPUTE_RELEASE", title: "Dispute resolved — released", body: `Credit: ₦${(pay/100).toLocaleString()} released for gig #${gigId} (admin decision: release${isPosterAdmin ? ", admin free — no fee" : `, fee ₦${(fee/100).toLocaleString()}`}).`, meta: { gigId, adminFree: isPosterAdmin }, tx });
+          await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: pay, fee: 0, type: "GIG_DISPUTE_RELEASE", title: "Dispute resolved — released", body: `Credit: ₦${(pay/100).toLocaleString()} released for task #${gigId} (admin decision: release${isPosterAdmin ? ", admin free — no fee" : `, fee ₦${(fee/100).toLocaleString()}`}).`, meta: { gigId, adminFree: isPosterAdmin }, tx });
           return true;
         });
         if (!ok) return res.status(400).json({ error: "Dispute was already resolved" });
@@ -912,10 +912,10 @@ router.post("/disputes/resolve", protect, requireAdmin, async (req, res) => {
           const flip = await tx.gig.updateMany({ where: { id: gigId, status: "DISPUTED" }, data: { status: "COMPLETED", completedAt: new Date() } });
           if (flip.count === 0) return false;
           await tx.user.update({ where: { id: gig.posterId }, data: { gigBalance: { increment: half } } });
-          await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${(half/100).toLocaleString()} for gig #${gigId} (admin split).`, meta: { gigId }, tx });
+          await recordWalletMovement({ userId: gig.posterId, direction: "CREDIT", amount: half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${(half/100).toLocaleString()} for task #${gigId} (admin split).`, meta: { gigId }, tx });
           if (gig.claimerId) {
             await tx.user.update({ where: { id: gig.claimerId }, data: { gigBalance: { increment: gig.escrowAmount - half } } });
-            await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: gig.escrowAmount - half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${((gig.escrowAmount - half)/100).toLocaleString()} for gig #${gigId} (admin split).`, meta: { gigId }, tx });
+            await recordWalletMovement({ userId: gig.claimerId, direction: "CREDIT", amount: gig.escrowAmount - half, fee: 0, type: "GIG_DISPUTE_SPLIT", title: "Dispute resolved — split", body: `Credit: ₦${((gig.escrowAmount - half)/100).toLocaleString()} for task #${gigId} (admin split).`, meta: { gigId }, tx });
           }
           return true;
         });

@@ -501,7 +501,7 @@ const ListingDetailPage = () => {
                 <FiMessageCircle className="w-5 h-5" />
                 {bookingLoading ? "Booking..." : listing.isAvailable ? `Book Service — ₦${listing.price}` : "Not Available"}
               </button>
-              <p className="text-xs text-gray-500 text-center">₦{listing.price} will be held from your Gig wallet — refunded to Gig wallet if not confirmed in 1 hour</p>
+              <p className="text-xs text-gray-500 text-center">₦{listing.price} will be held from your TrendTribe Wallet — refunded to TrendTribe Wallet if not confirmed in 1 hour</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">

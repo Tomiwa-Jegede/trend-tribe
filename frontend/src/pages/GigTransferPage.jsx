@@ -76,7 +76,7 @@ export default function GigTransferPage() {
     ctx.fillRect(0, 0, 800, 500);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 32px sans-serif";
-    ctx.fillText("Trend Tribe — Gig Transfer Receipt", 40, 60);
+    ctx.fillText("Trend Tribe — Transfer Receipt", 40, 60);
     ctx.font = "20px sans-serif";
     ctx.fillText(`Amount: ₦${result.amount.toLocaleString()}`, 40, 140);
     ctx.fillText(`Fee (1%): ₦${(result.fee / 100).toFixed(2)}`, 40, 180);
@@ -106,7 +106,7 @@ export default function GigTransferPage() {
   return (
     <div className="container-app py-6 sm:py-8 max-w-md mx-auto">
       <Helmet>
-        <title>Transfer — Gig Wallet — Trend Tribe</title>
+        <title>Transfer — TrendTribe Wallet — Trend Tribe</title>
       </Helmet>
 
       <button

@@ -35,7 +35,7 @@ export default function AdminWithdrawalsPage() {
     finally { setActing(null); }
   };
   const handleReject = async (id) => {
-    if (!confirm("Reject this withdrawal? The full amount (₦ + fee) will be refunded to the user's Gig wallet.")) return;
+    if (!confirm("Reject this withdrawal? The full amount (₦ + fee) will be refunded to the user's TrendTribe Wallet.")) return;
     setActing(id);
     try {
       const { data } = await api.post(`/admin/gig-withdrawals/${id}/reject`, {});
@@ -49,9 +49,9 @@ export default function AdminWithdrawalsPage() {
 
   return (
     <AdminLayout>
-      <Helmet><title>Gig Withdrawals — Admin</title></Helmet>
+      <Helmet><title>TrendTribe Wallet Withdrawals — Admin</title></Helmet>
       <div className="flex items-center justify-between mb-6 gap-3">
-        <h1 className="text-xl font-bold text-navy-900">Gig Withdrawals</h1>
+        <h1 className="text-xl font-bold text-navy-900">TrendTribe Wallet Withdrawals</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={async()=>{

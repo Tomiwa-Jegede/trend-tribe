@@ -38,21 +38,21 @@ export default function AdminDisputesPage() {
     <AdminLayout>
       <Helmet><title>Disputes — Admin</title></Helmet>
       <h1 className="text-xl font-bold text-navy-900 mb-2">Disputes</h1>
-      <p className="text-sm text-gray-500 mb-6">Gigs and service bookings with status DISPUTED — escrow held. Choose to refund, release, or split.</p>
+      <p className="text-sm text-gray-500 mb-6">Tasks and service bookings with status DISPUTED — escrow held. Choose to refund, release, or split.</p>
 
       {loading ? <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div> : (
         <>
-          <h2 className="font-bold text-gray-900 mb-2">Gigs — DISPUTED ({data.gigs.length})</h2>
-          {data.gigs.length===0 ? <p className="text-sm text-gray-400 card p-4 mb-6">No gig disputes.</p> : (
+          <h2 className="font-bold text-gray-900 mb-2">Tasks — DISPUTED ({data.gigs.length})</h2>
+          {data.gigs.length===0 ? <p className="text-sm text-gray-400 card p-4 mb-6">No task disputes.</p> : (
             <div className="space-y-3 mb-8">
               {data.gigs.map(g=> (
                 <div key={g.id} className="card p-4">
-                  <p className="font-bold text-gray-900">Gig #{g.id} · {g.description?.slice(0,80)} · {formatNaira(g.amount)} escrow · 20% fee {formatNaira(Math.floor(g.amount*0.2/100)*100)}</p>
+                  <p className="font-bold text-gray-900">Task #{g.id} · {g.description?.slice(0,80)} · {formatNaira(g.amount)} escrow · 20% fee {formatNaira(Math.floor(g.amount*0.2/100)*100)}</p>
                   <p className="text-xs text-gray-500">Poster @{g.poster?.username} · Claimer @{g.claimer?.username || "—"} · {new Date(g.updatedAt).toLocaleString()}</p>
                   <div className="flex gap-2 mt-3">
-                    <button disabled={acting===`gig-${g.id}-refund`} onClick={()=>resolve("gig", g.id, "refund")} className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-60">Refund poster</button>
-                    <button disabled={acting===`gig-${g.id}-release`} onClick={()=>resolve("gig", g.id, "release")} className="btn-primary px-3 py-1.5 text-xs disabled:opacity-60">Release to claimer (80%)</button>
-                    <button disabled={acting===`gig-${g.id}-split`} onClick={()=>resolve("gig", g.id, "split")} className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-60">Split 50/50</button>
+                    <button disabled={acting===`task-${g.id}-refund`} onClick={()=>resolve("task", g.id, "refund")} className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-60">Refund poster</button>
+                    <button disabled={acting===`task-${g.id}-release`} onClick={()=>resolve("task", g.id, "release")} className="btn-primary px-3 py-1.5 text-xs disabled:opacity-60">Release to claimer (80%)</button>
+                    <button disabled={acting===`task-${g.id}-split`} onClick={()=>resolve("task", g.id, "split")} className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-60">Split 50/50</button>
                   </div>
                 </div>
               ))}

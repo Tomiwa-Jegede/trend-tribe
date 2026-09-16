@@ -17,12 +17,12 @@ const initGigPayment = async (req, res) => {
         currency: "NGN",
         redirect_url: config.flutterwave.redirectUrl.replace("/tokens/callback", "/gigs/callback"),
         customer: { email: req.user.email },
-        customizations: { title: "TrendTribe Gig Wallet", description: `Gig wallet top-up ₦${amt}` },
+        customizations: { title: "TrendTribe Wallet", description: `TrendTribe Wallet top-up ₦${amt}` },
         meta: { userId: req.user.id, amount: amt, type: "gig" },
       }),
     });
     const data = await flwRes.json();
-    if (data.status !== "success") return res.status(502).json({ error: "Could not start Gig payment." });
+    if (data.status !== "success") return res.status(502).json({ error: "Could not start TrendTribe Wallet payment." });
     await prisma.gigTokenPurchase.create({ data: { userId: req.user.id, reference: txRef, amount: amt * 100, status: "PENDING" } });
     return res.json({ authorizationUrl: data.data.link, reference: txRef });
   } catch (err) {
@@ -66,7 +66,7 @@ async function creditGigPurchase(purchase, flutterwaveTransactionId) {
     if (count !== 1) return false;
     await tx.user.update({ where: { id: purchase.userId }, data: { gigBalance: { increment: purchase.amount } } });
     const { recordWalletMovement } = require("../utils/wallet");
-    await recordWalletMovement({ userId: purchase.userId, direction: "CREDIT", amount: purchase.amount, fee: 0, type: "TOPUP", title: "Gig wallet top-up", body: `Credit: ₦${(purchase.amount/100).toLocaleString()} top-up credited — ref ${purchase.reference}.`, meta: { purchaseId: purchase.id, reference: purchase.reference }, tx });
+    await recordWalletMovement({ userId: purchase.userId, direction: "CREDIT", amount: purchase.amount, fee: 0, type: "TOPUP", title: "TrendTribe Wallet top-up", body: `Credit: ₦${(purchase.amount/100).toLocaleString()} top-up credited — ref ${purchase.reference}.`, meta: { purchaseId: purchase.id, reference: purchase.reference }, tx });
     try {
       const { maybeCreditReferral } = require("../utils/referral");
       await maybeCreditReferral({ referredId: purchase.userId, transactionType: "GIG_TOPUP", transactionId: purchase.reference, amountKobo: purchase.amount, tx });
@@ -78,7 +78,7 @@ async function creditGigPurchase(purchase, flutterwaveTransactionId) {
       await prisma.notification.create({ data: { userId: purchase.userId, type: "GIG_TOPUP", listingId: null } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
-      sendPushToUser(prisma, purchase.userId, { title: "Gig Wallet — Top-up credited", body: `₦${(purchase.amount/100).toLocaleString()} added to your Gig wallet`, url: "/gigs/wallet", tag: `gig-topup-${purchase.reference}` }).catch(()=>{});
+      sendPushToUser(prisma, purchase.userId, { title: "TrendTribe Wallet — Top-up credited", body: `₦${(purchase.amount/100).toLocaleString()} added to your TrendTribe Wallet`, url: "/gigs/wallet", tag: `gig-topup-${purchase.reference}` }).catch(()=>{});
       try { emitNotification(purchase.userId, { type: "GIG_TOPUP" }); } catch {}
     } catch {}
   }

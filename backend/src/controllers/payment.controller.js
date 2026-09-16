@@ -206,7 +206,7 @@ const buyWithGigBalance = async (req, res) => {
     const costKobo = qty * TOKEN_PRICE_NAIRA * 100;
     const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, tokenBalance: true } });
     if ((user?.gigBalance || 0) < costKobo) {
-      return res.status(402).json({ error: `Need ₦${(costKobo/100).toLocaleString()} in Gig wallet for ${qty} token(s). You have ₦${((user?.gigBalance||0)/100).toLocaleString()}.`, required: costKobo, gigBalance: user?.gigBalance||0 });
+      return res.status(402).json({ error: `Need ₦${(costKobo/100).toLocaleString()} in TrendTribe Wallet for ${qty} token(s). You have ₦${((user?.gigBalance||0)/100).toLocaleString()}.`, required: costKobo, gigBalance: user?.gigBalance||0 });
     }
     const ref = `gig_${req.user.id}_${Date.now()}`;
     const isAdminBuyer = req.user.role === "ADMIN";
@@ -217,21 +217,21 @@ const buyWithGigBalance = async (req, res) => {
       await tx.tokenPurchase.create({ data: { userId: req.user.id, reference: ref, quantity: qty, amount: qty * TOKEN_PRICE_NAIRA, status: "SUCCESS", flutterwaveTransactionId: ref } });
       if (!isAdminBuyer) await tx.platformProfit.create({ data: { source: "TOKEN_SOLD", grossFee: costKobo, netFee: costKobo, refId: ref, meta: { tokenPurchaseId: ref, quantity: qty, via: "GIG_BALANCE" } } });
       // ledger write now atomic with the balance debit above
-      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: costKobo, fee: 0, type: "TOKEN_BUY", title: `Bought ${qty} token(s)`, body: `Debit: ₦${(costKobo/100).toLocaleString()} for ${qty} token(s) — ref ${ref}. Gig wallet debited, tokens credited.`, meta: { quantity: qty, reference: ref }, tx });
+      await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: costKobo, fee: 0, type: "TOKEN_BUY", title: `Bought ${qty} token(s)`, body: `Debit: ₦${(costKobo/100).toLocaleString()} for ${qty} token(s) — ref ${ref}. TrendTribe Wallet debited, tokens credited.`, meta: { quantity: qty, reference: ref }, tx });
     });
     try {
       await prisma.notification.create({ data: { userId: req.user.id, type: "GIG_TO_TOKEN", listingId: null } });
       const { sendPushToUser } = require("../utils/push");
       const { emitNotification } = require("../realtime");
-      sendPushToUser(prisma, req.user.id, { title: "Tokens credited", body: `${qty} token(s) bought with Gig wallet — ₦${(costKobo/100).toLocaleString()}`, url: "/pricing", tag: `gig-token-${ref}` }).catch(()=>{});
+      sendPushToUser(prisma, req.user.id, { title: "Tokens credited", body: `${qty} token(s) bought with TrendTribe Wallet — ₦${(costKobo/100).toLocaleString()}`, url: "/pricing", tag: `gig-token-${ref}` }).catch(()=>{});
       try { emitNotification(req.user.id, { type: "GIG_TO_TOKEN" }); } catch {}
     } catch {}
     const updated = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, tokenBalance: true } });
-    return res.json({ ok: true, quantity: qty, costKobo, gigBalance: updated.gigBalance, tokenBalance: updated.tokenBalance, reference: ref, message: `${qty} token(s) credited from Gig wallet — ₦${(costKobo/100).toLocaleString()} debited.` });
+    return res.json({ ok: true, quantity: qty, costKobo, gigBalance: updated.gigBalance, tokenBalance: updated.tokenBalance, reference: ref, message: `${qty} token(s) credited from TrendTribe Wallet — ₦${(costKobo/100).toLocaleString()} debited.` });
   } catch (err) {
     if (err.message === "BALANCE_RACE") return res.status(402).json({ error: "Balance changed, try again" });
     console.error("buyWithGig error:", err.message);
-    return res.status(500).json({ error: "Could not buy with Gig balance" });
+    return res.status(500).json({ error: "Could not buy with TrendTribe Wallet balance" });
   }
 };
 

@@ -123,7 +123,7 @@ async function maybeCreditReferral({ referredId, transactionType, transactionId,
         const { sendPushToUser } = require("./push");
         sendPushToUser(prisma, referral.referrerId, {
           title: `Referral — ₦${(commissionAmount / 100).toLocaleString()} credited`,
-          body: `Someone you referred made a transaction — ₦${(commissionAmount / 100).toLocaleString()} added to your Gig wallet`,
+          body: `Someone you referred made a transaction — ₦${(commissionAmount / 100).toLocaleString()} added to your TrendTribe Wallet`,
           url: "/referrals",
           tag: `referral-credit-${commission.id}`,
         }).catch(() => {});
