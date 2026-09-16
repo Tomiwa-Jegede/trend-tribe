@@ -40,18 +40,31 @@ const useReducedMotion = () => {
   return reduced;
 };
 
+const useIsPWA = () => {
+  const [isPWA, setIsPWA] = useState(false);
+  useEffect(() => {
+    const check = () => setIsPWA(window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone);
+    check();
+    const mq = window.matchMedia("(display-mode: standalone)");
+    const h = () => check();
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
+  return isPWA;
+};
+
 // ── Animation variants ─────────────────────────────────────────
 const mobileMenuVariants = {
   hidden: { opacity: 0, y: -8 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.16, ease: [0.25, 0.46, 0.45, 0.94] },
   },
   exit: {
     opacity: 0,
     y: -6,
-    transition: { duration: 0.15, ease: "easeIn" },
+    transition: { duration: 0.12, ease: "easeIn" },
   },
 };
 
@@ -60,12 +73,13 @@ const mobileItemVariants = {
   visible: (i) => ({
     opacity: 1,
     x: 0,
-    transition: { delay: i * 0.05, duration: 0.22, ease: "easeOut" },
+    transition: { delay: i * 0.02, duration: 0.18, ease: "easeOut" },
   }),
 };
 
 const Navbar = () => {
   const { isAuthenticated, user, token, logout } = useAuth();
+  const isPWA = useIsPWA();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -324,9 +338,9 @@ const Navbar = () => {
   return (
     <>
       <motion.nav
-        className="bg-white border-b border-sage-100 sticky top-0 z-50 backdrop-blur-md"
+        className={`bg-white border-b border-sage-100 sticky top-0 z-50 ${isPWA ? "" : "backdrop-blur-md"}`}
         animate={
-          reducedMotion
+          reducedMotion || isPWA
             ? {}
             : {
                 boxShadow: scrolled

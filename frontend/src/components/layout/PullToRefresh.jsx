@@ -13,15 +13,18 @@ export default function PullToRefresh({ children, disabled = false }) {
 
   const isAtTop = useCallback(() => window.scrollY === 0 || document.documentElement.scrollTop === 0, []);
 
+  const isMenuOpen = useCallback(() => document.body.style.overflow === "hidden", []);
   const onTouchStart = useCallback((e) => {
     if (disabled || refreshing) return;
+    if (isMenuOpen()) return;
     if (!isAtTop()) return;
     startY.current = e.touches[0].clientY;
     pulling.current = true;
-  }, [disabled, refreshing, isAtTop]);
+  }, [disabled, refreshing, isAtTop, isMenuOpen]);
 
   const onTouchMove = useCallback((e) => {
     if (!pulling.current || disabled || refreshing) return;
+    if (isMenuOpen()) { pulling.current = false; setPull(0); return; }
     const curY = e.touches[0].clientY;
     const diff = curY - startY.current;
     if (diff <= 0) {
