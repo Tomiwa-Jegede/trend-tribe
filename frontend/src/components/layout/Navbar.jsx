@@ -168,12 +168,14 @@ const Navbar = () => {
     }
     setInboxUnread(0);
     setNotifUnread(0);
+    // Defer non-critical badge fetches so hamburger slide stays 60fps
     fetchInbox();
     fetchNotif();
-    fetchSystemInbox();
-    fetchPendingBookings();
-    fetchSupportUnread();
-    fetchAdminBadges();
+    const defer = (fn) => {
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) window.requestIdleCallback(fn, { timeout: 800 });
+      else setTimeout(fn, 600);
+    };
+    defer(() => { fetchSystemInbox(); fetchPendingBookings(); fetchSupportUnread(); fetchAdminBadges(); });
   }, [isAuthenticated, token, user?.id, fetchInbox, fetchNotif, fetchSystemInbox, fetchPendingBookings, fetchSupportUnread, fetchAdminBadges]);
 
 
@@ -185,7 +187,7 @@ const Navbar = () => {
   }, []);
   useEffect(() => {
     let cancelled = false;
-    getGigs({ limit: 50 })
+    const run = () => getGigs({ limit: 50 })
       .then((data) => {
         if (cancelled) return;
         const openCount = (data.gigs || []).filter((g) => g.status === "OPEN").length;
@@ -194,24 +196,28 @@ const Navbar = () => {
       .catch(() => {
         if (!cancelled) setAvailableGigsCount(0);
       });
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) window.requestIdleCallback(run, { timeout: 1000 });
+    else setTimeout(run, 800);
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Hide "As Provider" unless user has at least one active SERVICES listing
+  // Hide "As Provider" unless user has at least one active SERVICES listing — fetch once per session, not per route
   useEffect(() => {
     if (!isAuthenticated || !user?.id) { setHasActiveService(false); return; }
     let cancelled = false;
-    (async () => {
+    const run = async () => {
       try {
         const { data } = await api.get("/listings/me", { params: { limit: 50 } });
         const has = (data.listings || []).some((l) => l.category === "SERVICES" && l.isAvailable);
         if (!cancelled) setHasActiveService(has);
       } catch { if (!cancelled) setHasActiveService(false); }
-    })();
+    };
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) window.requestIdleCallback(run, { timeout: 1200 });
+    else setTimeout(run, 800);
     return () => { cancelled = true; };
-  }, [isAuthenticated, user?.id, location.pathname]);
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -448,17 +454,13 @@ const Navbar = () => {
                         onClick={() => setShowAccountMenu((v) => !v)}
                         className="flex items-center gap-2 text-sm text-gray-700 hover:text-primary-600 transition-colors pl-1"
                       >
-                        <motion.div
-                          className="w-8 h-8 bg-sage-100 rounded-full overflow-hidden flex items-center justify-center"
-                          whileHover={reducedMotion ? {} : { scale: 1.1 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                        >
+                        <div className="w-8 h-8 bg-sage-100 rounded-full overflow-hidden flex items-center justify-center">
                           {user?.avatar ? (
                             <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
                           ) : (
                             <FiUser className="w-4 h-4 text-primary-600" />
                           )}
-                        </motion.div>
+                        </div>
                         <span className="font-medium">{user?.username}</span>
                         <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showAccountMenu ? "rotate-180" : ""}`} />
                       </button>
