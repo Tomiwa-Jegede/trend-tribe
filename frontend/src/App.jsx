@@ -303,10 +303,9 @@ const App = () => {
               <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
               <Route path="/referrals" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
               <Route path="/admin/support" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
-              {/* In-app chat removed — WhatsApp only. Keep routes as redirects to avoid 404 for old links */}
-              <Route path="/messages" element={<Navigate to="/marketplace" replace />} />
-              <Route path="/inbox" element={<Navigate to="/marketplace" replace />} />
-              <Route path="/chat" element={<Navigate to="/marketplace" replace />} />
+              <Route path="/messages" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
+              <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
               <Route
                 path="/saved"
                 element={

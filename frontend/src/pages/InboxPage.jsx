@@ -90,7 +90,60 @@ const InboxPage = () => {
     if (!isAuthenticated || !token) return;
     if (showLoader) setLoading(true);
     try {
-      const [msgData, convos] = await Promise.all([getMyMessages({ limit: 20 }), getConversations().catch(() => [])]);
+      let msgData;
+      try {
+        msgData = await getMyMessages({ limit: 20 });
+      } catch (e) {
+        // Messages table dropped (WhatsApp-only) — fallback to inbox notifications
+        if (e?.response?.status === 404 || e?.response?.status === 500) {
+          const { data } = await api.get("/notifications", { params: { limit: 50 } });
+          const notifMessages = (data.notifications || []).filter((n) => n.type === "MESSAGE").map((n) => ({
+            id: `notif-${n.id}`,
+            body: n.type === "MESSAGE" ? "You have a message on Trend Tribe — open inbox to view" : n.type,
+            createdAt: n.createdAt,
+            sender: n.actor || { username: "Trend Tribe", role: "ADMIN" },
+            listingId: n.listingId,
+            read: n.read,
+            notificationId: n.id,
+          }));
+          let nextMessagesFallback = notifMessages;
+          if (pendingDeletesRef.current.size > 0) {
+            nextMessagesFallback = nextMessagesFallback.filter((m) => !pendingDeletesRef.current.has(m.id));
+          }
+          if (pendingDeleteAllRef.current) nextMessagesFallback = [];
+          setMessages(nextMessagesFallback);
+          setPagination({ totalCount: nextMessagesFallback.length });
+          // handle highlight param for notification
+          const hl = searchParamsRef.current.get("highlight");
+          if (hl) {
+            const targetId = `notif-${hl}`;
+            if (nextMessagesFallback.some((m) => m.id === targetId)) setExpanded(targetId);
+          }
+          const convos = await getConversations().catch(() => []);
+          let nextConvos = convos || [];
+          if (pendingDeleteAllRef.current && isChat) nextConvos = [];
+          if (pendingChatDeletesRef.current.size > 0) nextConvos = nextConvos.filter((c) => !pendingChatDeletesRef.current.has(c.key));
+          setConversations(nextConvos);
+          const tp = searchParamsRef.current.get("thread");
+          if (tp) {
+            const [lid, withId] = tp.split("-").map((v) => parseInt(v, 10));
+            if (!isNaN(lid) && !isNaN(withId)) {
+              const real = (convos || []).find((c) => c.otherUser?.id === withId && c.listing?.id === lid);
+              const key = real ? real.key : `thread-${lid}-${withId}`;
+              setExpanded((prev) => prev === key ? prev : key);
+              setSavedChats((prev) => {
+                if (prev.some((c) => c.key === key) || convos?.some((c) => c.key === key)) return prev;
+                const next = [...prev, { key, listing: { id: lid }, otherUser: { id: withId }, lastMessage: null, unreadCount: 0, isPending: true }];
+                localStorage.setItem("tt_saved_chats", JSON.stringify(next));
+                return next;
+              });
+            }
+          }
+          return;
+        }
+        throw e;
+      }
+      const convos = await getConversations().catch(() => []);
       let nextMessages = msgData.messages;
       // filter tombstones so optimistic delete isn't undone by stale replica
       if (pendingDeletesRef.current.size > 0) {
@@ -98,6 +151,13 @@ const InboxPage = () => {
       }
       if (pendingDeleteAllRef.current) nextMessages = [];
       setMessages(nextMessages);
+      // highlight from bell click: /inbox?highlight=<notificationId> or <messageId>
+      const hl2 = searchParamsRef.current.get("highlight");
+      if (hl2 && !isChat) {
+        const target = nextMessages.find((m) => String(m.id) === hl2 || m.id === `notif-${hl2}` || String(m.notificationId) === hl2);
+        if (target) setExpanded(target.id);
+        else if (nextMessages.some((m) => String(m.id) === `notif-${hl2}`)) setExpanded(`notif-${hl2}`);
+      }
       // conversations come from separate endpoint — if we just bulk-deleted chats, keep empty
       let nextConvos = convos || [];
       if (pendingDeleteAllRef.current && isChat) nextConvos = [];
@@ -237,7 +297,10 @@ const InboxPage = () => {
     if (selecting) { toggleSelect(m.id); return; }
     setExpanded(expanded === m.id ? null : m.id);
     if (!m.read) {
-      try { await markMessageRead(m.id); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage markRead]", err?.response?.data || err.message); }
+      try {
+        if (String(m.id).startsWith("notif-") && m.notificationId) await api.patch(`/notifications/${m.notificationId}/read`);
+        else await markMessageRead(m.id);
+      } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage markRead]", err?.response?.data || err.message); }
       setMessages((prev) => prev.map((x) => x.id === m.id ? { ...x, read: true } : x));
     }
   };
@@ -246,7 +309,11 @@ const InboxPage = () => {
     e.stopPropagation();
     pendingDeletesRef.current.add(id);
     try {
-      await deleteMessage(id);
+      if (String(id).startsWith("notif-")) {
+        const nid = parseInt(String(id).replace("notif-", ""), 10);
+        if (!isNaN(nid)) await api.delete(`/notifications/${nid}`);
+        else throw new Error("Invalid notif id");
+      } else await deleteMessage(id);
       setMessages((prev) => prev.filter((x) => x.id !== id));
       setSelected((p) => { const n = new Set(p); n.delete(id); return n; });
       // keep tombstone for 10s to survive replica lag / poll race
@@ -263,7 +330,13 @@ const InboxPage = () => {
     const ids = Array.from(selected);
     ids.forEach((id) => pendingDeletesRef.current.add(id));
     try {
-      await deleteMessagesBulk(ids);
+      const hasNotif = ids.some((id) => String(id).startsWith("notif-"));
+      if (hasNotif) {
+        const nids = ids.map((id) => String(id).startsWith("notif-") ? parseInt(String(id).replace("notif-",""),10) : id).filter((v) => !isNaN(v));
+        if (nids.length) await api.post("/notifications/bulk-delete", { ids: nids });
+      } else {
+        await deleteMessagesBulk(ids);
+      }
       setMessages((prev) => prev.filter((x) => !selected.has(x.id)));
       setSelected(new Set()); setSelecting(false);
       setTimeout(() => ids.forEach((id) => pendingDeletesRef.current.delete(id)), 10000);
@@ -299,7 +372,14 @@ const InboxPage = () => {
     if (!window.confirm(`Delete all ${messages.length} messages?`)) return;
     pendingDeleteAllRef.current = true;
     try {
-      await deleteAllMessages();
+      const hasNotif = messages.some((m) => String(m.id).startsWith("notif-"));
+      if (hasNotif) {
+        const nids = messages.map((m) => String(m.id).startsWith("notif-") ? parseInt(String(m.id).replace("notif-",""),10) : null).filter((v) => v !== null);
+        if (nids.length) await api.post("/notifications/bulk-delete", { ids: nids });
+        else await api.delete("/notifications");
+      } else {
+        await deleteAllMessages();
+      }
       setMessages([]); setSelected(new Set()); setSelecting(false);
       setTimeout(() => { pendingDeleteAllRef.current = false; }, 10000);
     } catch (err) {
@@ -309,7 +389,12 @@ const InboxPage = () => {
     }
   };
   const handleMarkAllRead = async () => {
-    try { await markAllMessagesRead(); setMessages((prev) => prev.map((x) => ({ ...x, read: true }))); } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage markAllRead]", err?.response?.data || err.message); }
+    try {
+      const hasNotif = messages.some((m) => String(m.id).startsWith("notif-"));
+      if (hasNotif) await api.post("/notifications/read-all");
+      else await markAllMessagesRead();
+      setMessages((prev) => prev.map((x) => ({ ...x, read: true })));
+    } catch (err) { if (import.meta.env.DEV) console.warn("[InboxPage markAllRead]", err?.response?.data || err.message); }
   };
 
   const handleCloseChat = useCallback(() => {
