@@ -462,6 +462,14 @@ const Navbar = () => {
                 <>
 
                   <div className="flex items-center gap-1 pl-3 border-l border-sage-100">
+                    <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Inbox">
+                      <FiInbox className="w-5 h-5 text-gray-600" />
+                      {(inboxUnread + systemInboxUnread) > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                          {(inboxUnread + systemInboxUnread) > 99 ? "99+" : (inboxUnread + systemInboxUnread)}
+                        </span>
+                      )}
+                    </Link>
                     <NotificationBell externalUnread={notifUnread} onExternalUnreadChange={setNotifUnread} />
                     <div className="relative" ref={accountMenuRef}>
                       <button
@@ -530,8 +538,16 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* ── Mobile Bell + Menu Toggle (outside hamburger) ── */}
+            {/* ── Mobile Bell + Inbox + Menu Toggle (outside hamburger) ── */}
             <div className="md:hidden flex items-center gap-1">
+              <Link to="/inbox" className="relative p-2 rounded-full hover:bg-gray-100" aria-label="Inbox">
+                <FiInbox className="w-5 h-5 text-gray-600" />
+                {(inboxUnread + systemInboxUnread) > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                    {(inboxUnread + systemInboxUnread) > 99 ? "99+" : (inboxUnread + systemInboxUnread)}
+                  </span>
+                )}
+              </Link>
               <NotificationBell externalUnread={notifUnread} onExternalUnreadChange={setNotifUnread} />
               <motion.button
                 className="relative p-2 rounded-lg text-gray-600 hover:bg-sage-50 transition-colors"
@@ -584,6 +600,10 @@ const Navbar = () => {
                       exit={{ opacity: 0, height: 0 }}
                       className="pl-4 flex flex-col gap-2 border-l border-sage-100 ml-1 overflow-hidden mt-2"
                     >
+                      <div className="flex items-center gap-2">
+                        <Link to="/inbox" onClick={() => setMenuOpen(false)} className="block text-sm font-medium py-1 text-gray-600 hover:text-primary-600">Inbox</Link>
+                        {(inboxUnread + systemInboxUnread) > 0 && <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{(inboxUnread + systemInboxUnread) > 99 ? "99+" : (inboxUnread + systemInboxUnread)}</span>}
+                      </div>
                       <Link to="/saved" onClick={() => setMenuOpen(false)} className="block text-sm font-medium py-1 text-gray-600 hover:text-primary-600">Favorites</Link>
                     </motion.div>
                   )}
