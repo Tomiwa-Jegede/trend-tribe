@@ -11,16 +11,33 @@ export default function PullToRefresh({ children, disabled = false }) {
   const startY = useRef(0);
   const pulling = useRef(false);
 
-  const isAtTop = useCallback(() => window.scrollY === 0 || document.documentElement.scrollTop === 0, []);
+  const isAtTop = useCallback(() => {
+    const winTop = (window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0) === 0;
+    if (!winTop) return false;
+    // also check scrollable ancestors of the touch target — if an inner container is scrolled, not at top
+    return true;
+  }, []);
+  const isScrollableAtTop = useCallback((target) => {
+    let el = target;
+    while (el && el !== document.body && el !== document.documentElement) {
+      const style = window.getComputedStyle(el);
+      const overflowY = style.overflowY;
+      if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
+        if (el.scrollTop > 0) return false;
+      }
+      el = el.parentElement;
+    }
+    return true;
+  }, []);
 
   const isMenuOpen = useCallback(() => document.body.style.overflow === "hidden", []);
   const onTouchStart = useCallback((e) => {
     if (disabled || refreshing) return;
     if (isMenuOpen()) return;
-    if (!isAtTop()) return;
+    if (!isAtTop() || !isScrollableAtTop(e.target)) return;
     startY.current = e.touches[0].clientY;
     pulling.current = true;
-  }, [disabled, refreshing, isAtTop, isMenuOpen]);
+  }, [disabled, refreshing, isAtTop, isScrollableAtTop, isMenuOpen]);
 
   const onTouchMove = useCallback((e) => {
     if (!pulling.current || disabled || refreshing) return;
@@ -31,7 +48,7 @@ export default function PullToRefresh({ children, disabled = false }) {
       if (pull !== 0) setPull(0);
       return;
     }
-    if (!isAtTop() && diff > 0) {
+    if ((!isAtTop() || !isScrollableAtTop(e.target)) && diff > 0) {
       pulling.current = false;
       setPull(0);
       return;
