@@ -503,11 +503,11 @@ router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
     const users = await prisma.user.findMany({ select: { id: true } });
     const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
     if (recipientIds.length === 0) return res.status(200).json({ sent: 0 });
-    // notifications with preview (first 80 chars) — WhatsApp-only, no Message table
+    // notifications with preview (first 80 chars) + full body in meta so inbox can show it
     const preview = text.slice(0, 80) + (text.length > 80 ? "…" : "");
-    const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: null }));
+    const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: null, meta: { body: text, subject: subject?.trim() || null, preview } }));
     for (let i = 0; i < notifs.length; i += 800) await prisma.notification.createMany({ data: notifs.slice(i, i + 800) });
-    // realtime: bell + phone push (even when app closed) — no inbox Message
+    // realtime: bell + phone push (even when app closed)
     try {
       const { emitNotification } = require("../realtime");
       const { sendPushToUser } = require("../utils/push");
@@ -518,7 +518,7 @@ router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
           sendPushToUser(prisma, rid, {
             title: subject?.trim() || "Trend Tribe — New message",
             body: text.slice(0, 120),
-            url: "/marketplace",
+            url: "/inbox",
             icon: "/icon-192.png",
             badge: "/icon-192.png",
             badgeCount: unread,
@@ -580,7 +580,7 @@ router.post("/listings/:id/share", protect, requireAdmin, async (req, res) => {
     const body = custom || `Check this on Trend Tribe: ${listing.title} — tap to view`;
     const users = await prisma.user.findMany({ select: { id: true } });
     const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
-    const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: id }));
+    const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: id, meta: { body, preview: body.slice(0, 80) } }));
     for (let i = 0; i < notifs.length; i += 800) await prisma.notification.createMany({ data: notifs.slice(i, i + 800) });
     return res.status(200).json({ sent: recipientIds.length });
   } catch (err) {

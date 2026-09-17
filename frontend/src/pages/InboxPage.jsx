@@ -99,7 +99,8 @@ const InboxPage = () => {
           const { data } = await api.get("/notifications", { params: { limit: 50 } });
           const notifMessages = (data.notifications || []).filter((n) => n.type === "MESSAGE").map((n) => ({
             id: `notif-${n.id}`,
-            body: n.type === "MESSAGE" ? "You have a message on Trend Tribe — open inbox to view" : n.type,
+            body: n.meta?.body || n.meta?.preview || "You have a message on Trend Tribe — open inbox to view",
+            subject: n.meta?.subject || null,
             createdAt: n.createdAt,
             sender: n.actor || { username: "Trend Tribe", role: "ADMIN" },
             listingId: n.listingId,
@@ -584,8 +585,9 @@ const InboxPage = () => {
               const isSelected = selected.has(m.id);
               const isExpanded = expanded === m.id;
               return (
-                <div key={m.id} className={`card p-4 flex gap-3 ${!m.read ? "bg-primary-50/40 border-primary-100" : ""} ${isSelected ? "ring-2 ring-primary-200" : ""}`}>
+                <div key={m.id} className={`card p-4 flex gap-3 ${!m.read ? "bg-primary-50/40 border-primary-100" : ""} ${isSelected ? "ring-2 ring-primary-200" : ""} ${expanded === m.id ? "ring-1 ring-primary-200" : ""}`}>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpen(m)}>
+                    {m.subject && <p className="text-sm font-bold text-gray-900 truncate">{m.subject}</p>}
                     <p className={`text-sm ${!m.read ? "font-medium text-gray-900" : "text-gray-700"} ${isExpanded ? "whitespace-pre-wrap break-words" : "truncate"}`}>{isExpanded ? m.body : `${m.body.slice(0, 80)}${m.body.length > 80 ? "…" : ""}`}</p>
                     <p className="text-xs text-gray-400 mt-1">{new Date(m.createdAt).toLocaleString()} · from {m.sender?.role === "ADMIN" ? "Trend Tribe" : m.sender?.username || "System"}</p>
                   </div>
