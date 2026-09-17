@@ -263,8 +263,8 @@ const RegisterPage = () => {
     if (role === "SELLER") {
       if (!formData.school.trim()) newErrors.school = "School is required";
       if (isFresher) {
-        if (!formData.jambRegNumber.trim()) newErrors.jambRegNumber = "JAMB number is required — enter 8 digits + 2 letters like 202441390932IF";
-        else if (!/^\d{8}[A-Z]{2}$/.test(formData.jambRegNumber.trim().toUpperCase())) newErrors.jambRegNumber = "JAMB number must be 8 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip";
+        if (!formData.jambRegNumber.trim()) newErrors.jambRegNumber = "JAMB number is required — enter 12 digits + 2 letters like 202441390932IF";
+        else if (!/^\d{12}[A-Z]{2}$/.test(formData.jambRegNumber.trim().toUpperCase())) newErrors.jambRegNumber = "JAMB number must be 12 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip";
         if (!formData.jambExamYear.trim()) newErrors.jambExamYear = "JAMB year is required — pick the year on your slip";
         else {
           const y = parseInt(formData.jambExamYear, 10);

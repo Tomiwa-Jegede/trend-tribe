@@ -68,8 +68,8 @@ const register = async (req, res) => {
         const reg = String(jambRegNumber || "").trim().toUpperCase();
         const year = parseInt(jambExamYear, 10);
         const currentYear = new Date().getFullYear();
-        if (!/^\d{8}[A-Z]{2}$/.test(reg)) {
-          return res.status(400).json({ error: "JAMB number must be 8 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip and try again" });
+        if (!/^\d{12}[A-Z]{2}$/.test(reg)) {
+          return res.status(400).json({ error: "JAMB number must be 12 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip and try again" });
         }
         if (!year || year < currentYear - 1 || year > currentYear) {
           return res.status(400).json({ error: `JAMB year must be ${currentYear - 1} or ${currentYear} — select the year printed on your JAMB slip` });
@@ -821,7 +821,7 @@ const requestSellerUpgrade = async (req, res) => {
       const reg = String(jambRegNumber || "").trim().toUpperCase();
       const year = parseInt(jambExamYear, 10);
       const currentYear = new Date().getFullYear();
-      if (!/^\d{8}[A-Z]{2}$/.test(reg)) return res.status(400).json({ error: "JAMB number must be 8 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip and try again" });
+      if (!/^\d{12}[A-Z]{2}$/.test(reg)) return res.status(400).json({ error: "JAMB number must be 12 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip and try again" });
       if (!year || year < currentYear - 1 || year > currentYear) return res.status(400).json({ error: `JAMB year must be ${currentYear - 1} or ${currentYear} — select the year printed on your JAMB slip` });
       const existingJamb = await prisma.user.findFirst({ where: { jambRegNumber: reg, jambExamYear: year } });
       if (existingJamb) return res.status(409).json({ error: `This JAMB number (${reg}) for ${year} is already registered — if this is yours, try logging in or contact support` });
