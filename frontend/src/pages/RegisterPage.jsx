@@ -263,13 +263,13 @@ const RegisterPage = () => {
     if (role === "SELLER") {
       if (!formData.school.trim()) newErrors.school = "School is required";
       if (isFresher) {
-        if (!formData.jambRegNumber.trim()) newErrors.jambRegNumber = "JAMB registration number is required";
-        else if (!/^\d{8}[A-Z]{2}$/.test(formData.jambRegNumber.trim().toUpperCase())) newErrors.jambRegNumber = "Enter a valid JAMB number (e.g. 202441390932IF)";
-        if (!formData.jambExamYear.trim()) newErrors.jambExamYear = "JAMB exam year is required";
+        if (!formData.jambRegNumber.trim()) newErrors.jambRegNumber = "JAMB number is required — enter 8 digits + 2 letters like 202441390932IF";
+        else if (!/^\d{8}[A-Z]{2}$/.test(formData.jambRegNumber.trim().toUpperCase())) newErrors.jambRegNumber = "JAMB number must be 8 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip";
+        if (!formData.jambExamYear.trim()) newErrors.jambExamYear = "JAMB year is required — pick the year on your slip";
         else {
           const y = parseInt(formData.jambExamYear, 10);
           const cy = new Date().getFullYear();
-          if (!y || y < cy - 1 || y > cy) newErrors.jambExamYear = "Enter year you sat for JAMB";
+          if (!y || y < cy - 1 || y > cy) newErrors.jambExamYear = `JAMB year must be ${cy - 1} or ${cy} — select the year printed on your JAMB slip`;
         }
       } else {
         if (!formData.matricNumber.trim())
@@ -522,7 +522,7 @@ const RegisterPage = () => {
                           placeholder="e.g. 202441390932IF"
                           required
                         />
-                        <p className="text-xs text-gray-500 -mt-2">We will check this on JAMB matriculation list — only Redeemer's University passes.</p>
+                        <p className="text-xs text-gray-500 -mt-2">We check live on JAMB. Only Redeemer's University passes. If you see "Can't confirm Jamb Registration now try again later" — wait 1 minute and retry. If "not for Redeemer's" — double-check number and year.</p>
                       </>
                     ) : (
                       <FormInput
