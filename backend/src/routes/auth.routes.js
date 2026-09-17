@@ -10,6 +10,7 @@ const {
   forgotPassword,
   resetPassword,
   updateProfile,
+  addMatricNumber,
   requestSellerUpgrade,
   verifySellerUpgrade,
   unsubscribe,
@@ -43,6 +44,7 @@ router.get("/me", protect, getMe);
 router.post("/verify-email", otpLimiter, protect, verifyEmailRules, validate, verifyEmail);
 router.post("/resend-otp", otpLimiter, protect, resendOtp);
 router.patch("/profile", protect, uploadAvatar.single("avatar"), updateProfile);
+router.patch("/add-matric", protect, addMatricNumber);
 router.post("/upgrade-to-seller", otpLimiter, protect, requestSellerUpgrade);
 router.post("/upgrade-to-seller/verify", otpLimiter, protect, verifySellerUpgrade);
 

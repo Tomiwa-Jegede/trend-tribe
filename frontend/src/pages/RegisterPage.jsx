@@ -61,7 +61,7 @@ const STEPS = [
     icon: FiBook,
     label: "School Details",
     desc: "School & matric number",
-    fields: ["school", "matricNumber", "whatsapp"],
+    fields: ["school", "matricNumber", "jambRegNumber", "jambExamYear", "whatsapp"],
     sectionId: "section-school",
   },
   {
@@ -88,6 +88,8 @@ const FIELD_ORDER = [
   "email",
   "school",
   "matricNumber",
+  "jambRegNumber",
+  "jambExamYear",
   "whatsapp",
   "password",
   "confirmPassword",
@@ -101,6 +103,8 @@ const FIELD_TO_SECTION = {
   email: "section-profile",
   school: "section-school",
   matricNumber: "section-school",
+  jambRegNumber: "section-school",
+  jambExamYear: "section-school",
   whatsapp: "section-school",
   password: "section-security",
   confirmPassword: "section-security",
@@ -119,7 +123,7 @@ const ROLE_OPTIONS = [
     value: "SELLER",
     label: "Seller",
     emoji: "🎓",
-    desc: "List and sell items — RUN students only",
+    desc: "List and sell items — RUN students or freshers with JAMB",
   },
 ];
 
@@ -129,6 +133,7 @@ const RegisterPage = () => {
   const reduced = useReducedMotion();
 
   const [role, setRole] = useState("BUYER");
+  const [isFresher, setIsFresher] = useState(false);
   const [referralCode, setReferralCode] = useState(() => {
     const q = searchParams.get("ref") || searchParams.get("referral") || searchParams.get("ref_code");
     if (q) {
@@ -154,6 +159,8 @@ const RegisterPage = () => {
     confirmPassword: "",
     school: "Redeemer's University",
     matricNumber: "",
+    jambRegNumber: "",
+    jambExamYear: String(new Date().getFullYear()),
     whatsapp: "",
   });
 
@@ -241,7 +248,7 @@ const RegisterPage = () => {
     if (!formData.email.trim()) newErrors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(formData.email))
       newErrors.email = "Must be a valid email address";
-    else if (role === "SELLER" && !formData.email.endsWith("@run.edu.ng"))
+    else if (role === "SELLER" && !isFresher && !formData.email.endsWith("@run.edu.ng"))
       newErrors.email = "Sellers must use a RUN school email (@run.edu.ng)";
 
     if (!formData.password) newErrors.password = "Password is required";
@@ -255,8 +262,19 @@ const RegisterPage = () => {
 
     if (role === "SELLER") {
       if (!formData.school.trim()) newErrors.school = "School is required";
-      if (!formData.matricNumber.trim())
-        newErrors.matricNumber = "Matric number is required";
+      if (isFresher) {
+        if (!formData.jambRegNumber.trim()) newErrors.jambRegNumber = "JAMB registration number is required";
+        else if (!/^\d{8}[A-Z]{2}$/.test(formData.jambRegNumber.trim().toUpperCase())) newErrors.jambRegNumber = "Enter a valid JAMB number (e.g. 202441390932IF)";
+        if (!formData.jambExamYear.trim()) newErrors.jambExamYear = "JAMB exam year is required";
+        else {
+          const y = parseInt(formData.jambExamYear, 10);
+          const cy = new Date().getFullYear();
+          if (!y || y < cy - 1 || y > cy) newErrors.jambExamYear = "Enter year you sat for JAMB";
+        }
+      } else {
+        if (!formData.matricNumber.trim())
+          newErrors.matricNumber = "Matric number is required";
+      }
       if (!formData.whatsapp.trim())
         newErrors.whatsapp = "WhatsApp number is required";
       else if (!/^(\+234|0)[789][01]\d{8}$/.test(formData.whatsapp.trim()))
@@ -291,7 +309,10 @@ const RegisterPage = () => {
         password: formData.password,
         role,
         school: role === "SELLER" ? formData.school.trim() : "",
-        matricNumber: role === "SELLER" ? formData.matricNumber.trim() : "",
+        matricNumber: role === "SELLER" && !isFresher ? formData.matricNumber.trim() : "",
+        isFresher: role === "SELLER" ? isFresher : false,
+        jambRegNumber: role === "SELLER" && isFresher ? formData.jambRegNumber.trim().toUpperCase() : undefined,
+        jambExamYear: role === "SELLER" && isFresher ? parseInt(formData.jambExamYear, 10) : undefined,
         whatsapp: role === "SELLER" ? formData.whatsapp.trim() : "",
         referralCode: referralCode || localStorage.getItem("tt_referral") || undefined,
       };
@@ -440,7 +461,7 @@ const RegisterPage = () => {
                     value={formData.email}
                     onChange={handleChange}
                     error={errors.email}
-                    placeholder={role === "SELLER" ? "you@run.edu.ng" : "you@gmail.com"}
+                    placeholder={role === "SELLER" && !isFresher ? "you@run.edu.ng" : "you@gmail.com"}
                     required
                   />
                 </div>
@@ -467,15 +488,53 @@ const RegisterPage = () => {
                       disabled
                       required
                     />
-                    <FormInput
-                      label="Matric Number"
-                      name="matricNumber"
-                      value={formData.matricNumber}
-                      onChange={handleChange}
-                      error={errors.matricNumber}
-                      placeholder="e.g. Run/***/**/17200"
-                      required
-                    />
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={isFresher}
+                        onChange={(e) => {
+                          setIsFresher(e.target.checked);
+                          if (errors.matricNumber || errors.jambRegNumber || errors.jambExamYear) {
+                            setErrors((prev) => ({ ...prev, matricNumber: "", jambRegNumber: "", jambExamYear: "" }));
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      I'm a fresher — I don't have a matric number yet
+                    </label>
+                    {isFresher ? (
+                      <>
+                        <FormInput
+                          label="JAMB/UTME Exam Year"
+                          name="jambExamYear"
+                          value={formData.jambExamYear}
+                          onChange={handleChange}
+                          error={errors.jambExamYear}
+                          placeholder={String(new Date().getFullYear())}
+                          required
+                        />
+                        <FormInput
+                          label="JAMB Registration Number"
+                          name="jambRegNumber"
+                          value={formData.jambRegNumber}
+                          onChange={handleChange}
+                          error={errors.jambRegNumber}
+                          placeholder="e.g. 202441390932IF"
+                          required
+                        />
+                        <p className="text-xs text-gray-500 -mt-2">We will check this on JAMB matriculation list — only Redeemer's University passes.</p>
+                      </>
+                    ) : (
+                      <FormInput
+                        label="Matric Number"
+                        name="matricNumber"
+                        value={formData.matricNumber}
+                        onChange={handleChange}
+                        error={errors.matricNumber}
+                        placeholder="e.g. Run/***/**/17200"
+                        required
+                      />
+                    )}
                     <FormInput
                       label="WhatsApp Number"
                       name="whatsapp"

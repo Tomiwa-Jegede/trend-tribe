@@ -17,7 +17,10 @@ const createGig = async (req, res) => {
     const hours = parseInt(timerHours, 10) || 24;
     if (hours < 1 || hours > 168) return res.status(400).json({ error: "Timer must be 1-168 hours" });
 
-    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true } });
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, isFresher: true, fresherExpiresAt: true } });
+    if (user?.isFresher && user.fresherExpiresAt && new Date() > new Date(user.fresherExpiresAt)) {
+      return res.status(403).json({ error: "Fresher selling period ended — add your matric number and school email to continue" });
+    }
     if (!user || user.gigBalance < amountKobo) return res.status(402).json({ error: `Need ₦${(amountKobo/100).toLocaleString()} in TrendTribe Wallet. You have ₦${((user?.gigBalance||0)/100).toLocaleString()}.`, needsGigBalance: true, gigBalance: user?.gigBalance || 0, required: amountKobo });
 
     const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);

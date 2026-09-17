@@ -98,6 +98,11 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
+// ─── Users — fresher matric upgrade (alias) ────────────────
+const { protect: protectUsers } = require("./middleware/auth.middleware");
+const { addMatricNumber } = require("./controllers/auth.controller");
+app.patch("/api/users/me/matric", protectUsers, addMatricNumber);
+
 // ─── Mount Routes ─────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/listings", listingRoutes);

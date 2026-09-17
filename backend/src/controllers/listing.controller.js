@@ -571,6 +571,11 @@ const createListing = async (req, res) => {
       location,
     } = req.body;
 
+    // ── Fresher 3-month window: block selling if expired and not yet upgraded
+    const meForFresher = await prisma.user.findUnique({ where: { id: req.user.id }, select: { isFresher: true, fresherExpiresAt: true } });
+    if (meForFresher?.isFresher && meForFresher.fresherExpiresAt && new Date() > new Date(meForFresher.fresherExpiresAt)) {
+      return res.status(403).json({ error: "Fresher selling period ended — add your matric number and school email to continue" });
+    }
     // ── Enforce free-slot limit, then fall back to token spend ──
     // SERVICES: 14d trial from first service covers all, then 1 free slot + 1 token per extra
     const isServices = category === "SERVICES";

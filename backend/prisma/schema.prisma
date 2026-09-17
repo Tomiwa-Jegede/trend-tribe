@@ -9,87 +9,98 @@ datasource db {
 }
 
 model User {
-  id                        Int                    @id @default(autoincrement())
-  slug                      String?                @unique
-  email                     String                 @unique
-  username                  String                 @unique
-  password                  String
-  fullName                  String
-  school                    String
-  bio                       String?
-  avatar                    String?
-  createdAt                 DateTime               @default(now())
-  updatedAt                 DateTime               @updatedAt
-  isVerified                Boolean                @default(false)
-  otpCode                   String?
-  otpExpiresAt              DateTime?
-  resetToken                String?                @unique
-  resetTokenExpiresAt       DateTime?
-  matricNumber              String?                @unique
-  pendingSellerEmail        String?
-  pendingSellerMatric       String?
-  avatarPublicId            String?
-  whatsapp                  String?
-  role                      Role                   @default(USER)
-  aiUsesRemaining           Int                    @default(0)
-  numberViewsRemaining      Int                    @default(0)
-  tokenBalance              Float                  @default(5)
-  gigBalance                Int                    @default(0) // kobo, separate from marketplace tokenBalance, buyable, Naira display
-  gigAccountNumber          String?                @unique // 10 digits like 8091234567
-  gigTransferPin            String? // bcrypt hash of 4-digit PIN
-  gigPinOtpCode             String?
-  gigPinOtpExpiresAt        DateTime?
-  bankAccountNumber         String?
-  bankCode                  String?
-  bankName                  String?
-  firstServiceAt            DateTime?
-  serviceTrialEndsAt        DateTime?
-  marketingOptIn            Boolean                @default(true)
-  unsubscribeToken          String                 @unique @default(cuid())
-  tokenPurchases            TokenPurchase[]
-  gigPurchases              GigTokenPurchase[]
-  gigsPosted                Gig[]                  @relation("GigPoster")
-  gigsClaimed               Gig[]                  @relation("GigClaimer")
-  gigWithdrawals            GigWithdrawal[]
-  gigTransfersSent          GigTransfer[]          @relation("GigTransferFrom")
-  gigTransfersReceived      GigTransfer[]          @relation("GigTransferTo")
-  gigWalletTransactions     GigWalletTransaction[]
-  serviceBookingsAsBooker   ServiceBooking[]       @relation("ServiceBooker")
-  serviceBookingsAsProvider ServiceBooking[]       @relation("ServiceProvider")
-  listings                  Listing[]
-  reports                   Report[]
-  favorites                 Favorite[]
-  notifications             Notification[]
-  contactViews              ContactView[]
-  viewLogs                  ListingView[]
-  pushSubscriptions         PushSubscription[]
-  pwaInstalls               PWAInstall[]
-  supportThread             SupportThread?         @relation("SupportUser")
-  supportClaims             SupportThread[]        @relation("SupportClaimer")
-  referralCode              String?                @unique
-  referralsMade             Referral[]             @relation("Referrer")
-  referralReceived          Referral?              @relation("Referred")
-  commissionsEarned         ReferralCommission[]   @relation("CommissionReferrer")
-  commissionsGenerated      ReferralCommission[]   @relation("CommissionReferred")
+  id                         Int                    @id @default(autoincrement())
+  slug                       String?                @unique
+  email                      String                 @unique
+  username                   String                 @unique
+  password                   String
+  fullName                   String
+  school                     String
+  bio                        String?
+  avatar                     String?
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+  isVerified                 Boolean                @default(false)
+  otpCode                    String?
+  otpExpiresAt               DateTime?
+  resetToken                 String?                @unique
+  resetTokenExpiresAt        DateTime?
+  matricNumber               String?                @unique
+  isFresher                  Boolean                @default(false)
+  jambRegNumber              String?
+  jambExamYear               Int?
+  fresherExpiresAt           DateTime?
+  pendingSellerEmail         String?
+  pendingSellerMatric        String?
+  pendingSellerIsFresher     Boolean                @default(false)
+  pendingSellerJambRegNumber String?
+  pendingSellerJambExamYear  Int?
+  avatarPublicId             String?
+  whatsapp                   String?
+  role                       Role                   @default(USER)
+  aiUsesRemaining            Int                    @default(0)
+  numberViewsRemaining       Int                    @default(0)
+  tokenBalance               Float                  @default(5)
+  gigBalance                 Int                    @default(0) // kobo, separate from marketplace tokenBalance, buyable, Naira display
+  gigAccountNumber           String?                @unique // 10 digits like 8091234567
+  gigTransferPin             String? // bcrypt hash of 4-digit PIN
+  gigPinOtpCode              String?
+  gigPinOtpExpiresAt         DateTime?
+  bankAccountNumber          String?
+  bankCode                   String?
+  bankName                   String?
+  firstServiceAt             DateTime?
+  serviceTrialEndsAt         DateTime?
+  marketingOptIn             Boolean                @default(true)
+  unsubscribeToken           String                 @unique @default(cuid())
+  tokenPurchases             TokenPurchase[]
+  gigPurchases               GigTokenPurchase[]
+  gigsPosted                 Gig[]                  @relation("GigPoster")
+  gigsClaimed                Gig[]                  @relation("GigClaimer")
+  gigWithdrawals             GigWithdrawal[]
+  gigTransfersSent           GigTransfer[]          @relation("GigTransferFrom")
+  gigTransfersReceived       GigTransfer[]          @relation("GigTransferTo")
+  gigWalletTransactions      GigWalletTransaction[]
+  serviceBookingsAsBooker    ServiceBooking[]       @relation("ServiceBooker")
+  serviceBookingsAsProvider  ServiceBooking[]       @relation("ServiceProvider")
+  listings                   Listing[]
+  reports                    Report[]
+  favorites                  Favorite[]
+  notifications              Notification[]
+  contactViews               ContactView[]
+  viewLogs                   ListingView[]
+  pushSubscriptions          PushSubscription[]
+  pwaInstalls                PWAInstall[]
+  supportThread              SupportThread?         @relation("SupportUser")
+  supportClaims              SupportThread[]        @relation("SupportClaimer")
+  referralCode               String?                @unique
+  referralsMade              Referral[]             @relation("Referrer")
+  referralReceived           Referral?              @relation("Referred")
+  commissionsEarned          ReferralCommission[]   @relation("CommissionReferrer")
+  commissionsGenerated       ReferralCommission[]   @relation("CommissionReferred")
 
+  @@unique([jambRegNumber, jambExamYear])
   @@map("users")
 }
 
 model PendingRegistration {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  username     String   @unique
-  password     String
-  fullName     String
-  school       String
-  matricNumber String?
-  bio          String?
-  otpCode      String
-  otpExpiresAt DateTime
-  createdAt    DateTime @default(now())
-  role         Role     @default(BUYER)
-  whatsapp     String?
-  referralCode String?
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  username      String   @unique
+  password      String
+  fullName      String
+  school        String
+  matricNumber  String?
+  isFresher     Boolean  @default(false)
+  jambRegNumber String?
+  jambExamYear  Int?
+  bio           String?
+  otpCode       String
+  otpExpiresAt  DateTime
+  createdAt     DateTime @default(now())
+  role          Role     @default(BUYER)
+  whatsapp      String?
+  referralCode  String?
 
   @@map("pending_registrations")
 }
