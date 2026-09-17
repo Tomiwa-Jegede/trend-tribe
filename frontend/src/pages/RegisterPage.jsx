@@ -550,7 +550,7 @@ const RegisterPage = () => {
                           required
                         />
                         <p className="text-xs text-gray-500 -mt-2">Live check — RUN only</p>
-                        {jambCheck.loading && <p className="text-xs text-gray-500">Checking...</p>}
+                        {jambCheck.loading && <p className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 border-2 border-gray-300 border-t-primary-600 rounded-full animate-spin" /> Checking JAMB...</p>}
                         {jambCheck.data?.isRun && <p className="text-sm font-bold text-green-600">✓ {jambCheck.data.fullName}</p>}
                         {jambCheck.error && <p className="text-xs font-medium text-red-600">{jambCheck.error}</p>}
                       </>
@@ -682,8 +682,8 @@ const RegisterPage = () => {
 
                 <motion.button
                   type="submit"
-                  disabled={loading}
-                  className="btn-primary flex items-center justify-center gap-2 py-3 mt-1"
+                  disabled={loading || (role === "SELLER" && isFresher && jambCheck.loading)}
+                  className="btn-primary flex items-center justify-center gap-2 py-3 mt-1 disabled:opacity-60"
                   whileHover={reduced ? {} : { scale: 1.02 }}
                   whileTap={reduced ? {} : { scale: 0.97 }}
                   transition={{ type: "spring", stiffness: 380, damping: 20 }}
