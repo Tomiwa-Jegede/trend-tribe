@@ -193,7 +193,7 @@ const RegisterPage = () => {
         const { data } = await api.post("/auth/check-jamb", { jambRegNumber: reg, jambExamYear: y });
         if (cancelled) return;
         if (data.isRun) setJambCheck({ loading: false, data, error: "" });
-        else setJambCheck({ loading: false, data: null, error: data.institution ? `Not Redeemer's — found ${data.institution}` : "Not found for Redeemer's University — double-check number and year" });
+        else setJambCheck({ loading: false, data: null, error: "Not for Redeemer's" });
       } catch (e) {
         if (cancelled) return;
         const msg = e.response?.data?.error || "Can't confirm Jamb Registration now try again later";
@@ -290,13 +290,13 @@ const RegisterPage = () => {
     if (role === "SELLER") {
       if (!formData.school.trim()) newErrors.school = "School is required";
       if (isFresher) {
-        if (!formData.jambRegNumber.trim()) newErrors.jambRegNumber = "JAMB number is required — enter 12 digits + 2 letters like 202441390932IF";
-        else if (!/^\d{12}[A-Z]{2}$/.test(formData.jambRegNumber.trim().toUpperCase())) newErrors.jambRegNumber = "JAMB number must be 12 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip";
-        if (!formData.jambExamYear.trim()) newErrors.jambExamYear = "JAMB year is required — pick the year on your slip";
+        if (!formData.jambRegNumber.trim()) newErrors.jambRegNumber = "Required";
+        else if (!/^\d{12}[A-Z]{2}$/.test(formData.jambRegNumber.trim().toUpperCase())) newErrors.jambRegNumber = "12 digits + 2 letters, e.g. 202441390932IF";
+        if (!formData.jambExamYear.trim()) newErrors.jambExamYear = "Required";
         else {
           const y = parseInt(formData.jambExamYear, 10);
           const cy = new Date().getFullYear();
-          if (!y || y < cy - 1 || y > cy) newErrors.jambExamYear = `JAMB year must be ${cy - 1} or ${cy} — select the year printed on your JAMB slip`;
+          if (!y || y < cy - 1 || y > cy) newErrors.jambExamYear = `Pick ${cy - 1} or ${cy}`;
         }
       } else {
         if (!formData.matricNumber.trim())
@@ -549,9 +549,9 @@ const RegisterPage = () => {
                           placeholder="e.g. 202441390932IF"
                           required
                         />
-                        <p className="text-xs text-gray-500 -mt-2">We check live on JAMB. Only Redeemer's University passes. If you see "Can't confirm Jamb Registration now try again later" — wait 1 minute and retry. If "not for Redeemer's" — double-check number and year.</p>
-                        {jambCheck.loading && <p className="text-xs text-gray-500">Checking JAMB...</p>}
-                        {jambCheck.data?.isRun && <p className="text-sm font-bold text-green-600">✓ {jambCheck.data.fullName} — {jambCheck.data.institution}</p>}
+                        <p className="text-xs text-gray-500 -mt-2">Live check — RUN only</p>
+                        {jambCheck.loading && <p className="text-xs text-gray-500">Checking...</p>}
+                        {jambCheck.data?.isRun && <p className="text-sm font-bold text-green-600">✓ {jambCheck.data.fullName}</p>}
                         {jambCheck.error && <p className="text-xs font-medium text-red-600">{jambCheck.error}</p>}
                       </>
                     ) : (

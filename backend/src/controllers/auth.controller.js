@@ -69,16 +69,16 @@ const register = async (req, res) => {
         const year = parseInt(jambExamYear, 10);
         const currentYear = new Date().getFullYear();
         if (!/^\d{12}[A-Z]{2}$/.test(reg)) {
-          return res.status(400).json({ error: "JAMB number must be 12 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip and try again" });
+          return res.status(400).json({ error: "12 digits + 2 letters, e.g. 202441390932IF" });
         }
         if (!year || year < currentYear - 1 || year > currentYear) {
-          return res.status(400).json({ error: `JAMB year must be ${currentYear - 1} or ${currentYear} — select the year printed on your JAMB slip` });
+          return res.status(400).json({ error: `Year must be ${currentYear - 1} or ${currentYear}` });
         }
         // JAMB live check — only Redeemers University passes
         try {
           const jambRes = await verifyJamb({ regNumber: reg, examYear: year });
           if (!jambRes.isRun) {
-            return res.status(400).json({ error: `This JAMB number (${reg}) for ${year} is not for Redeemer's University — fresher signup is only for RUN students. Double-check number and year.` });
+            return res.status(400).json({ error: "Not for Redeemer's — check number/year" });
           }
         } catch (jambErr) {
           if (jambErr.status === 503) return res.status(503).json({ error: "Can't confirm Jamb Registration now try again later" });
@@ -126,13 +126,13 @@ const register = async (req, res) => {
         where: { jambRegNumber: reg, jambExamYear: year },
       });
       if (existingJamb) {
-        return res.status(409).json({ error: `This JAMB number (${reg}) for ${year} is already registered — if this is yours, try logging in or contact support` });
+        return res.status(409).json({ error: "Already registered" });
       }
       const pendingJamb = await prisma.pendingRegistration.findFirst({
         where: { jambRegNumber: reg, jambExamYear: year },
       });
       if (pendingJamb) {
-        return res.status(409).json({ error: `This JAMB number (${reg}) for ${year} is already pending verification — check your email for OTP or try again in 10 minutes` });
+        return res.status(409).json({ error: "Already pending — check email" });
       }
     }
     await prisma.pendingRegistration.deleteMany({
@@ -849,13 +849,13 @@ const requestSellerUpgrade = async (req, res) => {
       const reg = String(jambRegNumber || "").trim().toUpperCase();
       const year = parseInt(jambExamYear, 10);
       const currentYear = new Date().getFullYear();
-      if (!/^\d{12}[A-Z]{2}$/.test(reg)) return res.status(400).json({ error: "JAMB number must be 12 digits + 2 letters, e.g. 202441390932IF — check your JAMB slip and try again" });
-      if (!year || year < currentYear - 1 || year > currentYear) return res.status(400).json({ error: `JAMB year must be ${currentYear - 1} or ${currentYear} — select the year printed on your JAMB slip` });
+      if (!/^\d{12}[A-Z]{2}$/.test(reg)) return res.status(400).json({ error: "12 digits + 2 letters, e.g. 202441390932IF" });
+      if (!year || year < currentYear - 1 || year > currentYear) return res.status(400).json({ error: `Year must be ${currentYear - 1} or ${currentYear}` });
       const existingJamb = await prisma.user.findFirst({ where: { jambRegNumber: reg, jambExamYear: year } });
-      if (existingJamb) return res.status(409).json({ error: `This JAMB number (${reg}) for ${year} is already registered — if this is yours, try logging in or contact support` });
+      if (existingJamb) return res.status(409).json({ error: "Already registered" });
       try {
         const jambRes = await verifyJamb({ regNumber: reg, examYear: year });
-        if (!jambRes.isRun) return res.status(400).json({ error: `This JAMB number (${reg}) for ${year} is not for Redeemer's University — fresher signup is only for RUN students. Double-check number and year.` });
+        if (!jambRes.isRun) return res.status(400).json({ error: "Not for Redeemer's — check number/year" });
       } catch (jambErr) {
         if (jambErr.status === 503) return res.status(503).json({ error: "Can't confirm Jamb Registration now try again later" });
         if (jambErr.status === 400) return res.status(400).json({ error: jambErr.message });
