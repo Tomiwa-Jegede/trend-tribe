@@ -31,7 +31,7 @@ const FEATURES = [
   },
   {
     icon: <FiBriefcase className="w-6 h-6 text-primary-600" />,
-    title: "Tasks, Services & Tasks",
+    title: "Tasks & Services",
     desc: "Book a service, post a task, or pick up tasks on campus — get paid straight into your TrendTribe Wallet.",
   },
   {
