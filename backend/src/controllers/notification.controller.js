@@ -34,8 +34,10 @@ const getMyNotifications = async (req, res) => {
       type: n.type,
       read: n.read,
       createdAt: n.createdAt,
+      listingId: n.listingId,
       listing: n.listing,
       actor: n.actorId ? actorMap[n.actorId] || { id: n.actorId } : null,
+      meta: n.meta || null,
     }));
 
     return res.status(200).json({
