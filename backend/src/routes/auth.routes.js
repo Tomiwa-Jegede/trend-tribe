@@ -11,6 +11,7 @@ const {
   resetPassword,
   updateProfile,
   addMatricNumber,
+  checkJamb,
   requestSellerUpgrade,
   verifySellerUpgrade,
   unsubscribe,
@@ -39,6 +40,7 @@ router.post("/login", authLimiter, loginRules, validate, login);
 router.post("/forgot-password", authLimiter, forgotPasswordRules, validate, forgotPassword);
 router.post("/reset-password", authLimiter, resetPasswordRules, validate, resetPassword);
 router.get("/unsubscribe/:token", unsubscribe);
+router.post("/check-jamb", authLimiter, checkJamb);
 // ─── Protected ────────────────────────────────────────────────
 router.get("/me", protect, getMe);
 router.post("/verify-email", otpLimiter, protect, verifyEmailRules, validate, verifyEmail);

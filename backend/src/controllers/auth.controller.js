@@ -802,6 +802,34 @@ const addMatricNumber = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// POST /api/auth/check-jamb — public, live JAMB matriculation preview
+// Body: { jambRegNumber, jambExamYear } -> returns name in green if RUN
+// ─────────────────────────────────────────────────────────────
+const checkJamb = async (req, res) => {
+  try {
+    const { jambRegNumber, jambExamYear } = req.body;
+    const reg = String(jambRegNumber || "").trim().toUpperCase();
+    const year = parseInt(jambExamYear, 10);
+    const currentYear = new Date().getFullYear();
+    if (!reg || !year) return res.status(400).json({ error: "JAMB number and year are required" });
+    if (!/^\d{12}[A-Z]{2}$/.test(reg)) return res.status(400).json({ error: "JAMB number must be 12 digits + 2 letters, e.g. 202441390932IF" });
+    if (!year || year < currentYear - 1 || year > currentYear) return res.status(400).json({ error: `JAMB year must be ${currentYear - 1} or ${currentYear}` });
+    const result = await verifyJamb({ regNumber: reg, examYear: year });
+    return res.status(200).json({
+      isRun: result.isRun,
+      fullName: result.fullName || "",
+      institution: result.institution || "",
+      programme: result.programme || "",
+      statusText: result.statusText || "",
+    });
+  } catch (err) {
+    if (err.status === 503) return res.status(503).json({ error: "Can't confirm Jamb Registration now try again later" });
+    console.error("[CHECK JAMB ERROR]", err);
+    return res.status(500).json({ error: "Could not check JAMB" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
 // POST /api/auth/upgrade-to-seller ← PROTECTED (BUYER only)
 // Body: { email (RUN email) }
 // Sends OTP to the provided RUN email, stores it for verification
@@ -1031,6 +1059,7 @@ module.exports = {
   resetPassword,
   updateProfile,
   addMatricNumber,
+  checkJamb,
   requestSellerUpgrade,
   verifySellerUpgrade,
   unsubscribe,

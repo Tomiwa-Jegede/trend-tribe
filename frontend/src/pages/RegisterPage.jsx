@@ -174,7 +174,34 @@ const RegisterPage = () => {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
+  const [jambCheck, setJambCheck] = useState({ loading: false, data: null, error: "" });
   const formScrollRef = useRef(null);
+
+  // Live JAMB check — show name in green when passes
+  useEffect(() => {
+    if (!isFresher || role !== "SELLER") { setJambCheck({ loading: false, data: null, error: "" }); return; }
+    const reg = formData.jambRegNumber.trim().toUpperCase();
+    const year = formData.jambExamYear.trim();
+    if (!/^\d{12}[A-Z]{2}$/.test(reg) || !/^\d{4}$/.test(year)) { setJambCheck({ loading: false, data: null, error: "" }); return; }
+    const y = parseInt(year, 10);
+    const cy = new Date().getFullYear();
+    if (!y || y < cy - 1 || y > cy) { setJambCheck({ loading: false, data: null, error: "" }); return; }
+    let cancelled = false;
+    setJambCheck({ loading: true, data: null, error: "" });
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await api.post("/auth/check-jamb", { jambRegNumber: reg, jambExamYear: y });
+        if (cancelled) return;
+        if (data.isRun) setJambCheck({ loading: false, data, error: "" });
+        else setJambCheck({ loading: false, data: null, error: data.institution ? `Not Redeemer's — found ${data.institution}` : "Not found for Redeemer's University — double-check number and year" });
+      } catch (e) {
+        if (cancelled) return;
+        const msg = e.response?.data?.error || "Can't confirm Jamb Registration now try again later";
+        setJambCheck({ loading: false, data: null, error: msg });
+      }
+    }, 800);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [formData.jambRegNumber, formData.jambExamYear, isFresher, role]);
 
   // Derive active step from which fields are filled
   useEffect(() => {
@@ -523,6 +550,9 @@ const RegisterPage = () => {
                           required
                         />
                         <p className="text-xs text-gray-500 -mt-2">We check live on JAMB. Only Redeemer's University passes. If you see "Can't confirm Jamb Registration now try again later" — wait 1 minute and retry. If "not for Redeemer's" — double-check number and year.</p>
+                        {jambCheck.loading && <p className="text-xs text-gray-500">Checking JAMB...</p>}
+                        {jambCheck.data?.isRun && <p className="text-sm font-bold text-green-600">✓ {jambCheck.data.fullName} — {jambCheck.data.institution}</p>}
+                        {jambCheck.error && <p className="text-xs font-medium text-red-600">{jambCheck.error}</p>}
                       </>
                     ) : (
                       <FormInput
