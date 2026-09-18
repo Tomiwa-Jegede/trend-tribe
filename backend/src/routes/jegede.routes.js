@@ -183,9 +183,9 @@ function fallbackBriefing(s) {
   };
 }
 
-// ─── Try Gemini for richer wording, but always grounded in real data ──
+// ─── Try Groq for richer wording, but always grounded in real data ──
 async function geminiBriefing(s) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
   try {
     const { askGemini } = require("../utils/gemini");
@@ -245,7 +245,7 @@ router.post("/update", async (req, res) => {
       data: snapshot, // receipts — every number is verifiable
       briefing, // simple-English analyst output
       meta: {
-        source: usedFallback ? "fallback" : "gemini",
+        source: usedFallback ? "fallback" : "groq",
         phrase: req.body?.message || "update",
       },
     });
@@ -262,7 +262,7 @@ router.get("/update", async (req, res) => {
     let briefing = await geminiBriefing(snapshot);
     let usedFallback = false;
     if (!briefing) { briefing = fallbackBriefing(snapshot); usedFallback = true; }
-    return res.status(200).json({ ok: true, generatedAt: snapshot.generatedAt, data: snapshot, briefing, meta: { source: usedFallback ? "fallback" : "gemini" } });
+    return res.status(200).json({ ok: true, generatedAt: snapshot.generatedAt, data: snapshot, briefing, meta: { source: usedFallback ? "fallback" : "groq" } });
   } catch (err) {
     console.error("[JEGEDE GET UPDATE ERROR]", err);
     return res.status(500).json({ error: "Could not build update" });

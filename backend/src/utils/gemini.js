@@ -35,7 +35,7 @@ const askGemini = async (prompt) => {
 const askGeminiVision = async (prompt, imageBase64, mimeType) => {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY is not set");
-  const visionModel = process.env.GROQ_VISION_MODEL || "openai/gpt-oss-20b";
+  const visionModel = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
   const res = await fetch(GROQ_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
