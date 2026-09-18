@@ -300,10 +300,57 @@ const chat = async (req, res) => {
       products: matchedListings,
     });
   } catch (err) {
-    console.error("[FREDERICK CHAT ERROR]", err);
-    return res.status(500).json({
-      error: "Frederick is having trouble right now. Please try again.",
-    });
+    console.error("[FREDERICK CHAT ERROR]", err.message);
+    // Fallback: simple text search so shoppers still get results even when AI is down
+    try {
+      const q = (message || "").trim().slice(0, 100);
+      const fallbackListings = await prisma.listing.findMany({
+        where: {
+          isAvailable: true,
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { description: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          price: true,
+          category: true,
+          condition: true,
+          location: true,
+          images: true,
+          sellerId: true,
+        },
+        take: 10,
+      });
+      const fallbackProducts = fallbackListings.map((l) => ({
+        id: l.id,
+        slug: l.slug,
+        title: l.title,
+        price: Number(l.price),
+        category: l.category,
+        condition: l.condition,
+        location: l.location,
+        image: l.images?.[0] || null,
+        sellerId: l.sellerId,
+      }));
+      if (fallbackProducts.length) {
+        return res.status(200).json({
+          reply: `I found ${fallbackProducts.length} item(s) for "${q}" — AI is briefly offline, so I did a quick search for you.`,
+          products: fallbackProducts,
+        });
+      }
+      return res.status(200).json({
+        reply: `I couldn't find anything for "${q}" and my AI helper is briefly offline. Try different words or check the Marketplace directly.`,
+        products: [],
+      });
+    } catch {
+      return res.status(500).json({
+        error: "Frederick is having trouble right now. Please try again.",
+      });
+    }
   }
 };
 
