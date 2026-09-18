@@ -9,6 +9,7 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
 import BuyTokens from "../ui/BuyTokens";
 
+
 const FrederickWidget = () => {
   const { refreshUser, isAuthenticated, user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
@@ -59,6 +60,7 @@ const FrederickWidget = () => {
     }
   }, [isAuthenticated, isAdmin]);
 
+
   const clearPendingImage = () => {
     if (pendingImagePreview) {
       URL.revokeObjectURL(pendingImagePreview);
@@ -67,28 +69,34 @@ const FrederickWidget = () => {
     setPendingImagePreview(null);
   };
 
+
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
 
     if (!file.type.startsWith("image/")) {
       e.target.value = "";
       return;
     }
 
+
     if (pendingImagePreview) {
       URL.revokeObjectURL(pendingImagePreview);
     }
+
 
     setPendingImage(file);
     setPendingImagePreview(URL.createObjectURL(file));
     e.target.value = ""; // allow re-selecting the same file later
   };
 
+
   const frederickInputRef = useRef(null);
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
+
 
     // ── Admin: Jegede is Data Strategist — "update" gives real briefing (30s timeout for cold-start) ──
     const isUpdateCmd = isAdmin && trimmed.toLowerCase().includes("update");
@@ -137,6 +145,7 @@ const FrederickWidget = () => {
       return;
     }
 
+
     const imageToSend = pendingImage;
     const imagePreviewToSend = pendingImagePreview;
     setMessages((prev) => [
@@ -149,8 +158,10 @@ const FrederickWidget = () => {
     setPendingImagePreview(null); // don't revoke — the message list now owns this URL
     setLoading(true);
 
+
     try {
       const result = await askFrederick(trimmed, false, imageToSend, sessionId);
+
 
       if (!result.ok && result.needsTokenConfirm) {
         setMessages((prev) => [
@@ -189,6 +200,7 @@ const FrederickWidget = () => {
     }
   };
 
+
   const handleConfirmSpend = async (pendingMessage, pendingImage) => {
     setLoading(true);
     try {
@@ -212,6 +224,7 @@ const FrederickWidget = () => {
     }
   };
 
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -219,27 +232,10 @@ const FrederickWidget = () => {
     }
   };
 
-  const initialPos = (() => {
-    try {
-      const v = localStorage.getItem("jegede-bubble-pos");
-      const p = v ? JSON.parse(v) : { x: 0, y: 0 };
-      // clamp any stale off-screen save (e.g. dragged off viewport, rotate, or old vw)
-      if (typeof window !== "undefined") {
-        const vw = window.innerWidth, vh = window.innerHeight;
-        const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
-        p.x = clamp(p.x || 0, -vw + 80, 0);
-        p.y = clamp(p.y || 0, 0, vh - 160);
-        // if still off-screen (e.g. very small viewport), snap to visible corner
-        if (p.x < -vw + 80 || p.y > vh - 160) { p.x = 0; p.y = 0; }
-      }
-      return p;
-    } catch { return { x: 0, y: 0 }; }
-  })();
-  const motionX = useMotionValue(initialPos.x || 0);
-  const motionY = useMotionValue(initialPos.y || 0);
-  const savePos = (next) => {
-    try { localStorage.setItem("jegede-bubble-pos", JSON.stringify(next)); } catch {}
-  };
+
+  const motionX = useMotionValue(0);
+  const motionY = useMotionValue(0);
+  const savePos = () => {}; // position no longer persisted — always resets to default on load/refresh
   // snap to edge on mount if was in center (old saves)
   useEffect(() => {
     const vw = window.innerWidth;
@@ -258,7 +254,7 @@ const FrederickWidget = () => {
     const onResize = () => {
       const vw = window.innerWidth, vh = window.innerHeight;
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-      const clampedY = clamp(motionY.get(), 0, vh - 160);
+      const clampedY = clamp(motionY.get(), -vh + 80, 0);
       const snappedX = motionX.get() < -vw / 2 + 40 ? -vw + 80 : 0;
       const clampedX = clamp(snappedX, -vw + 80, 0);
       if (clampedX !== motionX.get() || clampedY !== motionY.get()) {
@@ -281,6 +277,7 @@ const FrederickWidget = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
   const resetPos = () => {
     motionX.set(0); motionY.set(0);
     savePos({ x: 0, y: 0 });
@@ -296,7 +293,7 @@ const FrederickWidget = () => {
           const vw = window.innerWidth, vh = window.innerHeight;
           const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
           const snappedX = motionX.get() < -vw / 2 + 40 ? -vw + 80 : 0;
-          const clampedY = clamp(motionY.get(), 0, vh - 160);
+          const clampedY = clamp(motionY.get(), -vh + 80, 0);
           animate(motionX, snappedX, { type: "spring", stiffness: 400, damping: 30 });
           animate(motionY, clampedY, { type: "spring", stiffness: 400, damping: 30 });
           savePos({ x: snappedX, y: clampedY });
@@ -305,7 +302,7 @@ const FrederickWidget = () => {
         onMouseEnter={() => setIdle(false)}
         animate={{ opacity: idle && !open ? 0.62 : 1 }}
         transition={{ opacity: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] } }}
-        className={`fixed top-20 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100 cursor-grab active:cursor-grabbing`}
+        className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100 cursor-grab active:cursor-grabbing`}
         title="Drag to move — double-click to reset"
       >
         <AnimatePresence>
@@ -362,6 +359,7 @@ const FrederickWidget = () => {
         </motion.button>
       </motion.div>
 
+
       <AnimatePresence>
         {open && (
           <motion.div
@@ -374,6 +372,7 @@ const FrederickWidget = () => {
           />
         )}
       </AnimatePresence>
+
 
       <AnimatePresence>
         {open && (
@@ -401,6 +400,7 @@ const FrederickWidget = () => {
                 <FiX className="w-5 h-5" />
               </button>
             </div>
+
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
               {messages.map((m, i) => (
@@ -502,6 +502,7 @@ const FrederickWidget = () => {
               )}
             </div>
 
+
             {pendingImagePreview && (
               <div className="px-3 pt-2 flex items-center gap-2">
                 <div className="relative inline-block">
@@ -521,6 +522,7 @@ const FrederickWidget = () => {
                 </div>
               </div>
             )}
+
 
             <div className="border-t border-sage-100 p-2 flex items-end gap-2">
               <input
@@ -561,9 +563,11 @@ const FrederickWidget = () => {
         )}
       </AnimatePresence>
 
+
       <BuyTokens isOpen={buyTokensOpen} onClose={() => setBuyTokensOpen(false)} />
     </>
   );
 };
+
 
 export default FrederickWidget;
