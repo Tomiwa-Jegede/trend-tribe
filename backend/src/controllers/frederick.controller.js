@@ -347,18 +347,18 @@ const chat = async (req, res) => {
       }));
       if (fallbackProducts.length) {
         return res.status(200).json({
-          reply: `I found ${fallbackProducts.length} item(s) for "${q}" — Jegede is briefly offline, so I did a quick search for you.`,
+          reply: `I found ${fallbackProducts.length} item(s) for "${q}" — Tomiwa is briefly offline, so I did a quick search for you.`,
           products: fallbackProducts,
         });
       }
       return res.status(200).json({
-        reply: `I couldn't find anything for "${q}" and Jegede is briefly offline. Try different words or check the Marketplace directly.`,
+        reply: `I couldn't find anything for "${q}" and Tomiwa is briefly offline. Try different words or check the Marketplace directly.`,
         products: [],
       });
     } catch (fallbackErr) {
       console.error("[FREDERICK FALLBACK ERROR]", fallbackErr.message);
       return res.status(200).json({
-        reply: "Jegede is a bit busy right now (high demand). Please try again in a moment, or browse the Marketplace directly.",
+        reply: "Tomiwa is a bit busy right now (high demand). Please try again in a moment, or browse the Marketplace directly.",
         products: [],
       });
     }
