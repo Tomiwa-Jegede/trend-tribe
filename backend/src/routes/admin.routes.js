@@ -483,7 +483,6 @@ router.get("/db-usage", protect, requireAdmin, async (req, res) => {
     const counts = {
       users: await prisma.user.count(),
       listings: await prisma.listing.count(),
-      messages: 0,
       notifications: await prisma.notification.count(),
       favorites: await prisma.favorite.count(),
     };
