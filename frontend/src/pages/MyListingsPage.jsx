@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import TokenIcon from "../components/ui/TokenIcon";
 import { FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
 import { cldUrl } from "../utils/cloudinary";
 
@@ -262,18 +263,18 @@ const MyListingsPage = () => {
                               <button
                                 onClick={() => handleBoost(l, 1, d)}
                                 disabled={toggling === l.id}
-                                className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500"
+                                className="text-xs font-bold px-2.5 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500 inline-flex items-center gap-1"
                                 title={`${d}d · ${d} token${d>1?"s":""} — Top 5, re-boost to climb`}
                               >
-                                X1 · {d}d
+                                X1 · {d}d · {d} <TokenIcon size={10} />
                               </button>
                               <button
                                 onClick={() => handleBoost(l, 2, d)}
                                 disabled={toggling === l.id}
-                                className="text-xs font-bold px-3 py-1.5 rounded-full border border-navy-900 bg-navy-900 text-white hover:bg-black"
+                                className="text-xs font-bold px-2.5 py-1.5 rounded-full border border-navy-900 bg-navy-900 text-white hover:bg-black inline-flex items-center gap-1"
                                 title={`${d}d · ${d*2} tokens — Picks + Top 5`}
                               >
-                                X2 · {d}d
+                                X2 · {d}d · {d*2} <TokenIcon size={10} />
                               </button>
                             </>
                           ); })()}
