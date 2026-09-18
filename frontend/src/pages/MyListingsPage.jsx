@@ -28,6 +28,48 @@ const boostedHoursLeft = (listing) => {
   if (!isBoosted(listing)) return 0;
   return Math.max(0, Math.ceil((new Date(listing.boostedUntil).getTime() - Date.now()) / 3600000));
 };
+const useBoostCountdown = (until) => {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const diff = Math.max(0, new Date(until).getTime() - now);
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  return { diff, days, hours, mins, secs };
+};
+const BoostTimer = ({ listing }) => {
+  const { diff, days, hours, mins, secs } = useBoostCountdown(listing.boostedUntil);
+  if (diff <= 0) return null;
+  const tierLabel = listing.boostTier === 2 ? "Picks" : "Featured";
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  parts.push(`${String(hours).padStart(2, "0")}h`);
+  parts.push(`${String(mins).padStart(2, "0")}m`);
+  parts.push(`${String(secs).padStart(2, "0")}s`);
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">
+      ★ {tierLabel} · {parts.join(" ")} left
+    </span>
+  );
+};
+const BoostTopBadge = ({ listing }) => {
+  const { diff, days, hours, mins, secs } = useBoostCountdown(listing.boostedUntil);
+  if (diff <= 0) return null;
+  const tierLabel = listing.boostTier === 2 ? "Picks" : "Featured";
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  parts.push(`${String(hours).padStart(2, "0")}h`);
+  parts.push(`${String(mins).padStart(2, "0")}m`);
+  return (
+    <span className="absolute top-2 left-2 bg-amber-400 text-amber-900 text-xs font-bold px-2 py-1 rounded-full">
+      ★ {tierLabel} · {parts.join(" ")}
+    </span>
+  );
+};
 
 const diagnosis = (l) => {
   if ((l.views ?? 0) > 20 && (l.favoriteCount ?? 0) === 0) return "Try a brighter cover photo — top sellers show front on white.";
@@ -162,7 +204,7 @@ const MyListingsPage = () => {
               <p><span className="font-semibold text-gray-900">Boost X2 Picks — 2 tokens per day (Premium)</span><br/>You get everything in X1, <b>plus</b> you are in <b>Picks</b> — a special 5-item row right at the very top that every visitor sees first, no matter what category they browse. Picks is curated and always shown, so your item gets double display: Featured + Picks. Use X2 when you want to sell fast — e.g. a hot jacket, sneakers, or phone. It costs 2× because you get 2 spots. Re-boost also moves you to the front of Picks.</p>
               <p><span className="font-semibold text-gray-900">Example</span><br/>Fashion jacket with X1 for 3 days = top 5 in Fashion for 3 days (3 tokens). Same jacket with X2 for 3 days = top 5 in Fashion <b>and</b> in Picks for 3 days (6 tokens).</p>
               <p><span className="font-semibold text-gray-900">Days</span><br/>Pick 1 to 30 days next to the buttons. Cost: X1 = 1 token × days, X2 = 2 tokens × days. We show both days and price on the button, e.g. <b>X1 · 3d · 3</b> or <b>X2 · 3d · 6</b>.</p>
-              <p><span className="font-semibold text-gray-900">After you boost</span><br/>You will see “Featured · 72h left” or “Picks · 3d left”. When it ends, it just goes back to normal — you don’t lose the listing.</p>
+              <p><span className="font-semibold text-gray-900">After you boost</span><br/>You will see a live timer in days — e.g. “Featured · 2d 05h 12m 30s left” — counting down every second. When it ends, it just goes back to normal — you don’t lose the listing.</p>
             </InfoModal>
           </div>
           <p className="text-sm text-gray-600 mt-1 break-words">
@@ -215,7 +257,7 @@ const MyListingsPage = () => {
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
                     )}
-                    {boosted && <span className="absolute top-2 left-2 bg-amber-400 text-amber-900 text-xs font-bold px-2 py-1 rounded-full">★ Featured · {bLeft}h left</span>}
+                    {boosted && <BoostTopBadge listing={l} />}
                     {ghost && <span className={`absolute bg-amber-400 text-amber-900 text-xs font-bold px-2 py-1 rounded-full ${boosted ? "top-9 left-2" : "top-2 left-2"}`}>GHOST — will hide in {left}d</span>}
                     {!l.isAvailable && <span className="absolute top-2 right-2 bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded-full">HIDDEN</span>}
                     {/* subtle 30d timer bar — seller + admin only (not on public cards) */}
@@ -293,7 +335,7 @@ const MyListingsPage = () => {
                       )}
                       {boosted && (
                         <div className="flex flex-wrap items-center gap-2 w-full">
-                          <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">★ {l.boostTier===2?"Picks":"Featured"} {bLeft<=48?`${bLeft}h`: `${Math.ceil(bLeft/24)}d`} left</span>
+                          <BoostTimer listing={l} />
                           <label className="text-xs text-gray-500 flex items-center gap-1">
                             Extend:
                             <select
