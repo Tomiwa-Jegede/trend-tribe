@@ -309,7 +309,7 @@ const chat = async (req, res) => {
       const isGreeting = ["hi","hello","hey","how far","how are you","good morning","good afternoon","good evening","sup","yo"].some(g => qLower === g || (qLower.length < 15 && qLower.startsWith(g)));
       if (isGreeting || q.length < 3) {
         return res.status(200).json({
-          reply: "Hey! I'm Trend Tribe's helper. Tell me what you're looking for — e.g. 'black sneakers size 42' or 'iphone under 100k' — and I'll find it for you.",
+          reply: "Hey! I'm Jegede — Trend Tribe's helper. Tell me what you're looking for — e.g. 'black sneakers size 42' or 'iphone under 100k' — and I'll find it for you.",
           products: [],
         });
       }
@@ -347,18 +347,18 @@ const chat = async (req, res) => {
       }));
       if (fallbackProducts.length) {
         return res.status(200).json({
-          reply: `I found ${fallbackProducts.length} item(s) for "${q}" — AI is briefly offline, so I did a quick search for you.`,
+          reply: `I found ${fallbackProducts.length} item(s) for "${q}" — Jegede is briefly offline, so I did a quick search for you.`,
           products: fallbackProducts,
         });
       }
       return res.status(200).json({
-        reply: `I couldn't find anything for "${q}" and my AI helper is briefly offline. Try different words or check the Marketplace directly.`,
+        reply: `I couldn't find anything for "${q}" and Jegede is briefly offline. Try different words or check the Marketplace directly.`,
         products: [],
       });
     } catch (fallbackErr) {
       console.error("[FREDERICK FALLBACK ERROR]", fallbackErr.message);
       return res.status(200).json({
-        reply: "I'm a bit busy right now (high demand). Please try again in a moment, or browse the Marketplace directly.",
+        reply: "Jegede is a bit busy right now (high demand). Please try again in a moment, or browse the Marketplace directly.",
         products: [],
       });
     }
