@@ -346,9 +346,11 @@ const chat = async (req, res) => {
         reply: `I couldn't find anything for "${q}" and my AI helper is briefly offline. Try different words or check the Marketplace directly.`,
         products: [],
       });
-    } catch {
-      return res.status(500).json({
-        error: "Frederick is having trouble right now. Please try again.",
+    } catch (fallbackErr) {
+      console.error("[FREDERICK FALLBACK ERROR]", fallbackErr.message);
+      return res.status(200).json({
+        reply: "I'm a bit busy right now (high demand). Please try again in a moment, or browse the Marketplace directly.",
+        products: [],
       });
     }
   }
