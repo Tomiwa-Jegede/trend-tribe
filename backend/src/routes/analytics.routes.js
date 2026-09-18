@@ -1,14 +1,14 @@
 // src/routes/analytics.routes.js — Admin analytics (money, funnel, supply, growth, search)
 const express = require("express");
 const { protect } = require("../middleware/auth.middleware");
-const { requireAdmin } = require("../middleware/admin.middleware");
+const { requireAdmin, requireTopAdmin } = require("../middleware/admin.middleware");
 const prisma = require("../db");
 
 const router = express.Router();
 router.use(protect, requireAdmin);
 
-// ─── Money: token economy ─────────────────────────────────────
-router.get("/money", async (req, res) => {
+// ─── Money: token economy ─── Top Admin only (Jegede01) ──
+router.get("/money", requireTopAdmin, async (req, res) => {
   try {
     const { days = 30 } = req.query;
     const since = new Date(Date.now() - parseInt(days, 10) * 24 * 60 * 60 * 1000);

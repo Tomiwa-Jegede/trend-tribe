@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
 import InfoModal from "../components/ui/InfoModal";
+import { useAuth } from "../context/AuthContext";
 import { getMoneyAnalytics, getFunnelAnalytics, getSearchAnalytics, getAiAnalytics, getPostHogAnalytics, getPostHogReplays } from "../services/analyticsService";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -25,6 +26,9 @@ const Card = ({ title, value, sub }) => (
 );
 
 const AdminAnalyticsPage = () => {
+  const { user } = useAuth();
+  const isTopAdmin = user?.username === "Jegede01";
+  const visibleTabs = TABS.filter((t) => isTopAdmin || t.id !== "money");
   const [tab, setTab] = useState("overview");
   const [money, setMoney] = useState(null);
   const [funnel, setFunnel] = useState(null);
@@ -34,9 +38,14 @@ const AdminAnalyticsPage = () => {
   const [replays, setReplays] = useState(null);
   const [replayId, setReplayId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [moneyError, setMoneyError] = useState(null);
 
   const refreshTab = async (t) => {
-    if (t === "money") { const m = await getMoneyAnalytics(30).catch(() => null); setMoney(m); }
+    if (t === "money") {
+      if (!isTopAdmin) return;
+      try { const m = await getMoneyAnalytics(30); setMoney(m); setMoneyError(null); } catch (e) { setMoney(null); setMoneyError(e?.response?.status === 403 ? "Top Admin only" : "Failed to load"); }
+      return;
+    }
     if (t === "search") { const se = await getSearchAnalytics().catch(() => null); setSearch(se); }
     if (t === "funnel") { const f = await getFunnelAnalytics().catch(() => null); setFunnel(f); }
     if (t === "ai") { const a = await getAiAnalytics().catch(() => null); setAi(a); }
@@ -45,8 +54,9 @@ const AdminAnalyticsPage = () => {
     const load = async () => {
       setLoading(true);
       try {
+        const moneyPromise = isTopAdmin ? getMoneyAnalytics(30).then((m) => { setMoneyError(null); return m; }).catch((e) => { setMoneyError(e?.response?.status === 403 ? "Top Admin only" : "Failed to load"); return null; }) : Promise.resolve(null);
         const [m, f, se, a, ph, rp] = await Promise.all([
-          getMoneyAnalytics(30).catch(() => null),
+          moneyPromise,
           getFunnelAnalytics().catch(() => null),
           getSearchAnalytics().catch(() => null),
           getAiAnalytics().catch(() => null),
@@ -57,7 +67,7 @@ const AdminAnalyticsPage = () => {
       } finally { setLoading(false); }
     };
     load();
-  }, []);
+  }, [isTopAdmin]);
   useEffect(() => { refreshTab(tab); }, [tab]);
 
   if (loading) return <AdminLayout><div className="flex items-center gap-2 py-10 text-gray-500"><MiniSpinner size={20} /> Loading analytics…</div></AdminLayout>;
@@ -68,7 +78,7 @@ const AdminAnalyticsPage = () => {
       <p className="text-sm text-gray-500 mb-4">Simple view of how Trend Tribe is doing. Tap a tab to see details.</p>
 
       <div className="flex gap-2 mb-6 flex-wrap items-center">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold border ${tab === t.id ? "bg-navy-900 text-white border-navy-900" : "bg-white text-gray-600 border-sage-100"}`}>{t.label}</button>
         ))}
         <button onClick={() => refreshTab(tab)} className="ml-2 text-xs font-medium text-gray-600 border border-sage-100 rounded-full px-3 py-1.5 hover:bg-gray-50">Refresh — latest data</button>
@@ -77,7 +87,15 @@ const AdminAnalyticsPage = () => {
 
       {tab === "overview" && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card title="Revenue (30d)" value={`₦${Number(money?.revenueNaira || 0).toLocaleString()}`} sub={`${money?.tokensSold || 0} tokens sold`} />
+          {isTopAdmin ? (
+            <Card title="Revenue (30d)" value={`₦${Number(money?.revenueNaira || 0).toLocaleString()}`} sub={`${money?.tokensSold || 0} tokens sold`} />
+          ) : (
+            <div className="bg-white border border-sage-100 rounded-xl p-4 flex flex-col justify-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Revenue (30d)</p>
+              <p className="text-sm font-medium text-gray-500 mt-1">🔒 Top Admin only</p>
+              <p className="text-xs text-gray-400">Jegede01 only</p>
+            </div>
+          )}
           <Card title="Favorites" value={funnel?.funnel?.[1]?.count ?? 0} sub="Hearts total" />
           <Card title="Contact Views" value={funnel?.funnel?.[2]?.count ?? 0} sub="WhatsApp taps" />
           <Card title="Zero-result searches" value={search?.zeroResults?.length ?? 0} sub="What users can't find" />
@@ -87,7 +105,12 @@ const AdminAnalyticsPage = () => {
       )}
 
       {tab === "money" && (
-        money ? (
+        !isTopAdmin ? (
+          <div className="bg-white border border-sage-100 rounded-xl p-8 text-center">
+            <p className="text-sm font-bold text-navy-900">🔒 Money — Top Admin only</p>
+            <p className="text-xs text-gray-500 mt-1">Only Jegede01 can see revenue and token sales. Basic admins see funnel, search and AI only.</p>
+          </div>
+        ) : money ? (
         <div className="space-y-6">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold text-navy-900">Token sales</h2>
@@ -120,8 +143,8 @@ const AdminAnalyticsPage = () => {
             </div>
           </div>
         </div>
-        ) : <div className="bg-white border border-sage-100 rounded-xl p-8 text-center text-sm text-gray-500">Failed to load</div>
-      )}
+        ) : <div className="bg-white border border-sage-100 rounded-xl p-8 text-center text-sm text-gray-500">{moneyError || "Failed to load"}{moneyError === "Top Admin only" ? " — only Jegede01 can see Money" : ""}</div>
+       )}
 
       {tab === "funnel" && funnel && (
         <div className="space-y-6">
