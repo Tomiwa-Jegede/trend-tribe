@@ -171,6 +171,13 @@ const chat = async (req, res) => {
 
     // ─── Logged-in + free help (navigation) with limit ──────
     if (!isShopping) {
+      const isAdminHelp = req.user?.role === "ADMIN";
+      if (isAdminHelp) {
+        const prompt = HELP_SYSTEM_PROMPT(shopperName, message);
+        const reply = await askGemini(prompt);
+        incrementGeminiLog().catch(() => {});
+        return res.status(200).json({ reply: reply.trim(), products: [], remaining: null, limit: null });
+      }
       const identifier = getFreeIdentifier(req);
       const limit = FREE_LIMIT_USER;
       const check = await checkFreeLimit(identifier, limit);
