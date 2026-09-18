@@ -228,9 +228,9 @@ const FrederickWidget = () => {
         const vw = window.innerWidth, vh = window.innerHeight;
         const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
         p.x = clamp(p.x || 0, -vw + 80, 0);
-        p.y = clamp(p.y || 0, -vh + 80, 0);
+        p.y = clamp(p.y || 0, 0, vh - 160);
         // if still off-screen (e.g. very small viewport), snap to visible corner
-        if (p.x < -vw + 80 || p.y < -vh + 80) { p.x = 0; p.y = 0; }
+        if (p.x < -vw + 80 || p.y > vh - 160) { p.x = 0; p.y = 0; }
       }
       return p;
     } catch { return { x: 0, y: 0 }; }
@@ -258,7 +258,7 @@ const FrederickWidget = () => {
     const onResize = () => {
       const vw = window.innerWidth, vh = window.innerHeight;
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-      const clampedY = clamp(motionY.get(), -vh + 80, 0);
+      const clampedY = clamp(motionY.get(), 0, vh - 160);
       const snappedX = motionX.get() < -vw / 2 + 40 ? -vw + 80 : 0;
       const clampedX = clamp(snappedX, -vw + 80, 0);
       if (clampedX !== motionX.get() || clampedY !== motionY.get()) {
@@ -269,7 +269,15 @@ const FrederickWidget = () => {
     };
     onResize(); // also clamp immediately on mount (fix off-screen saves)
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    window.addEventListener("scroll", onResize, { passive: true });
+    window.visualViewport?.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("scroll", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("scroll", onResize);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -288,7 +296,7 @@ const FrederickWidget = () => {
           const vw = window.innerWidth, vh = window.innerHeight;
           const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
           const snappedX = motionX.get() < -vw / 2 + 40 ? -vw + 80 : 0;
-          const clampedY = clamp(motionY.get(), -vh + 80, 0);
+          const clampedY = clamp(motionY.get(), 0, vh - 160);
           animate(motionX, snappedX, { type: "spring", stiffness: 400, damping: 30 });
           animate(motionY, clampedY, { type: "spring", stiffness: 400, damping: 30 });
           savePos({ x: snappedX, y: clampedY });
@@ -297,7 +305,7 @@ const FrederickWidget = () => {
         onMouseEnter={() => setIdle(false)}
         animate={{ opacity: idle && !open ? 0.62 : 1 }}
         transition={{ opacity: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] } }}
-        className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100 cursor-grab active:cursor-grabbing`}
+        className={`fixed top-20 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100 cursor-grab active:cursor-grabbing`}
         title="Drag to move — double-click to reset"
       >
         <AnimatePresence>
