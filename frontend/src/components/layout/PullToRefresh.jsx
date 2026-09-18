@@ -135,7 +135,7 @@ export default function PullToRefresh({ children, disabled = false }) {
         </div>
       </div>
       <style>{`@keyframes pull-spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ transform: `translateY(${translateY}px)`, transition: pulling.current ? "none" : "transform 0.22s ease-out" }}>
+      <div style={pull > 0 || refreshing ? { transform: `translateY(${translateY}px)`, transition: pulling.current ? "none" : "transform 0.22s ease-out" } : undefined}>
         {children}
       </div>
     </>
