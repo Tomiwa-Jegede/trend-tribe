@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
-import TokenIcon from "../components/ui/TokenIcon";
 import { FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
 import { cldUrl } from "../utils/cloudinary";
 
@@ -264,17 +263,17 @@ const MyListingsPage = () => {
                                 onClick={() => handleBoost(l, 1, d)}
                                 disabled={toggling === l.id}
                                 className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500"
-                                title={`Top 5 in category ${d}d — re-boost to climb`}
+                                title={`${d}d · ${d} token${d>1?"s":""} — Top 5, re-boost to climb`}
                               >
-                                <span className="inline-flex items-center gap-1">Boost x1 · {d} <TokenIcon size={12} /> {d===1?"/ day":`for ${d}d`}</span>
+                                X1 · {d}d
                               </button>
                               <button
                                 onClick={() => handleBoost(l, 2, d)}
                                 disabled={toggling === l.id}
                                 className="text-xs font-bold px-3 py-1.5 rounded-full border border-navy-900 bg-navy-900 text-white hover:bg-black"
-                                title={`Picks Featured + top 5 ${d}d — ${d*2} tokens, all Picks shown, order curated`}
+                                title={`${d}d · ${d*2} tokens — Picks + Top 5`}
                               >
-                                <span className="inline-flex items-center gap-1">Boost x2 Picks · {d*2} <TokenIcon size={12} /> {d===1?"/ day":`for ${d}d`}</span>
+                                X2 · {d}d
                               </button>
                             </>
                           ); })()}
