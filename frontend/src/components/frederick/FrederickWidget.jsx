@@ -258,8 +258,8 @@ const FrederickWidget = () => {
       const snappedX = motionX.get() < -vw / 2 + 40 ? -vw + 80 : 0;
       const clampedX = clamp(snappedX, -vw + 80, 0);
       if (clampedX !== motionX.get() || clampedY !== motionY.get()) {
-        animate(motionX, clampedX, { type: "spring", stiffness: 400, damping: 30 });
-        animate(motionY, clampedY, { type: "spring", stiffness: 400, damping: 30 });
+        animate(motionX, clampedX, { type: "spring", stiffness: 120, damping: 25 });
+        animate(motionY, clampedY, { type: "spring", stiffness: 120, damping: 25 });
         savePos({ x: clampedX, y: clampedY });
       }
     };
