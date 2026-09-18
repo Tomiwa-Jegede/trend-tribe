@@ -42,6 +42,12 @@ const MyListingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [toggling, setToggling] = useState(null);
+  const [boostDays, setBoostDays] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("tt_boostDays") || "{}"); } catch { return {}; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("tt_boostDays", JSON.stringify(boostDays)); } catch {}
+  }, [boostDays]);
 
   const fetchMyListings = async () => {
     setLoading(true);
@@ -102,21 +108,24 @@ const MyListingsPage = () => {
     }
   };
 
-  const handleBoost = async (listing, tier = 1) => {
+  const handleBoost = async (listing, tier = 1, daysOverride) => {
     setToggling(listing.id);
     setErr(null);
+    const days = daysOverride ?? boostDays[listing.id] ?? 1;
     try {
       try {
-        const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, { tier });
+        const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, { tier, days });
         setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil, boostTier: data.listing.boostTier } : l)));
         refreshUser?.();
       } catch (e) {
         if (e.response?.status === 402 && e.response?.data?.needsTokenConfirm) {
-          const cost = e.response.data.cost || tier;
-          const tierLabel = (e.response.data.tier || tier) === 2 ? "Picks (Featured + top 5) 24h — 2 tokens" : "Top 5 category 24h — 1 token";
+          const cost = e.response.data.cost ?? (tier === 2 ? 2 * days : days);
+          const respTier = e.response.data.tier || tier;
+          const respDays = e.response.data.days || days;
+          const tierLabel = respTier === 2 ? `Picks (Featured + top 5) ${respDays}d — ${cost} tokens` : `Top 5 category ${respDays}d — ${cost} token${cost>1?"s":""}`;
           const ok = confirm(e.response.data.error + `\n\nConfirm to spend ${cost} token${cost>1?"s":""} for ${tierLabel}? Re-boost to climb if pushed down.`);
           if (!ok) throw e;
-          const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, { tier: e.response.data.tier || tier, confirmSpend: true });
+          const { data } = await api.post(`/listings/${listing.slug || listing.id}/boost`, { tier: respTier, days: respDays, confirmSpend: true });
           setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, boostedAt: data.listing.boostedAt, boostedUntil: data.listing.boostedUntil, boostTier: data.listing.boostTier } : l)));
           refreshUser?.();
         } else {
@@ -235,37 +244,67 @@ const MyListingsPage = () => {
                         {toggling === l.id ? "..." : l.isAvailable ? "Mark Sold / Hide" : "Re-activate"}
                       </button>
                       {l.isAvailable && !boosted && (
-                        <>
-                          <button
-                            onClick={() => handleBoost(l, 1)}
-                            disabled={toggling === l.id}
-                            className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500"
-                            title="Top 5 in category 24h — re-boost to climb"
-                          >
-                            <span className="inline-flex items-center gap-1">Boost x1 · 1 <TokenIcon size={12} /></span>
-                          </button>
-                          <button
-                            onClick={() => handleBoost(l, 2)}
-                            disabled={toggling === l.id}
-                            className="text-xs font-bold px-3 py-1.5 rounded-full border border-navy-900 bg-navy-900 text-white hover:bg-black"
-                            title="Picks Featured + top 5 24h — 2 tokens, all Picks shown, order curated"
-                          >
-                            <span className="inline-flex items-center gap-1">Boost x2 Picks · 2 <TokenIcon size={12} /></span>
-                          </button>
-                        </>
+                        <div className="flex flex-wrap items-center gap-2 w-full">
+                          <label className="text-xs text-gray-500 flex items-center gap-1">
+                            Days:
+                            <select
+                              value={boostDays[l.id] ?? 1}
+                              onChange={(e) => setBoostDays((prev) => ({ ...prev, [l.id]: parseInt(e.target.value, 10) }))}
+                              className="text-xs border border-gray-200 rounded-full px-2 py-1 bg-white"
+                              disabled={toggling === l.id}
+                            >
+                              {[1,2,3,5,7,14,30].map((n) => (
+                                <option key={n} value={n}>{n}d</option>
+                              ))}
+                            </select>
+                          </label>
+                          {(() => { const d = boostDays[l.id] ?? 1; return (
+                            <>
+                              <button
+                                onClick={() => handleBoost(l, 1, d)}
+                                disabled={toggling === l.id}
+                                className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-400 bg-amber-400 text-amber-900 hover:bg-amber-500"
+                                title={`Top 5 in category ${d}d — re-boost to climb`}
+                              >
+                                <span className="inline-flex items-center gap-1">Boost x1 · {d} <TokenIcon size={12} /> {d===1?"/ day":`for ${d}d`}</span>
+                              </button>
+                              <button
+                                onClick={() => handleBoost(l, 2, d)}
+                                disabled={toggling === l.id}
+                                className="text-xs font-bold px-3 py-1.5 rounded-full border border-navy-900 bg-navy-900 text-white hover:bg-black"
+                                title={`Picks Featured + top 5 ${d}d — ${d*2} tokens, all Picks shown, order curated`}
+                              >
+                                <span className="inline-flex items-center gap-1">Boost x2 Picks · {d*2} <TokenIcon size={12} /> {d===1?"/ day":`for ${d}d`}</span>
+                              </button>
+                            </>
+                          ); })()}
+                        </div>
                       )}
                       {boosted && (
-                        <>
-                          <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">★ {l.boostTier===2?"Picks":"Featured"} {bLeft}h</span>
+                        <div className="flex flex-wrap items-center gap-2 w-full">
+                          <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-800">★ {l.boostTier===2?"Picks":"Featured"} {bLeft<=48?`${bLeft}h`: `${Math.ceil(bLeft/24)}d`} left</span>
+                          <label className="text-xs text-gray-500 flex items-center gap-1">
+                            Extend:
+                            <select
+                              value={boostDays[l.id] ?? 1}
+                              onChange={(e) => setBoostDays((prev) => ({ ...prev, [l.id]: parseInt(e.target.value, 10) }))}
+                              className="text-xs border border-gray-200 rounded-full px-2 py-1 bg-white"
+                              disabled={toggling === l.id}
+                            >
+                              {[1,2,3,5,7,14,30].map((n) => (
+                                <option key={n} value={n}>{n}d</option>
+                              ))}
+                            </select>
+                          </label>
                           <button
-                            onClick={() => handleBoost(l, l.boostTier||1)}
+                            onClick={() => handleBoost(l, l.boostTier||1, boostDays[l.id] ?? 1)}
                             disabled={toggling === l.id}
                             className="text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-50"
                             title="Re-boost to climb to top"
                           >
                             Re-boost
                           </button>
-                        </>
+                        </div>
                       )}
                       <Link to={`/listings/${l.slug || l.id}/edit`} className="text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50">
                         Edit

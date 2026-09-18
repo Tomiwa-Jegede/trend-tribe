@@ -1089,23 +1089,30 @@ const boostListing = async (req, res) => {
     if (error) return res.status(status).json({ error });
     if (!listing.isAvailable) return res.status(400).json({ error: "Only active listings can be boosted" });
     const tier = req.body.tier === 2 ? 2 : 1;
+    const rawDays = req.body.days ?? req.body.durationDays ?? req.body.duration ?? 1;
+    let days = parseInt(rawDays, 10);
+    if (isNaN(days) || days < 1) days = 1;
+    if (days > 30) days = 30;
     const isAdmin = req.user.role === "ADMIN";
-    const cost = isAdmin ? 0 : (tier === 2 ? 2 : 1);
+    const costPerDay = tier === 2 ? 2 : 1;
+    const cost = isAdmin ? 0 : costPerDay * days;
     const { confirmSpend } = req.body;
     if (!isAdmin) {
       const seller = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tokenBalance: true } });
       if (!seller || seller.tokenBalance < cost) {
-        return res.status(403).json({ error: `You need ${cost} token${cost>1?"s":""} to boost ${tier===2?"to Picks":"for 24h"}.`, tokenBalance: seller?.tokenBalance ?? 0, cost, tier });
+        const dur = `${days} day${days>1?"s":""}`;
+        return res.status(403).json({ error: `You need ${cost} token${cost>1?"s":""} to boost ${tier===2?"to Picks":""} for ${dur}.`, tokenBalance: seller?.tokenBalance ?? 0, cost, tier, days });
       }
       if (!confirmSpend) {
+        const dur = `${days} day${days>1?"s":""}`;
         const msg = tier === 2
-          ? "Boost to Picks for 24h? 2 tokens — top 5 in category + guaranteed Featured (all Picks shown, order curated). Re-boost to climb."
-          : "Boost to top 5 in category for 24h? This will use 1 token. Re-boost to climb if pushed down.";
-        return res.status(402).json({ needsTokenConfirm: true, tokenBalance: seller.tokenBalance, cost, tier, error: msg });
+          ? `Boost to Picks for ${dur}? ${cost} tokens — top 5 in category + guaranteed Featured (all Picks shown, order curated). Re-boost to climb.`
+          : `Boost to top 5 in category for ${dur}? This will use ${cost} token${cost>1?"s":""}. Re-boost to climb if pushed down.`;
+        return res.status(402).json({ needsTokenConfirm: true, tokenBalance: seller.tokenBalance, cost, tier, days, error: msg });
       }
     }
     const now = new Date();
-    const until = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const until = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
     // Allow re-boost to climb: always refresh boostedAt/Until and boostTier
     let updated;
     if (isAdmin) {
@@ -1118,7 +1125,8 @@ const boostListing = async (req, res) => {
       });
     }
     try { const { emitListing } = require("../realtime"); emitListing("boosted", updated); } catch {}
-    const msg = tier === 2 ? "Listing boosted to Picks for 24h ✅" : "Listing boosted for 24h ✅";
+    const dur = `${days} day${days>1?"s":""}`;
+    const msg = tier === 2 ? `Listing boosted to Picks for ${dur} ✅` : `Listing boosted for ${dur} ✅`;
     return res.status(200).json({ message: msg, listing: formatListing(updated) });
   } catch (err) {
     if (err.message === "TOKEN_BALANCE_RACE") return res.status(403).json({ error: "Token balance changed, try again." });
