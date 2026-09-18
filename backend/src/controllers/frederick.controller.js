@@ -305,6 +305,14 @@ const chat = async (req, res) => {
     try {
       const fallbackMessage = req.body?.message || "";
       const q = (fallbackMessage || "").trim().slice(0, 100);
+      const qLower = q.toLowerCase();
+      const isGreeting = ["hi","hello","hey","how far","how are you","good morning","good afternoon","good evening","sup","yo"].some(g => qLower === g || (qLower.length < 15 && qLower.startsWith(g)));
+      if (isGreeting || q.length < 3) {
+        return res.status(200).json({
+          reply: "Hey! I'm Trend Tribe's helper. Tell me what you're looking for — e.g. 'black sneakers size 42' or 'iphone under 100k' — and I'll find it for you.",
+          products: [],
+        });
+      }
       const fallbackListings = await prisma.listing.findMany({
         where: {
           isAvailable: true,
