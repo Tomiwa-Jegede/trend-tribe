@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import TokenIcon from "../components/ui/TokenIcon";
+import InfoModal from "../components/ui/InfoModal";
 import { FiHeart, FiLink2, FiMessageCircle } from "react-icons/fi";
 import { cldUrl } from "../utils/cloudinary";
 
@@ -153,7 +154,17 @@ const MyListingsPage = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 break-words">My Listings</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 break-words">My Listings</h1>
+            <InfoModal title="How Boost works">
+              <p><span className="font-semibold text-gray-900">What is Boost?</span><br/>Boost puts your listing at the top of Marketplace so more people see it.</p>
+              <p><span className="font-semibold text-gray-900">Boost X1 — 1 token per day</span><br/>Top 5 in your category for the days you choose. You stay in the Featured section at the top. If someone else boosts after you, they go above you — just re-boost to climb again.</p>
+              <p><span className="font-semibold text-gray-900">Boost X2 Picks — 2 tokens per day</span><br/>Same as X1 plus you are in Picks — a special curated row that is always shown. Best for clothes you want to sell fast. Also re-boost to stay on top.</p>
+              <p><span className="font-semibold text-gray-900">Days</span><br/>Pick 1 to 30 days next to the buttons. Cost is simple: X1 is 1 token each day, X2 is 2 tokens each day. For example, X1 for 3 days = 3 tokens, X2 for 3 days = 6 tokens. We show both days and price on the button.</p>
+              <p><span className="font-semibold text-gray-900">After you boost</span><br/>You will see “Featured · 72h left” or “Picks · 3d left”. When it ends, your listing goes back to normal — you don’t lose it.</p>
+              <p><span className="font-semibold text-gray-900">Admins</span><br/>Admins boost free. Everyone else pays with tokens.</p>
+            </InfoModal>
+          </div>
           <p className="text-sm text-gray-600 mt-1 break-words">
             {freeLeft} free space{freeLeft !== 1 ? "s" : ""} left{tokenDisplay != null ? ` · You have ${tokenDisplay} token${tokenDisplay !== 1 ? "s" : ""}` : ""}. Hide or delete one and you get your free space back.
           </p>
