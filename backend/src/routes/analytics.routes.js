@@ -389,7 +389,7 @@ router.get("/ai", async (req, res) => {
     const tokensSpent = tokensSpentAgg._sum.cost || 0;
     const geminiTodayCount = geminiToday?.count || 0;
     const geminiRemaining = Math.max(0, GEMINI_DAILY_LIMIT - geminiTodayCount);
-    const geminiKeySet = !!process.env.GROQ_API_KEY;
+    const geminiKeySet = !!process.env.GEMINI_API_KEY;
     return res.json({
       today,
       free: {
