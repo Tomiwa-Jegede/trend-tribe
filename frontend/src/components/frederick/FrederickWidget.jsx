@@ -220,7 +220,20 @@ const FrederickWidget = () => {
   };
 
   const initialPos = (() => {
-    try { const v = localStorage.getItem("jegede-bubble-pos"); return v ? JSON.parse(v) : { x: 0, y: 0 }; } catch { return { x: 0, y: 0 }; }
+    try {
+      const v = localStorage.getItem("jegede-bubble-pos");
+      const p = v ? JSON.parse(v) : { x: 0, y: 0 };
+      // clamp any stale off-screen save (e.g. dragged off viewport, rotate, or old vw)
+      if (typeof window !== "undefined") {
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+        p.x = clamp(p.x || 0, -vw + 80, 0);
+        p.y = clamp(p.y || 0, -vh + 80, 0);
+        // if still off-screen (e.g. very small viewport), snap to visible corner
+        if (p.x < -vw + 80 || p.y < -vh + 80) { p.x = 0; p.y = 0; }
+      }
+      return p;
+    } catch { return { x: 0, y: 0 }; }
   })();
   const motionX = useMotionValue(initialPos.x || 0);
   const motionY = useMotionValue(initialPos.y || 0);
@@ -254,17 +267,23 @@ const FrederickWidget = () => {
         savePos({ x: clampedX, y: clampedY });
       }
     };
+    onResize(); // also clamp immediately on mount (fix off-screen saves)
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const resetPos = () => {
+    motionX.set(0); motionY.set(0);
+    savePos({ x: 0, y: 0 });
+  };
   return (
     <>
       <motion.div
         drag={!open}
         dragMomentum={false}
         dragElastic={0.15}
+        onDoubleClick={resetPos}
         onDragEnd={() => {
           const vw = window.innerWidth, vh = window.innerHeight;
           const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -279,6 +298,7 @@ const FrederickWidget = () => {
         animate={{ opacity: idle && !open ? 0.62 : 1 }}
         transition={{ opacity: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] } }}
         className={`fixed bottom-6 right-6 z-[60] flex items-center gap-2 ${open ? "hidden sm:flex" : ""} hover:!opacity-100 cursor-grab active:cursor-grabbing`}
+        title="Drag to move — double-click to reset"
       >
         <AnimatePresence>
           {!open && !idle && (
