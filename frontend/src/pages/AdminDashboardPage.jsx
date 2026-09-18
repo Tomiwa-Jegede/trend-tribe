@@ -469,7 +469,7 @@ const AdminDashboardPage = () => {
           <div className="mt-6 bg-white border border-sage-100 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Gemini AI — free tier (per API key)</p>
-              <span className={`text-xs font-bold px-2 py-1 rounded-full ${aiUsage && aiUsage.gemini.remaining <= 150 ? "bg-red-50 text-red-600" : aiUsage && aiUsage.gemini.remaining <= 400 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${aiUsage && aiUsage.gemini.remaining <= Math.ceil(aiUsage.gemini.dailyLimit*0.25) ? "bg-red-50 text-red-600" : aiUsage && aiUsage.gemini.remaining <= Math.ceil(aiUsage.gemini.dailyLimit*0.5) ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
                 {aiUsage ? `${aiUsage.gemini.remaining} left today` : aiError ? "Error" : "Loading..."}
               </span>
             </div>
@@ -489,7 +489,7 @@ const AdminDashboardPage = () => {
                   <div>Gemini key: <span className={`font-semibold ${aiUsage.gemini.keySet ? "text-green-600" : "text-red-600"}`}>{aiUsage.gemini.keySet ? "Set ✅" : "Missing ❌"}</span></div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">{aiUsage.gemini.note}</p>
-                {aiUsage.gemini.remaining <= 150 && <p className="text-xs text-red-600 mt-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ Low Gemini free quota — after 1500/day, calls will fail until midnight Pacific.</p>}
+                {aiUsage.gemini.remaining <= 5 && <p className="text-xs text-red-600 mt-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ Low Gemini free quota — after {aiUsage.gemini.dailyLimit}/day, calls will fail until midnight Pacific.</p>}
               </>
             ) : aiError ? (
               <p className="text-sm text-red-500">{aiError} — check API or try again.</p>

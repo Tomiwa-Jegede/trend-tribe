@@ -375,7 +375,7 @@ router.get("/ai", async (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
     const FREE_LIMIT_GUEST = 10;
     const FREE_LIMIT_USER = 20;
-    const GEMINI_DAILY_LIMIT = 1500;
+    const GEMINI_DAILY_LIMIT = parseInt(process.env.GEMINI_DAILY_LIMIT, 10) || 20;
     const [freeTodayAgg, totalFreeAgg, totalPaidSessions, tokensSpentAgg, recentFree, geminiToday] = await Promise.all([
       prisma.aiFreeUsage.aggregate({ where: { date: today }, _sum: { count: true } }),
       prisma.aiFreeUsage.aggregate({ _sum: { count: true } }),
@@ -410,7 +410,7 @@ router.get("/ai", async (req, res) => {
         usedToday: geminiTodayCount,
         remaining: geminiRemaining,
         percentUsed: Number(((geminiTodayCount / GEMINI_DAILY_LIMIT) * 100).toFixed(1)),
-        note: "Gemini free tier: 60 req/min, 1500/day, 1M tokens/day. Resets midnight Pacific. Track via Google Cloud Console → APIs → Generative AI.",
+        note: `Gemini 3.6-flash free tier: 20/day per project (your log: 20), 60/min. Paid tier lifts to 1000s/day. Resets midnight Pacific. Set GEMINI_DAILY_LIMIT env to override.`,
       },
     });
   } catch (err) {
