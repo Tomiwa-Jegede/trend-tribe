@@ -20,6 +20,9 @@ export const askFrederick = async (message, confirmSpend = false, image = null, 
     if (err.response?.status === 402) {
       return { ok: false, needsTokenConfirm: true, ...err.response.data };
     }
+    if (err.response?.status === 403) {
+      return { ok: false, needsTokens: true, ...err.response.data };
+    }
     throw err;
   }
 };

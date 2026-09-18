@@ -206,6 +206,20 @@ const FrederickWidget = () => {
     try {
       const result = await askFrederick(pendingMessage, true, pendingImage, sessionId);
       refreshUser();
+      if (!result.ok && (result.needsTokens || result.limitReached)) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "frederick", text: result.error || "You're out of tokens. Buy more to continue.", products: [], needsTokens: true },
+        ]);
+        return;
+      }
+      if (!result.ok && result.needsTokenConfirm) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "frederick", text: result.error || "Please confirm token spend.", products: [] },
+        ]);
+        return;
+      }
       setMessages((prev) => [
         ...prev,
         { role: "frederick", text: result.reply, products: result.products || [] },

@@ -31,6 +31,7 @@ const optionalAuth = async (req, res, next) => {
       select: {
         id: true,
         username: true,
+        role: true,
       },
     });
 
