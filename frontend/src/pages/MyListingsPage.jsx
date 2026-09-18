@@ -157,11 +157,12 @@ const MyListingsPage = () => {
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 break-words">My Listings</h1>
             <InfoModal title="How Boost works">
-              <p><span className="font-semibold text-gray-900">What is Boost?</span><br/>Boost puts your listing at the top of Marketplace so more people see it.</p>
-              <p><span className="font-semibold text-gray-900">Boost X1 — 1 token per day</span><br/>Top 5 in your category for the days you choose. You stay in the Featured section at the top. If someone else boosts after you, they go above you — just re-boost to climb again.</p>
-              <p><span className="font-semibold text-gray-900">Boost X2 Picks — 2 tokens per day</span><br/>Same as X1 plus you are in Picks — a special curated row that is always shown. Best for clothes you want to sell fast. Also re-boost to stay on top.</p>
-              <p><span className="font-semibold text-gray-900">Days</span><br/>Pick 1 to 30 days next to the buttons. Cost is simple: X1 is 1 token each day, X2 is 2 tokens each day. For example, X1 for 3 days = 3 tokens, X2 for 3 days = 6 tokens. We show both days and price on the button.</p>
-              <p><span className="font-semibold text-gray-900">After you boost</span><br/>You will see “Featured · 72h left” or “Picks · 3d left”. When it ends, your listing goes back to normal — you don’t lose it.</p>
+              <p><span className="font-semibold text-gray-900">What is Boost?</span><br/>Boost puts your listing at the top of Marketplace so more people see it and click.</p>
+              <p><span className="font-semibold text-gray-900">Boost X1 — 1 token per day (Standard)</span><br/>Puts you in the top 5 of your category and in the Featured row at the top of Marketplace. Great for normal sales. If someone else boosts after you, they move above you — just tap Re-boost to climb again.</p>
+              <p><span className="font-semibold text-gray-900">Boost X2 Picks — 2 tokens per day (Premium)</span><br/>You get everything in X1, <b>plus</b> you are in <b>Picks</b> — a special 5-item row right at the very top that every visitor sees first, no matter what category they browse. Picks is curated and always shown, so your item gets double display: Featured + Picks. Use X2 when you want to sell fast — e.g. a hot jacket, sneakers, or phone. It costs 2× because you get 2 spots. Re-boost also moves you to the front of Picks.</p>
+              <p><span className="font-semibold text-gray-900">Example</span><br/>Fashion jacket with X1 for 3 days = top 5 in Fashion for 3 days (3 tokens). Same jacket with X2 for 3 days = top 5 in Fashion <b>and</b> in Picks for 3 days (6 tokens).</p>
+              <p><span className="font-semibold text-gray-900">Days</span><br/>Pick 1 to 30 days next to the buttons. Cost: X1 = 1 token × days, X2 = 2 tokens × days. We show both days and price on the button, e.g. <b>X1 · 3d · 3</b> or <b>X2 · 3d · 6</b>.</p>
+              <p><span className="font-semibold text-gray-900">After you boost</span><br/>You will see “Featured · 72h left” or “Picks · 3d left”. When it ends, it just goes back to normal — you don’t lose the listing.</p>
               <p><span className="font-semibold text-gray-900">Admins</span><br/>Admins boost free. Everyone else pays with tokens.</p>
             </InfoModal>
           </div>
