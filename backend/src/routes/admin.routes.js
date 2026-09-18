@@ -397,18 +397,23 @@ router.get("/brevo-usage", protect, requireAdmin, async (req, res) => {
     );
     const stats = statsRes.ok ? await statsRes.json() : null;
 
-    // Extract plan limit — free = 300/day, paid varies
+    // Extract plan limit — free = 300/day (plan.credits is remaining, not limit), paid varies
     let dailyLimit = 300;
     let planName = "Free";
     if (account?.plan) {
       const freePlan = Array.isArray(account.plan) ? account.plan.find((p) => p.type === "free") : null;
       const anyPlan = Array.isArray(account.plan) ? account.plan[0] : null;
-      if (freePlan?.credits) dailyLimit = freePlan.credits;
-      else if (anyPlan?.credits) dailyLimit = anyPlan.credits;
-      else if (account.plan?.credits) dailyLimit = account.plan.credits;
-      planName = freePlan ? "Free" : anyPlan?.type || account.plan?.type || "Free";
-      // Brevo sometimes returns plan as object
-      if (typeof account.plan === "object" && !Array.isArray(account.plan) && account.plan.type) {
+      if (freePlan) {
+        planName = "Free";
+        dailyLimit = 300;
+      } else if (anyPlan?.type && anyPlan.type !== "free") {
+        planName = anyPlan.type;
+        if (anyPlan?.credits) dailyLimit = anyPlan.credits;
+      } else if (account.plan?.type && account.plan.type !== "free") {
+        planName = account.plan.type;
+        if (account.plan.credits) dailyLimit = account.plan.credits;
+      }
+      if (typeof account.plan === "object" && !Array.isArray(account.plan) && account.plan.type && account.plan.type !== "free") {
         planName = account.plan.type;
         if (account.plan.credits) dailyLimit = account.plan.credits;
       }
