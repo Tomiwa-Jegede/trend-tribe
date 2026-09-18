@@ -301,7 +301,7 @@ const FrederickWidget = () => {
         title="Drag to move — double-click to reset"
       >
         <AnimatePresence>
-          {!open && !idle && (
+          {!open && (
             <motion.span
               initial={{ opacity: 0, x: 12, scale: 0.96 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
