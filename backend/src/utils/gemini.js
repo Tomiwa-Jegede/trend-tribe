@@ -2,7 +2,7 @@
 const GEMINI_URL = (apiKey) =>
   `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
 async function askGroq(prompt) {
   const apiKey = process.env.GROQ_API_KEY;

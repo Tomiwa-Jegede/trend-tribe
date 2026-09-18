@@ -303,7 +303,8 @@ const chat = async (req, res) => {
     console.error("[FREDERICK CHAT ERROR]", err.message);
     // Fallback: simple text search so shoppers still get results even when AI is down
     try {
-      const q = (message || "").trim().slice(0, 100);
+      const fallbackMessage = req.body?.message || "";
+      const q = (fallbackMessage || "").trim().slice(0, 100);
       const fallbackListings = await prisma.listing.findMany({
         where: {
           isAvailable: true,
