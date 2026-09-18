@@ -163,7 +163,6 @@ const MyListingsPage = () => {
               <p><span className="font-semibold text-gray-900">Example</span><br/>Fashion jacket with X1 for 3 days = top 5 in Fashion for 3 days (3 tokens). Same jacket with X2 for 3 days = top 5 in Fashion <b>and</b> in Picks for 3 days (6 tokens).</p>
               <p><span className="font-semibold text-gray-900">Days</span><br/>Pick 1 to 30 days next to the buttons. Cost: X1 = 1 token × days, X2 = 2 tokens × days. We show both days and price on the button, e.g. <b>X1 · 3d · 3</b> or <b>X2 · 3d · 6</b>.</p>
               <p><span className="font-semibold text-gray-900">After you boost</span><br/>You will see “Featured · 72h left” or “Picks · 3d left”. When it ends, it just goes back to normal — you don’t lose the listing.</p>
-              <p><span className="font-semibold text-gray-900">Admins</span><br/>Admins boost free. Everyone else pays with tokens.</p>
             </InfoModal>
           </div>
           <p className="text-sm text-gray-600 mt-1 break-words">
