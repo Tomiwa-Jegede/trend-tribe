@@ -265,14 +265,10 @@ const FrederickWidget = () => {
     };
     onResize(); // also clamp immediately on mount (fix off-screen saves)
     window.addEventListener("resize", onResize);
-    window.addEventListener("scroll", onResize, { passive: true });
     window.visualViewport?.addEventListener("resize", onResize);
-    window.visualViewport?.addEventListener("scroll", onResize);
     return () => {
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onResize);
       window.visualViewport?.removeEventListener("resize", onResize);
-      window.visualViewport?.removeEventListener("scroll", onResize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
