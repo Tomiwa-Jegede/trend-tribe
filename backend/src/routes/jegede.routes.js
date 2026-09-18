@@ -92,7 +92,7 @@ async function buildSnapshot() {
     prisma.listing.count({ where: { category: "BOOKS", isAvailable: true } }).catch(()=>0),
   ]);
 
-  const revenueNaira = (moneyAgg._sum.amount || 0) / 100;
+  const revenueNaira = (moneyAgg._sum.amount || 0);
   const tokensSold = moneyAgg._sum.quantity || 0;
   const avgBalance = Number((balanceStats._avg.tokenBalance || 0).toFixed(1));
   const totalBalance = balanceStats._sum.tokenBalance || 0;

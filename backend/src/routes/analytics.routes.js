@@ -21,21 +21,27 @@ router.get("/money", async (req, res) => {
       prisma.user.aggregate({ _sum: { tokenBalance: true }, _avg: { tokenBalance: true } }),
     ]);
 
-    // Daily revenue last 7 days
-    const daily = await prisma.$queryRaw`
-      SELECT DATE("createdAt") as day, SUM(amount)/100.0 as revenue, SUM(quantity) as tokens, COUNT(*) as count
+    // Daily revenue last 7 days — TokenPurchase.amount is stored in Naira (not kobo), so no /100
+    const dailyRaw = await prisma.$queryRaw`
+      SELECT DATE("createdAt") as day, SUM(amount) as revenue, SUM(quantity) as tokens, COUNT(*) as count
       FROM "TokenPurchase" WHERE status='SUCCESS' AND "createdAt" >= ${since}
       GROUP BY day ORDER BY day ASC
     `;
+    const daily = dailyRaw.map((d) => ({
+      day: d.day,
+      revenue: Number(d.revenue || 0),
+      tokens: Number(d.tokens || 0),
+      count: Number(d.count || 0),
+    }));
 
     return res.json({
-      totalPurchases,
-      successfulPurchases,
-      failedPurchases: totalPurchases - successfulPurchases,
-      revenueNaira: (revenue._sum.amount || 0) / 100,
-      tokensSold: revenue._sum.quantity || 0,
-      avgTokensPerPurchase: successfulPurchases ? ((revenue._sum.quantity || 0) / successfulPurchases).toFixed(1) : 0,
-      totalTokenBalance: balanceStats._sum.tokenBalance || 0,
+      totalPurchases: Number(totalPurchases),
+      successfulPurchases: Number(successfulPurchases),
+      failedPurchases: Number(totalPurchases) - Number(successfulPurchases),
+      revenueNaira: Number(revenue._sum.amount || 0),
+      tokensSold: Number(revenue._sum.quantity || 0),
+      avgTokensPerPurchase: successfulPurchases ? (Number(revenue._sum.quantity || 0) / Number(successfulPurchases)).toFixed(1) : 0,
+      totalTokenBalance: Number(balanceStats._sum.tokenBalance || 0),
       avgBalance: Number((balanceStats._avg.tokenBalance || 0).toFixed(1)),
       daily,
       recentPurchases: recentPurchases.slice(0, 20),
@@ -130,12 +136,124 @@ router.get("/growth", async (req, res) => {
 });
 
 // ─── Search: top queries, zero results ──────────────────────
+// Normalizes (lowercase/trim) and merges incremental typing fragments into the complete word.
+// e.g. "iph" "ipho" "iphon" "iphone" "Iphone" -> single "Iphone" bucket, counts summed.
+function normalizeQuery(q) {
+  return (q || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+function toDisplayQuery(q) {
+  return q.split(" ").map((w) => (w ? w[0].toUpperCase() + w.slice(1) : "")).join(" ");
+}
+function mergeSearchGroups(rawGroups) {
+  // rawGroups: [{ query, _count, _avg: {results} }]
+  // 1) normalize + aggregate identical normalized queries (case-insensitive, trim)
+  const normMap = new Map();
+  for (const r of rawGroups) {
+    const norm = normalizeQuery(r.query);
+    if (!norm) continue;
+    if (!normMap.has(norm)) normMap.set(norm, { norm, count: 0, totalResults: 0, examples: [] });
+    const e = normMap.get(norm);
+    const c = Number(r._count || 0);
+    const avg = Number(r._avg?.results || 0);
+    e.count += c;
+    e.totalResults += avg * c;
+    e.examples.push(r.query);
+  }
+  let groups = Array.from(normMap.values()).map((g) => ({
+    norm: g.norm,
+    query: g.norm,
+    _count: g.count,
+    _avg: { results: g.count ? g.totalResults / g.count : 0 },
+  }));
+  if (groups.length === 0) return [];
+
+  // 2) aggressive dedup: if one query CONTAINS another, they are repetition -> keep only 1
+  // e.g. "iph","iphon","iphone","iphone 11" all contain "iph" -> single bucket "Iphone"
+  // "sam" vs "samsung", "basic" vs "basic top" -> same bucket
+  // Greedy by most frequent first so the popular complete word wins as canonical.
+  groups.sort((a, b) => b._count - a._count || b.norm.length - a.norm.length);
+  const visited = new Set();
+  const clusters = []; // [{ canon, members }]
+  for (const center of groups) {
+    if (visited.has(center.norm)) continue;
+    visited.add(center.norm);
+    const members = [center];
+    for (const other of groups) {
+      if (visited.has(other.norm)) continue;
+      // repetition if either string contains the other (case already normalized)
+      if (center.norm.includes(other.norm) || other.norm.includes(center.norm)) {
+        visited.add(other.norm);
+        members.push(other);
+      }
+    }
+    clusters.push({ canon: center, members });
+  }
+
+  // 3) merge each cluster into its canon (most frequent wins)
+  let final = clusters.map((c) => {
+    const totalCount = c.members.reduce((s, m) => s + m._count, 0);
+    const totalResults = c.members.reduce((s, m) => s + m._avg.results * m._count, 0);
+    return {
+      query: toDisplayQuery(c.canon.norm),
+      _count: totalCount,
+      _avg: { results: totalCount ? totalResults / totalCount : 0 },
+      _norm: c.canon.norm,
+    };
+  });
+  // Keep only meaningful queries (hide single letters like "i","b","c","p","w")
+  final = final.filter((f) => f.query.length >= 2);
+  final.sort((a, b) => b._count - a._count);
+  return final.slice(0, 10).map(({ _norm, ...rest }) => rest);
+}
+
 router.get("/search", async (req, res) => {
   try {
-    const topQueries = await prisma.searchLog.groupBy({ by: ["query"], _count: true, _avg: { results: true }, orderBy: { _count: { query: "desc" } }, take: 20 });
-    const zeroResults = await prisma.searchLog.findMany({ where: { results: 0 }, orderBy: { createdAt: "desc" }, take: 20 });
+    // Pull a wider raw window so we can deduplicate case-variants and typing fragments before taking top 20
+    const topQueriesRaw = await prisma.searchLog.groupBy({ by: ["query"], _count: true, _avg: { results: true }, orderBy: { _count: { query: "desc" } }, take: 100 });
+    const rawForMerge = topQueriesRaw.map((q) => ({
+      query: q.query,
+      _count: Number(q._count),
+      _avg: { results: Number(q._avg?.results || 0) },
+    }));
+    const topQueries = mergeSearchGroups(rawForMerge);
+
+    // Zero-result searches — deduplicated the same way, plus keep most recent date per bucket
+    const zeroRaw = await prisma.searchLog.findMany({ where: { results: 0 }, orderBy: { createdAt: "desc" }, take: 100 });
+    const zeroGroupsRaw = [];
+    const zeroByQuery = new Map();
+    for (const r of zeroRaw) {
+      const key = r.query;
+      if (!zeroByQuery.has(key)) zeroByQuery.set(key, { query: key, _count: 0, _avg: { results: 0 }, lastAt: r.createdAt });
+      const g = zeroByQuery.get(key);
+      g._count += 1;
+      if (r.createdAt > g.lastAt) g.lastAt = r.createdAt;
+    }
+    const zeroForMerge = Array.from(zeroByQuery.values());
+    const zeroMerged = mergeSearchGroups(zeroForMerge);
+    // Re-attach lastSeen for display (most recent date among fragments in the bucket)
+    const normToLast = new Map();
+    for (const r of zeroRaw) {
+      const norm = normalizeQuery(r.query);
+      // find canonical this norm maps to (reuse merge logic via lookup)
+      // Approximate: if norm is prefix of a merged query, assign to that merged query
+      let canon = norm;
+      for (const m of zeroMerged) {
+        const mNorm = normalizeQuery(m.query);
+        if (mNorm === norm || mNorm.startsWith(norm)) { canon = mNorm; break; }
+      }
+      const existing = normToLast.get(canon);
+      if (!existing || r.createdAt > existing) normToLast.set(canon, r.createdAt);
+    }
+    const zeroResults = zeroMerged.map((m) => ({
+      query: m.query,
+      _count: m._count,
+      lastSeen: normToLast.get(normalizeQuery(m.query)) || null,
+      _avg: m._avg,
+    }));
+
     const recent = await prisma.searchLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 });
-    const dailySearches = await prisma.$queryRaw`SELECT DATE("createdAt") as day, COUNT(*) as count FROM search_logs WHERE "createdAt" >= NOW() - INTERVAL '14 days' GROUP BY day ORDER BY day ASC`;
+    const dailySearchesRaw = await prisma.$queryRaw`SELECT DATE("createdAt") as day, COUNT(*) as count FROM search_logs WHERE "createdAt" >= NOW() - INTERVAL '14 days' GROUP BY day ORDER BY day ASC`;
+    const dailySearches = dailySearchesRaw.map((d) => ({ day: d.day, count: Number(d.count) }));
     return res.json({ topQueries, zeroResults, recent, dailySearches });
   } catch (err) {
     console.error("[ANALYTICS SEARCH ERROR]", err);

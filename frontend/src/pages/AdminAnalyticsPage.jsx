@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import AdminLayout from "../components/admin/AdminLayout";
 import { MiniSpinner } from "../components/ui/LoadingSpinner";
+import InfoModal from "../components/ui/InfoModal";
 import { getMoneyAnalytics, getFunnelAnalytics, getSearchAnalytics, getAiAnalytics, getPostHogAnalytics, getPostHogReplays } from "../services/analyticsService";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -34,6 +35,12 @@ const AdminAnalyticsPage = () => {
   const [replayId, setReplayId] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshTab = async (t) => {
+    if (t === "money") { const m = await getMoneyAnalytics(30).catch(() => null); setMoney(m); }
+    if (t === "search") { const se = await getSearchAnalytics().catch(() => null); setSearch(se); }
+    if (t === "funnel") { const f = await getFunnelAnalytics().catch(() => null); setFunnel(f); }
+    if (t === "ai") { const a = await getAiAnalytics().catch(() => null); setAi(a); }
+  };
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -51,6 +58,7 @@ const AdminAnalyticsPage = () => {
     };
     load();
   }, []);
+  useEffect(() => { refreshTab(tab); }, [tab]);
 
   if (loading) return <AdminLayout><div className="flex items-center gap-2 py-10 text-gray-500"><MiniSpinner size={20} /> Loading analytics…</div></AdminLayout>;
 
@@ -59,10 +67,11 @@ const AdminAnalyticsPage = () => {
       <h1 className="text-xl font-bold text-navy-900">Analytics</h1>
       <p className="text-sm text-gray-500 mb-4">Simple view of how Trend Tribe is doing. Tap a tab to see details.</p>
 
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div className="flex gap-2 mb-6 flex-wrap items-center">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold border ${tab === t.id ? "bg-navy-900 text-white border-navy-900" : "bg-white text-gray-600 border-sage-100"}`}>{t.label}</button>
         ))}
+        <button onClick={() => refreshTab(tab)} className="ml-2 text-xs font-medium text-gray-600 border border-sage-100 rounded-full px-3 py-1.5 hover:bg-gray-50">Refresh — latest data</button>
         <Link to="/admin" className="ml-auto text-xs text-primary-600 hover:underline">← Dashboard</Link>
       </div>
 
@@ -77,8 +86,20 @@ const AdminAnalyticsPage = () => {
         </div>
       )}
 
-      {tab === "money" && money && (
+      {tab === "money" && (
+        money ? (
         <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-navy-900">Token sales</h2>
+            <InfoModal title="How Money figures work">
+              <p><span className="font-semibold text-gray-900">Revenue — ₦{Number(money.revenueNaira).toLocaleString()}</span><br/>Total money from successful token purchases. Each token costs ₦200. Right now 3 purchases made ₦1,400 in total.</p>
+              <p><span className="font-semibold text-gray-900">Tokens sold — {money.tokensSold}</span><br/>Total tokens bought. Right now 7 tokens (1 + 1 + 5).</p>
+              <p><span className="font-semibold text-gray-900">Purchases — {money.successfulPurchases} successful, {money.failedPurchases} failed</span><br/>How many buys worked and how many did not. Failed includes both pending and failed. Total tries: {money.totalPurchases}.</p>
+              <p><span className="font-semibold text-gray-900">Avg per purchase — {money.avgTokensPerPurchase} tokens</span><br/>Average tokens per successful buy. 7 tokens ÷ 3 buys = 2.3.</p>
+              <p><span className="font-semibold text-gray-900">Total balance — {Number(money.totalTokenBalance).toFixed(0)} tokens (avg {money.avgBalance} per person)</span><br/>Tokens users still have in their wallets. This is not money we made — it is tokens waiting to be used.</p>
+              <p><span className="font-semibold text-gray-900">Chart — Revenue last {money.daily?.length || 0} days</span><br/>Bars show money made each day, counting only successful, Flutterwave-verified payments.</p>
+            </InfoModal>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card title="Revenue" value={`₦${Number(money.revenueNaira).toLocaleString()}`} sub={`${money.tokensSold} tokens`} />
             <Card title="Purchases" value={money.successfulPurchases} sub={`${money.failedPurchases} failed`} />
@@ -99,6 +120,7 @@ const AdminAnalyticsPage = () => {
             </div>
           </div>
         </div>
+        ) : <div className="bg-white border border-sage-100 rounded-xl p-8 text-center text-sm text-gray-500">Failed to load</div>
       )}
 
       {tab === "funnel" && funnel && (
@@ -119,8 +141,17 @@ const AdminAnalyticsPage = () => {
         </div>
       )}
 
-      {tab === "search" && search && (
+      {tab === "search" && (
+        search ? (
         <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-navy-900">Search</h2>
+            <InfoModal title="How search figures work">
+              <p><span className="font-semibold text-gray-900">Top 10 searches</span><br/>What people typed most. If one search contains another, we count it as the same — so “Iph” inside “Iphone” + “Iphone 11” all count as one “Iphone”. We show only the top 10 groups.</p>
+              <p><span className="font-semibold text-gray-900">Zero-result</span><br/>What people wanted but we could not find. Also grouped the same way, so you see each need once, with how many times it happened and when it was last seen.</p>
+              <p><span className="font-semibold text-gray-900">No repetition</span><br/>One person typing letter by letter is not many searches. It is one search for the full word.</p>
+            </InfoModal>
+          </div>
           <div className="bg-white border border-sage-100 rounded-xl p-4">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Top searches</p>
             {search.topQueries?.length ? search.topQueries.map((q) => (
@@ -128,12 +159,13 @@ const AdminAnalyticsPage = () => {
             )) : <p className="text-sm text-gray-400">No searches yet</p>}
           </div>
           <div className="bg-white border border-sage-100 rounded-xl p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Zero-result searches (what users want but can't find)</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">What people want but can't find</p>
             {search.zeroResults?.length ? search.zeroResults.map((r) => (
-              <div key={r.id} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span className="truncate pr-4">{r.query} {r.category ? `· ${r.category}` : ""}</span><span className="text-gray-400 text-xs">{new Date(r.createdAt).toLocaleDateString()}</span></div>
-            )) : <p className="text-sm text-gray-400">No zero-result searches</p>}
+              <div key={r.query || r.id} className="flex justify-between text-sm py-1 border-b border-sage-50 last:border-0"><span className="truncate pr-4">{r.query} {r.category ? `· ${r.category}` : ""}</span><span className="text-gray-500 text-xs whitespace-nowrap">{r._count ? `${r._count}× · ` : ""}{r.lastSeen ? new Date(r.lastSeen).toLocaleDateString() : r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}</span></div>
+            )) : <p className="text-sm text-gray-400">No zero results</p>}
           </div>
         </div>
+        ) : <div className="bg-white border border-sage-100 rounded-xl p-8 text-center text-sm text-gray-500">Failed to load</div>
       )}
 
       {tab === "ai" && ai && (
