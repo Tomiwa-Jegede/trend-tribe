@@ -217,8 +217,8 @@ Return ONLY JSON with keys: snapshot, progress, funnelInsight, moneyInsight, tru
     // Validate shape
     if (!parsed.snapshot || !parsed.diagnosis || !parsed.nextMove) throw new Error("Invalid Jegede JSON");
     if (!Array.isArray(parsed.risks)) parsed.risks = [String(parsed.risks || "")];
-    // track usage for System tab — mirrors frederick.controller.js
-    const today = new Date().toISOString().slice(0, 10);
+    // track usage for System tab — Pacific bucket to match Gemini quota reset
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
     prisma.geminiLog.upsert({ where: { date: today }, create: { date: today, count: 1 }, update: { count: { increment: 1 } } }).catch(() => {});
     return parsed;
   } catch (e) {

@@ -448,8 +448,8 @@ const searchListingsByImage = async (req, res) => {
       const raw = await askGeminiVision(prompt, imageBase64, mimeType);
       const parsed = JSON.parse(raw);
       keywords = parsed?.keywords?.trim();
-      // track usage for System tab — mirrors frederick.controller.js incrementGeminiLog
-      const today = new Date().toISOString().slice(0, 10);
+      // track usage for System tab — Pacific bucket to match Gemini quota reset
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
       prisma.geminiLog.upsert({ where: { date: today }, create: { date: today, count: 1 }, update: { count: { increment: 1 } } }).catch(() => {});
     } catch (geminiErr) {
       console.error("[IMAGE SEARCH GEMINI ERROR]", geminiErr);

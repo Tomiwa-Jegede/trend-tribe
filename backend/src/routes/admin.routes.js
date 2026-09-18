@@ -418,13 +418,12 @@ router.get("/brevo-usage", protect, requireAdmin, async (req, res) => {
         if (account.plan.credits) dailyLimit = account.plan.credits;
       }
     }
-    // Fallback: if account has `relay.data` etc, keep 300
-    const sentToday = stats?.statistics?.[today]?.statistics?.globalStats?.sent ?? stats?.sent ?? 0;
-    // Monthly: sum from 1st to today if stats available, else estimate
-    let sentThisMonth = 0;
-    if (stats?.statistics) {
+    // Brevo aggregatedReport is flat { requests, delivered, ... } — not nested statistics.[date].statistics.globalStats
+    const sentToday = stats?.requests ?? stats?.statistics?.[today]?.statistics?.globalStats?.sent ?? stats?.sent ?? 0;
+    let sentThisMonth = typeof stats?.requests === "number" ? stats.requests : 0;
+    if (stats?.statistics && typeof sentThisMonth !== "number") {
       Object.values(stats.statistics).forEach((day) => {
-        sentThisMonth += day.statistics?.globalStats?.sent ?? 0;
+        sentThisMonth += day.requests ?? day.statistics?.globalStats?.sent ?? 0;
       });
     }
 

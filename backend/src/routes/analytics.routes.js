@@ -372,17 +372,18 @@ router.get("/posthog/replays", async (req, res) => {
 // ─── AI: Jegede credits & usage ───────────────────────────────
 router.get("/ai", async (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const todayUTC = new Date().toISOString().slice(0, 10);
+    const todayPacific = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
     const FREE_LIMIT_GUEST = 10;
     const FREE_LIMIT_USER = 20;
     const GEMINI_DAILY_LIMIT = parseInt(process.env.GEMINI_DAILY_LIMIT, 10) || 20;
     const [freeTodayAgg, totalFreeAgg, totalPaidSessions, tokensSpentAgg, recentFree, geminiToday] = await Promise.all([
-      prisma.aiFreeUsage.aggregate({ where: { date: today }, _sum: { count: true } }),
+      prisma.aiFreeUsage.aggregate({ where: { date: todayUTC }, _sum: { count: true } }),
       prisma.aiFreeUsage.aggregate({ _sum: { count: true } }),
       prisma.frederickSession.count(),
       prisma.frederickSession.aggregate({ _sum: { cost: true } }),
       prisma.aiFreeUsage.findMany({ orderBy: { updatedAt: "desc" }, take: 20 }),
-      prisma.geminiLog.findUnique({ where: { date: today } }),
+      prisma.geminiLog.findUnique({ where: { date: todayPacific } }),
     ]);
     const freeToday = freeTodayAgg._sum.count || 0;
     const totalFree = totalFreeAgg._sum.count || 0;
@@ -391,7 +392,7 @@ router.get("/ai", async (req, res) => {
     const geminiRemaining = Math.max(0, GEMINI_DAILY_LIMIT - geminiTodayCount);
     const geminiKeySet = !!(process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY);
     return res.json({
-      today,
+      today: todayPacific,
       free: {
         limitGuest: FREE_LIMIT_GUEST,
         limitUser: FREE_LIMIT_USER,

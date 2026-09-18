@@ -43,8 +43,10 @@ const incrementFreeUsage = async (identifier) => {
   });
 };
 
+const getPacificToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+
 const incrementGeminiLog = async () => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getPacificToday();
   await prisma.geminiLog.upsert({
     where: { date: today },
     create: { date: today, count: 1 },
