@@ -9,8 +9,8 @@ export const getMyGigs = async () => {
   const { data } = await api.get("/gigs/mine");
   return data;
 };
-export const createGig = async ({ description, whatsapp, amount, timerHours }) => {
-  const { data } = await api.post("/gigs", { description, whatsapp, amount, timerHours });
+export const createGig = async ({ description, whatsapp, amount, timerHours, timerMins }) => {
+  const { data } = await api.post("/gigs", { description, whatsapp, amount, timerHours, timerMins });
   return data;
 };
 export const claimGig = async (id) => {

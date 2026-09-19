@@ -69,7 +69,7 @@ export default function GigAvailablePage() {
             <div key={g.id} className="card p-4">
               <p className="font-semibold text-gray-900 break-words">{g.description}</p>
               <p className="text-sm text-primary-600 font-extrabold mt-1">
-                {formatNaira(g.amount)} · <FiClock className="inline w-3 h-3" />{" "}
+                Reward : {formatNaira(g.amount)} · <FiClock className="inline w-3 h-3" />{" "}
                 {new Date(g.expiresAt).toLocaleString()}
               </p>
               <p className="text-xs text-gray-500 mt-1">

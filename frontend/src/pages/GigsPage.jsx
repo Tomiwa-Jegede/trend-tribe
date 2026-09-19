@@ -19,7 +19,7 @@ export default function GigsPage() {
   const [loading, setLoading] = useState(true);
   const [my, setMy] = useState(null);
   const [showPost, setShowPost] = useState(false);
-  const [form, setForm] = useState({ description: "", whatsapp: user?.whatsapp || "", amount: "", timerHours: 24 });
+  const [form, setForm] = useState({ description: "", whatsapp: user?.whatsapp || "", amount: "", timerHours: 24, timerMins: 0 });
   const [submitting, setSubmitting] = useState(false);
 
 
@@ -43,11 +43,15 @@ export default function GigsPage() {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.description.trim() || form.description.trim().length < 10) return toast.error("Description at least 10 chars");
+    const hrs = Math.max(0, Math.min(168, parseInt(form.timerHours,10)||0));
+    const mins = Math.max(0, Math.min(59, parseInt(form.timerMins,10)||0));
+    if (hrs===0 && mins===0) return toast.error("Set hours or mins (min 15 mins)");
+    if (hrs===0 && mins<15) return toast.error("Minimum 15 mins");
     setSubmitting(true);
     try {
-      await createGig({ description: form.description, whatsapp: form.whatsapp, amount: parseInt(form.amount,10), timerHours: parseInt(form.timerHours,10)||24 });
+      await createGig({ description: form.description, whatsapp: form.whatsapp, amount: parseInt(form.amount,10), timerHours: hrs, timerMins: mins });
       toast.success("Task posted — escrow locked.");
-      setForm({ description: "", whatsapp: user?.whatsapp||"", amount: "", timerHours: 24 });
+      setForm({ description: "", whatsapp: user?.whatsapp||"", amount: "", timerHours: 24, timerMins: 0 });
       setShowPost(false);
       fetch();
     } catch (err) { toast.error(err.response?.data?.error || "Could not post task"); }
@@ -136,8 +140,11 @@ export default function GigsPage() {
               <input type="number" min="100" value={form.amount} onChange={e=>setForm(f=>({...f, amount:e.target.value}))} placeholder="1000" className="input-field mt-1.5" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700">Timer (hours)</label>
-              <input type="number" min="1" max="168" value={form.timerHours} onChange={e=>setForm(f=>({...f, timerHours:e.target.value}))} className="input-field mt-1.5" />
+              <label className="text-xs font-semibold text-gray-700">Timer</label>
+              <div className="flex gap-2 mt-1.5">
+                <input type="number" min="0" max="168" value={form.timerHours} onChange={e=>setForm(f=>({...f, timerHours:e.target.value}))} placeholder="Hrs" className="input-field w-1/2" />
+                <input type="number" min="0" max="59" value={form.timerMins} onChange={e=>setForm(f=>({...f, timerMins:e.target.value}))} placeholder="Mins" className="input-field w-1/2" />
+              </div>
             </div>
           </div>
           <button type="submit" disabled={submitting} className="w-full btn-primary py-3 rounded-full text-sm font-bold disabled:opacity-60">
@@ -152,7 +159,7 @@ export default function GigsPage() {
           {gigs.map(g=> (
             <div key={g.id} className="card p-4">
               <p className="font-semibold text-gray-900 break-words">{g.description}</p>
-              <p className="text-sm text-primary-600 font-extrabold mt-1">{formatNaira(g.amount)} · {g.status} · <FiClock className="inline w-3 h-3"/> {new Date(g.expiresAt).toLocaleString()}</p>
+              <p className="text-sm text-primary-600 font-extrabold mt-1">Reward : {formatNaira(g.amount)} · {g.status} · <FiClock className="inline w-3 h-3"/> {new Date(g.expiresAt).toLocaleString()}</p>
               <p className="text-xs text-gray-500 mt-1">By @{g.poster?.username} · {new Date(g.createdAt).toLocaleDateString()} · Claim free, WhatsApp hidden until claimed</p>
               <div className="flex gap-2 mt-3 flex-wrap">
                 {g.status==="OPEN" && <button onClick={()=>handleClaim(g.id)} className="btn-primary px-4 py-1.5 text-xs">Claim — get WhatsApp</button>}
@@ -169,7 +176,7 @@ export default function GigsPage() {
         <div className="mt-8">
           <h2 className="font-bold text-gray-900 mb-3">My Posted</h2>
           <div className="grid gap-3">
-            {my.posted.map(g=> <div key={`p-${g.id}`} className="card p-3 text-sm"><p className="font-medium">{g.description.slice(0,80)}</p><p className="text-xs text-gray-500">{formatNaira(g.amount)} · {g.status} · {g.status==="CLAIMED"?"72h auto-release if not confirmed": new Date(g.expiresAt).toLocaleString()}</p></div>)}
+            {my.posted.map(g=> <div key={`p-${g.id}`} className="card p-3 text-sm"><p className="font-medium">{g.description.slice(0,80)}</p><p className="text-xs text-gray-500">Reward : {formatNaira(g.amount)} · {g.status} · {g.status==="CLAIMED"?"72h auto-release if not confirmed": new Date(g.expiresAt).toLocaleString()}</p></div>)}
           </div>
         </div>
       )}

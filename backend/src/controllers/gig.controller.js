@@ -8,14 +8,17 @@ const payout = (amount) => amount - fee(amount);
 // POST /api/gigs — create gig, escrow full amount from poster's gigBalance
 const createGig = async (req, res) => {
   try {
-    const { description, whatsapp, amount, timerHours } = req.body;
+    const { description, whatsapp, amount, timerHours, timerMins } = req.body;
     if (!description?.trim() || description.trim().length < 10) return res.status(400).json({ error: "Description must be at least 10 chars" });
     if (!whatsapp?.trim() || !/^(\+234|0)[789][01]\d{8}$/.test(whatsapp.trim())) return res.status(400).json({ error: "Valid Nigerian WhatsApp required (080...)" });
     const amt = parseInt(amount, 10);
     if (!amt || amt < 100) return res.status(400).json({ error: "Amount must be at least ₦100 (10000 kobo)" });
     const amountKobo = amt * 100;
-    const hours = parseInt(timerHours, 10) || 24;
-    if (hours < 1 || hours > 168) return res.status(400).json({ error: "Timer must be 1-168 hours" });
+    const hrs = Math.max(0, Math.min(168, parseInt(timerHours, 10) || 0));
+    const mins = Math.max(0, Math.min(59, parseInt(timerMins, 10) || 0));
+    const totalMins = hrs * 60 + mins || 24 * 60;
+    if (totalMins < 15 || totalMins > 168 * 60) return res.status(400).json({ error: "Timer must be 15 mins to 168 hours" });
+    const hours = Math.ceil(totalMins / 60);
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, isFresher: true, fresherExpiresAt: true } });
     if (user?.isFresher && user.fresherExpiresAt && new Date() > new Date(user.fresherExpiresAt)) {
@@ -23,7 +26,7 @@ const createGig = async (req, res) => {
     }
     if (!user || user.gigBalance < amountKobo) return res.status(402).json({ error: `Need ₦${(amountKobo/100).toLocaleString()} in TrendTribe Wallet. You have ₦${((user?.gigBalance||0)/100).toLocaleString()}.`, needsGigBalance: true, gigBalance: user?.gigBalance || 0, required: amountKobo });
 
-    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + totalMins * 60 * 1000);
     const { recordWalletMovement } = require("../utils/wallet");
     const gig = await prisma.$transaction(async (tx) => {
       const ok = await tx.user.updateMany({ where: { id: req.user.id, gigBalance: { gte: amountKobo } }, data: { gigBalance: { decrement: amountKobo } } });
