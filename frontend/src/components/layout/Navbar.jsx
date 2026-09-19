@@ -199,23 +199,23 @@ const Navbar = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+  const fetchAvailableGigs = useCallback(async () => {
+    try {
+      const data = await getGigs({ limit: 50 });
+      const openCount = (data.gigs || []).filter((g) => g.status === "OPEN").length;
+      setAvailableGigsCount(openCount);
+    } catch { setAvailableGigsCount(0); }
+  }, []);
   useEffect(() => {
     let cancelled = false;
-    const run = () => getGigs({ limit: 50 })
-      .then((data) => {
-        if (cancelled) return;
-        const openCount = (data.gigs || []).filter((g) => g.status === "OPEN").length;
-        setAvailableGigsCount(openCount);
-      })
-      .catch(() => {
-        if (!cancelled) setAvailableGigsCount(0);
-      });
+    const run = () => { if (cancelled) return; fetchAvailableGigs(); };
     if (typeof window !== "undefined" && "requestIdleCallback" in window) window.requestIdleCallback(run, { timeout: 1000 });
     else setTimeout(run, 800);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [fetchAvailableGigs]);
+  useRealtime("gig", fetchAvailableGigs, { enabled: true });
+  useRealtime("gig:created", fetchAvailableGigs, { enabled: true });
+  useRealtime("gig:claimed", fetchAvailableGigs, { enabled: true });
 
   // Hide "As Provider" unless user has at least one active SERVICES listing — fetch once per session, not per route
   useEffect(() => {
@@ -561,6 +561,11 @@ const Navbar = () => {
                 ) : (
                   <FiMenu className="w-5 h-5" />
                 )}
+                {availableGigsCount > 0 && !menuOpen && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-accent-400 text-navy-900 text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 leading-none">
+                    {availableGigsCount > 99 ? "99+" : availableGigsCount}
+                  </span>
+                )}
 
               </motion.button>
             </div>
@@ -636,7 +641,10 @@ const Navbar = () => {
                     >
                       <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase pt-1">Tasks</p>
                       <MobileNavLink path="/gigs?view=post" label="Post Task" index={2} />
-                      <MobileNavLink path="/gigs/available" label="Available Tasks" index={2} />
+                      <div className="flex items-center gap-2">
+                        <MobileNavLink path="/gigs/available" label="Available Tasks" index={2} />
+                        {availableGigsCount > 0 && <span className="bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">{availableGigsCount > 99 ? "99+" : availableGigsCount}</span>}
+                      </div>
                       <MobileNavLink path="/gigs/wallet" label="Wallet" index={2} />
                       <div className="border-t border-gray-100 my-1" />
                       <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Bookings</p>
