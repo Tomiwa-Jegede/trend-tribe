@@ -11,6 +11,7 @@ Hand-off spec for reframing Trend Tribe as the Verified Campus Shop Network — 
 
 ## Decisions so far
 - [mkt-01-category-enemy](tickets/mkt-01-category-enemy.md): Locked **Verified Campus Shop** — hybrid Passport+Storefront. Positioning `Your campus. Your shop. Verified.` Category: Verified Campus Shop Network, Enemy: Strangers/Status/Jiji, Promise: Be seen, sell to verifiables, meet on campus.
+- [mkt-02-offer-clarity](tickets/mkt-02-offer-clarity.md): Two-track landing — split hero Shop vs Tasks, choose path (re-locked).
 - [mkt-07-pricing-signal](tickets/mkt-07-pricing-signal.md): Token → Showcase Pass, kill 1-pack, reword PricingPage hero to shop slots + 24h spotlight.
 - [mkt-03-trust-badge](tickets/mkt-03-trust-badge.md): ID-card pill ✓ Verified UNILAG · ...4567 on ListingCard/ListingDetail/Profile + hero stats.
 - [mkt-04-hero-copy](tickets/mkt-04-hero-copy.md): Hero `Don't Sell on Status. Open Your Verified Shop.` CTA `Open My Shop Free →` with B/C variants for A/B.
@@ -24,8 +25,7 @@ Hand-off spec for reframing Trend Tribe as the Verified Campus Shop Network — 
 - [mkt-13-seo-og](tickets/mkt-13-seo-og.md): Title `Verified Campus Shop` + OG `Your campus. Your shop. Verified.`
 
 ## Not yet specified
-- [mkt-02-offer-clarity](tickets/mkt-02-offer-clarity.md) — RE-OPENED (frontier): homepage promise — marketplace-only vs 3-in-1 vs two-track
-<!-- all other tickets closed — way clear except mkt-02 -->
+<!-- all tickets closed — way clear, ready to hand off spec -->
 
 ## Out of scope
 - Building the features/change deployment itself — map produces spec to hand off
