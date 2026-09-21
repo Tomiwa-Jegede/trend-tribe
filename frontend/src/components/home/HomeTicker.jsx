@@ -68,14 +68,14 @@ export const TICKER_ROW_4 = [
 
 // ── Info bar data ──────────────────────────────────────────────
 export const INFO_ITEMS = [
-  { icon: "🎓", text: "Students only" },
-  { icon: "🤝", text: "Meet on campus" },
-  { icon: "🔒", text: "Safe peer-to-peer trading" },
-  { icon: "⚡", text: "List in 60 seconds" },
-  { icon: "🛍️", text: "Fashion, perfumes, electronics & more" },
+  { icon: "✓", text: "Verified by matric" },
+  { icon: "🎓", text: "Your campus. Your shop. Verified." },
+  { icon: "🤝", text: "Meet on campus — inspect before you pay" },
+  { icon: "🔥", text: "Amaka's thrift got 11 chats today" },
+  { icon: "⚡", text: "Open shop in 60 seconds" },
   { icon: "📍", text: "Trade within your university" },
   { icon: "🧾", text: "No middlemen" },
-  { icon: "🎯", text: "Built for campus life" },
+  { icon: "🎯", text: "3 slots free — 1 Showcase Pass for more" },
 ];
 
 // ── Ticker Item ────────────────────────────────────────────────

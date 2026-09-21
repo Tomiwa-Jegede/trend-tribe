@@ -280,7 +280,7 @@ const ListingCard = ({ listing }) => {
             </div>
           )}
 
-          {/* Seller row */}
+          {/* Seller row — Verified Campus Shop badge */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
             <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-sage-100">
               {avatarUrl ? (
@@ -291,8 +291,11 @@ const ListingCard = ({ listing }) => {
               </span>
             </div>
 
-            <span className="text-xs text-gray-500 truncate">
+            <span className="text-xs text-gray-500 truncate flex-1">
               {seller?.fullName || seller?.username}
+            </span>
+            <span className="inline-flex items-center gap-1 bg-[#0F1F3D] text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" title={`Verified ${seller?.school || 'Student'} · ...${String(seller?.matricNumber || seller?.jambRegNumber || '').slice(-4)}`}>
+              ✓ Verified {seller?.school ? seller.school.split(' ')[0] : 'Student'} · ...{String(seller?.matricNumber || seller?.jambRegNumber || '0000').slice(-4)}
             </span>
           </div>
         </div>

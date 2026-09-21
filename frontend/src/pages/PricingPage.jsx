@@ -6,10 +6,9 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
 const PACKAGES = [
-  { qty: 1, label: "1 Token", price: 200, popular: false },
-  { qty: 5, label: "5 Tokens", price: 1000, popular: true },
-  { qty: 10, label: "10 Tokens", price: 2000, popular: false },
-  { qty: 20, label: "20 Tokens", price: 4000, popular: false },
+  { qty: 5, label: "5 Showcase Passes", price: 1000, popular: true },
+  { qty: 10, label: "10 Showcase Passes", price: 2000, popular: false },
+  { qty: 20, label: "20 Showcase Passes", price: 4000, popular: false },
 ];
 
 const PricingPage = () => {
@@ -60,27 +59,27 @@ const PricingPage = () => {
     <div className="flex flex-col">
       <Helmet>
         <title>Pricing — Trend Tribe</title>
-        <meta name="description" content="1 token = ₦200. Use tokens to sell more on Trend Tribe." />
+        <meta name="description" content="Your Shop: 3 slots free. 1 Showcase Pass (₦200) opens your 4th + 24h spotlight." />
       </Helmet>
 
       {/* Top */}
       <section className="text-white" style={{ background: "#0F1F3D", paddingTop: "72px", paddingBottom: "56px" }}>
         <div className="container-app">
-          <h1 className="text-4xl font-extrabold">Pricing is simple</h1>
-          <p className="text-white/70 text-lg mt-3 max-w-xl">1 token = ₦200. Pay with Flutterwave. Tokens go to your account right after payment.</p>
+          <h1 className="text-4xl font-extrabold">Your Shop: 3 slots free</h1>
+          <p className="text-white/70 text-lg mt-3 max-w-xl">1 Showcase Pass (₦200) opens your 4th slot + 24h spotlight. Pay with Flutterwave or TrendTribe Wallet — passes land instantly.</p>
           {isAuthenticated && user && (
-            <p className="text-white/90 text-sm mt-4">You have: <span className="font-bold">{user.tokenBalance || 0} tokens</span></p>
+            <p className="text-white/90 text-sm mt-4">You have: <span className="font-bold">{user.tokenBalance || 0} Showcase Passes</span></p>
           )}
-          <p className="text-white/60 text-sm mt-2">You get 3 free items (3 images each) at a time. Tokens are only for extra.</p>
+          <p className="text-white/60 text-sm mt-2">Most students keep their shop free. Only power sellers use a Pass.</p>
         </div>
       </section>
 
       {/* Buy */}
       <section className="container-app py-10">
-        <h2 className="text-gray-900 text-center">Buy tokens</h2>
+        <h2 className="text-gray-900 text-center">Buy Showcase Passes</h2>
         {err && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mt-4 text-sm text-center">{err}</div>}
         {isAuthenticated && gigBalance !== null && (
-          <p className="text-sm text-center mt-4 text-gray-600">TrendTribe Wallet: <span className="font-bold text-indigo-700">₦{(gigBalance/100).toLocaleString()}</span> · 1 token = ₦200 — you can pay directly with TrendTribe Wallet balance, no card.</p>
+          <p className="text-sm text-center mt-4 text-gray-600">TrendTribe Wallet: <span className="font-bold text-indigo-700">₦{(gigBalance/100).toLocaleString()}</span> · 1 Showcase Pass = ₦200 — pay directly with TrendTribe Wallet balance, no card.</p>
         )}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mt-6">
           {PACKAGES.map((p) => {
@@ -118,31 +117,31 @@ const PricingPage = () => {
       {/* What tokens do */}
       <section className="py-10" style={{ background: "#EEF4FF" }}>
         <div className="container-app">
-          <h2 className="text-gray-900 text-center">What can you do with tokens?</h2>
+          <h2 className="text-gray-900 text-center">What can you do with a Showcase Pass?</h2>
           <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto mt-6">
             <div className="card p-5">
-              <h4 className="font-bold text-gray-900">Sell a 4th item at the same time</h4>
-              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 token</span> — You get 3 items free at the same time. To add a 4th, use 1 token.</p>
+              <h4 className="font-bold text-gray-900">Open your 4th slot</h4>
+              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 Showcase Pass</span> — Your shop is free for 3 slots. The 4th needs a Pass — kept open 14 days.</p>
             </div>
             <div className="card p-5">
               <h4 className="font-bold text-gray-900">Add extra images</h4>
-              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">0.5 token</span> — 3 images free per item. Need a 4th or 5th? 0.5 token per extra image.</p>
+              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">0.5 Pass</span> — 3 images free per item. 4th or 5th? 0.5 Pass per extra.</p>
             </div>
             <div className="card p-5">
-              <h4 className="font-bold text-gray-900">Make your item Featured</h4>
-              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 token</span> — Shows your card at the top of Marketplace for 24 hours.</p>
+              <h4 className="font-bold text-gray-900">24h spotlight</h4>
+              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 Showcase Pass</span> — Top of Marketplace for 24 hours. More eyes, more chats.</p>
             </div>
             <div className="card p-5">
               <h4 className="font-bold text-gray-900">Bring back a hidden item</h4>
-              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 token</span> — If you already have 3 items, bringing back a hidden one costs 1 token.</p>
+              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 Showcase Pass</span> — Bringing back a hidden 4th costs a Pass.</p>
             </div>
             <div className="card p-5">
               <h4 className="font-bold text-gray-900">Keep your item longer</h4>
-              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 token</span> — Adds 14 more days before it hides.</p>
+              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 Showcase Pass</span> — Adds 14 more days before it hides.</p>
             </div>
             <div className="card p-5">
               <h4 className="font-bold text-gray-900">Ask Frederick for help</h4>
-              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 token</span> — Per new chat session.</p>
+              <p className="text-sm text-gray-500 mt-1"><span className="font-bold text-amber-600">1 Showcase Pass</span> — Per new chat session.</p>
             </div>
             <div className="card p-5">
               <h4 className="font-bold text-gray-900">Everything else is free</h4>
@@ -161,11 +160,11 @@ const PricingPage = () => {
           </div>
           <div className="card p-4">
             <p className="font-bold text-gray-900">Can I hide then show again to get 4 free?</p>
-            <p className="text-gray-500">No. Showing the 4th item again will ask for 1 token.</p>
+            <p className="text-gray-500">No. Showing the 4th item again will ask for 1 Showcase Pass.</p>
           </div>
           <div className="card p-4">
-            <p className="font-bold text-gray-900">Do buyers need tokens?</p>
-            <p className="text-gray-500">No. Only sellers use tokens.</p>
+            <p className="font-bold text-gray-900">Do buyers need passes?</p>
+            <p className="text-gray-500">No. Only sellers use Showcase Passes.</p>
           </div>
         </div>
       </section>

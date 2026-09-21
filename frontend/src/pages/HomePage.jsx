@@ -158,16 +158,16 @@ const HomePage = () => {
   return (
     <div className="flex flex-col">
       <Helmet>
-        <title>Trend Tribe — Student Marketplace to Buy and Sell on Campus</title>
+        <title>Trend Tribe — Verified Campus Shop for Students</title>
         <meta
           name="description"
-          content="Buy and sell fashion, beauty, gadgets and more with students on your campus. 3 free listings, 1 token for more. Safe meetups, no shipping."
+          content="Your campus. Your shop. Verified. Meet on campus, inspect before you pay. 3 slots free, 1 Showcase Pass for more."
         />
         <link rel="canonical" href="https://trendtribe.app/" />
-        <meta property="og:title" content="Trend Tribe — Campus Marketplace for Students" />
+        <meta property="og:title" content="Trend Tribe — Verified Campus Shop for Students" />
         <meta
           property="og:description"
-          content="Student marketplace to buy and sell fashion, beauty and gadgets. 3 listings free, 1 token for more. Meet on campus."
+          content="Your campus. Your shop. Verified. Meet on campus, inspect before you pay."
         />
         <meta property="og:url" content="https://trendtribe.app/" />
       </Helmet>
@@ -282,22 +282,25 @@ const HomePage = () => {
                 </span>
               </motion.div>
 
-              {/* Headline — same fadeIn as Now open badge */}
+              {/* Headline — Two-track: Verified Campus Shop */}
               <motion.h1
                 variants={reduced ? {} : fadeIn}
                 className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4"
               >
-                Buy, Sell & Get Things Done
+                Don't Sell on Status.
                 <motion.span
                   variants={reduced ? {} : fadeIn}
                   className="block relative"
                   style={{ color: "#F5C518" }}
                 >
-                  Within Your Campus
+                  Open Your Verified Shop.
                   <span
                     className="absolute left-0 -bottom-1 h-0.5 w-2/3 rounded-full"
                     style={{ background: "#F5C518", opacity: 0.4 }}
                   />
+                </motion.span>
+                <motion.span variants={reduced ? {} : fadeIn} className="block text-2xl lg:text-3xl font-bold text-white/90 mt-2">
+                  & Get Things Done on Campus
                 </motion.span>
               </motion.h1>
 
@@ -305,7 +308,8 @@ const HomePage = () => {
                 variants={reduced ? {} : fadeIn}
                 className="text-base lg:text-lg text-white/75 leading-relaxed mb-5"
               >
-                Buy and sell with students on campus, book services, post tasks, or pick up tasks and get paid straight to your wallet. 3 items free. Meet on campus. No delivery.
+                Every seller verified by matric. 3 shop slots free — 1 Showcase Pass (₦200) opens your 4th + 24h spotlight. Meet on campus, inspect before you pay.
+                <span className="block text-white/60 text-sm mt-1">Track 2: Post a task — escrow held, 80% to claimer when you confirm.</span>
               </motion.p>
 
               {/* Live stats — same fadeIn + ping like Now open */}
@@ -319,7 +323,7 @@ const HomePage = () => {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                   </span>
-                  {stats ? `${stats.activeListings} Active Listings` : "— Active Listings"}
+                  {stats ? `${stats.activeListings} Verified Listings` : "— Verified Listings"}
                 </span>
                 <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm font-semibold text-white">
                   <span className="relative flex h-2 w-2 flex-shrink-0" aria-hidden="true">
@@ -327,7 +331,7 @@ const HomePage = () => {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                   </span>
                   <FiUsers className="w-4 h-4 text-emerald-400" aria-hidden="true" />
-                  {stats ? `${stats.totalUsers} students` : "— students"}
+                  {stats ? `${stats.totalUsers} Verified Students` : "— Verified Students"}
                 </span>
                 <a
                   href="https://chat.whatsapp.com/HWJAMqgI9ebITZp4CorXOm?mode=gi_t"
@@ -348,7 +352,7 @@ const HomePage = () => {
                 <PWAInstallButton variant="accent" size="large" />
               </motion.div>
 
-              {/* CTAs — same fadeIn, no extra bottom margin so hero fits vh */}
+              {/* CTAs — Two-track: Shop left + Tasks right */}
               <motion.div
                 variants={reduced ? {} : fadeIn}
                 className="flex flex-col sm:flex-row gap-4 mb-0"
@@ -359,75 +363,30 @@ const HomePage = () => {
                   transition={{ type: "spring", stiffness: 380, damping: 20 }}
                 >
                   <Link
-                    to="/marketplace"
+                    to={isAuthenticated ? "/create-listing" : "/register"}
                     className="inline-flex items-center justify-center gap-2
                                bg-white text-primary-700 font-bold px-8 py-4
                                rounded-2xl text-lg shadow-xl shadow-black/25
                                hover:bg-primary-50 transition-colors duration-200 w-full"
                   >
                     <FiSearch className="w-5 h-5" />
-                    Browse Listings
+                    Open My Shop Free
                   </Link>
                 </motion.div>
 
-                {!isAuthenticated ? (
-                  <motion.div
-                    whileHover={reduced ? {} : { scale: 1.04, y: -2 }}
-                    whileTap={reduced ? {} : { scale: 0.97 }}
-                    transition={{ type: "spring", stiffness: 380, damping: 20 }}
+                <motion.div
+                  whileHover={reduced ? {} : { scale: 1.04, y: -2 }}
+                  whileTap={reduced ? {} : { scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 380, damping: 20 }}
+                >
+                  <Link
+                    to="/gigs"
+                    className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white font-bold px-8 py-4 rounded-2xl text-lg shadow-xl hover:bg-[#20bd5a] transition-colors duration-200 w-full"
                   >
-                    <Link
-                      to="/register"
-                      className="inline-flex items-center justify-center gap-2
-                                 font-bold px-8 py-4 rounded-2xl text-lg
-                                 transition-colors duration-200 w-full"
-                      style={{
-                        background: "#F5C518",
-                        color: "#0F1F3D",
-                        boxShadow: "0 8px 24px rgba(245,197,24,0.35)",
-                      }}
-                    >
-                      Join Free
-                      <motion.span
-                        animate={reduced ? {} : { x: [0, 4, 0] }}
-                        transition={{
-                          duration: 1.5,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                      >
-                        <FiArrowRight className="w-5 h-5" />
-                      </motion.span>
-                    </Link>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    whileHover={reduced ? {} : { scale: 1.04, y: -2 }}
-                    whileTap={reduced ? {} : { scale: 0.97 }}
-                    transition={{ type: "spring", stiffness: 380, damping: 20 }}
-                  >
-                    <Link
-                      to="/create-listing"
-                      className="inline-flex items-center justify-center gap-2
-                                 bg-white/10 backdrop-blur-sm border border-white/30
-                                 text-white font-bold px-8 py-4 rounded-2xl
-                                 hover:bg-white/20 transition-colors duration-200
-                                 text-lg w-full"
-                    >
-                      Sell an Item
-                      <motion.span
-                        animate={reduced ? {} : { x: [0, 4, 0] }}
-                        transition={{
-                          duration: 1.5,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                      >
-                        <FiArrowRight className="w-5 h-5" />
-                      </motion.span>
-                    </Link>
-                  </motion.div>
-                )}
+                    Post a Task
+                    <FiArrowRight className="w-5 h-5" />
+                  </Link>
+                </motion.div>
               </motion.div>
             </motion.div>
           </div>

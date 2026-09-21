@@ -68,8 +68,9 @@ const ReferralPage = () => {
     <div className="max-w-3xl mx-auto p-4 md:p-6 flex flex-col gap-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Refer and Earn</h1>
+          <h1 className="text-2xl font-bold">Invite Your Course Mates</h1>
           <InfoModal title="How referrals work">
+            <p className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm"><span className="font-bold text-amber-800">New: Both get 1 Showcase Pass</span> — when your course mate signs up with your link and verifies matric, you both get 1 Showcase Pass instantly.</p>
             <p><span className="font-semibold text-gray-900">1. Get your code/link.</span> Everyone has a code like <span className="font-mono bg-gray-100 px-1 rounded">K8P2QX</span> and a link like <span className="font-mono text-xs break-all">trendtribe.app/signup?ref=K8P2QX</span>. You can also set your own code (4–12 letters/numbers, e.g. <span className="font-mono bg-gray-100 px-1 rounded">TOMIWA01</span>) with Edit code.</p>
             <p><span className="font-semibold text-gray-900">2. Share it.</span> Send the link to friends. They must open your link and sign up with it. One person = one referrer forever. You can’t refer yourself and you can’t change who referred you later.</p>
             <p><span className="font-semibold text-gray-900">3. Earn 5% automatically.</span> For the <span className="font-semibold">next 6 months</span> after they sign up, every time they do a real transaction — top up TrendTribe Wallet, buy tokens, complete a Task as claimer, or complete a Service as provider — you automatically get <span className="font-semibold">5% of that amount</span> in your TrendTribe Wallet. No need to claim.</p>
@@ -79,7 +80,7 @@ const ReferralPage = () => {
             <p className="text-xs text-gray-400 border-t border-gray-100 pt-3 mt-1">Tip: If your code is taken when you try to edit, pick another. Old earnings stay safe.</p>
           </InfoModal>
         </div>
-        <p className="text-sm text-gray-500">Invite friends, earn 5% for 6 months.</p>
+        <p className="text-sm text-gray-500">Invite Your Course Mates — you both get 1 Showcase Pass. Plus 5% for 6 months.</p>
       </div>
       <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-3">
         <div className="flex items-center justify-between">

@@ -1,6 +1,6 @@
 // src/pages/MarketplacePage.jsx — Live API Version
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 import ListingCard from "../components/listings/ListingCard";
@@ -598,14 +598,16 @@ const MarketplacePage = () => {
               >
                 <FiInbox className="w-7 h-7 text-gray-400" />
               </motion.div>
-              <h4 className="text-gray-700 mb-2">No listings found</h4>
+              <h4 className="text-gray-700 mb-2">No one sells this at your school yet</h4>
               <p className="text-gray-400 max-w-sm">
-                Try adjusting your filters or search term to find what you're
-                looking for.
+                Be the first in {filters.category ? filters.category.replace(/_/g,' ') : 'this category'} — we'll feature you 48h free. Your shop is live in 60 seconds.
               </p>
-              <button onClick={handleReset} className="btn-secondary mt-6">
-                Clear all filters
-              </button>
+              <div className="flex gap-3 mt-6">
+                <Link to="/create-listing" className="btn-primary">Be first — open shop free</Link>
+                <button onClick={handleReset} className="btn-secondary">
+                  Clear all filters
+                </button>
+              </div>
             </motion.div>
           ) : null}
             </AnimatePresence>
