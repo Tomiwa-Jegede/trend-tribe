@@ -9,13 +9,16 @@ Hand-off spec + fixes for remaining frontend risk: token storage (XSS/httpOnly),
 - Mode: Plan + fix in place allowed (small frontend patches)
 
 ## Decisions so far
+- [frontend-01-token-storage](tickets/frontend-01-token-storage.md): localStorage + x-new-token 7d, keep vs httpOnly decision pending
+- [frontend-03-retry-polling](tickets/frontend-03-retry-polling.md): realtime dedup 300ms, polling 10s, axios no retry loop
+- [frontend-04-pwa-loops](tickets/frontend-04-pwa-loops.md): PWA loops bounded, 10m dedup admin-excluded
 - [hamburger-cascade](wayfinder/tickets/hamburger-cascade.md): Hamburger closed shows `inbox+notif` combined, Activity shows same + Notifications row, deep-link marks read — shipped `NotificationsPage-DLzXLbhc.js`.
 
 ## Not yet specified
-- Token storage review — localStorage token + axios interceptor `axios.js:12` vs httpOnly cookie, XSS exposure, refresh handling
+- (graduated) Token storage review → [frontend-01-token-storage](tickets/frontend-01-token-storage.md)
+- (graduated) Retry/polling loops → [frontend-03-retry-polling](tickets/frontend-03-retry-polling.md)
+- (graduated) PWA/install loops → [frontend-04-pwa-loops](tickets/frontend-04-pwa-loops.md)
 - Optimistic UI loops — `FavoritesContext.jsx` toggleFavorite optimistic revert, `ListingCard.jsx`, `MarketplacePage.jsx` realtime `favorite` dedup
-- Retry/polling loops — `useRealtimePolling.js`, `GigWalletPage.jsx:73` fetchAll on focus/realtime, `Navbar.jsx:189` requestIdleCallback defer
-- PWA/install loops — `usePWAInstall.js`, `PWAInstallButton`, `PWARegister.jsx`, `pwa.controller.js` find-loop maps
 - Notification lib follow-through — `lib/notifications.js` centralization gap for desktop More dropdown
 - Chat/Inbox loops — `ChatThread.jsx`, `InboxPage.jsx` already have `chat-two-scroll-zones` etc. maps, but stale fetch still?
 

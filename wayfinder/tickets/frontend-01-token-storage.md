@@ -1,7 +1,11 @@
-# frontend-01-token-storage
+# frontend-01-token-storage — CLOSED
 
 ## Question
 Is `AuthContext.jsx` localStorage token + `axios.js` Bearer header safe vs httpOnly cookie? Check XSS, `x-new-token` rotation `backend/src/middleware/auth.middleware.js`, and `isVerified` gating. Research AFK then grilling decision: keep or migrate?
 
 ## Type
 wayfinder:research
+
+
+## Resolution
+Research localStorage Bearer + x-new-token rotation (7d sliding) is sole auth; no httpOnly; XSS high (CSP disabled helmet:false); keep with CSP fix vs migrate to cookie — no code change yet. Saved locally.
