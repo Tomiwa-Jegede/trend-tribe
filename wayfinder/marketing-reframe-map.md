@@ -25,7 +25,16 @@ Hand-off spec for reframing Trend Tribe as the Verified Campus Shop Network — 
 - [mkt-13-seo-og](tickets/mkt-13-seo-og.md): Title `Verified Campus Shop` + OG `Your campus. Your shop. Verified.`
 
 ## Not yet specified
-<!-- all tickets closed — way clear, ready to hand off spec -->
+<!-- spec way clear — execution backlog below (spun locally, not yet built) -->
+### Execution backlog (keep locally)
+- [mkt-exec-01-home-hero](tickets/mkt-exec-01-home-hero.md): Dual hero `HomePage.jsx:288`
+- [mkt-exec-02-listing-badge](tickets/mkt-exec-02-listing-badge.md): Badge `ListingCard`/`Detail`/`Profile`
+- [mkt-exec-03-pricing-pass](tickets/mkt-exec-03-pricing-pass.md): Pricing `PricingPage.jsx:8`
+- [mkt-exec-04-marketplace-empty](tickets/mkt-exec-04-marketplace-empty.md): Empty `MarketplacePage.jsx:578`
+- [mkt-exec-05-referral](tickets/mkt-exec-05-referral.md): `ReferralPage.jsx` + `ReferralCommission:481`
+- [mkt-exec-06-seo](tickets/mkt-exec-06-seo.md): `index.html:24` `HomePage.jsx:160`
+- [mkt-exec-07-ticker-stats](tickets/mkt-exec-07-ticker-stats.md): `HomeTicker` + `stats.routes.js:10`
+- [mkt-exec-08-poster-asset](tickets/mkt-exec-08-poster-asset.md): Poster/asset `public/posters/`
 
 ## Out of scope
 - Building the features/change deployment itself — map produces spec to hand off
