@@ -14,7 +14,7 @@ Hand-off spec for reframing Trend Tribe as the Verified Campus Shop Network — 
 - [mkt-02-offer-clarity](tickets/mkt-02-offer-clarity.md): Two-track landing — split hero Shop vs Tasks, choose path (re-locked).
 - [mkt-07-pricing-signal](tickets/mkt-07-pricing-signal.md): Token → Showcase Pass, kill 1-pack, reword PricingPage hero to shop slots + 24h spotlight.
 - [mkt-03-trust-badge](tickets/mkt-03-trust-badge.md): ID-card pill ✓ Verified UNILAG · ...4567 on ListingCard/ListingDetail/Profile + hero stats.
-- [mkt-04-hero-copy](tickets/mkt-04-hero-copy.md): RE-OPENED Two-track — re-spec dual hero (pending)
+- [mkt-04-hero-copy](tickets/mkt-04-hero-copy.md): Split headline — Left `Open Your Verified Shop` + Right `Get Things Done on Campus` dual CTA, shared trust strip (re-locked Two-track).
 - [mkt-05-channel-plan](tickets/mkt-05-channel-plan.md): 70 TikTok / 20 WA+Posters (yellow QR + Meetup Spot) / 10 Ambassadors via Showcase Pass + ReferralCommission.
 - [mkt-06-funnel-event](tickets/mkt-06-funnel-event.md): Funnel readable via /api/stats (admin-excluded) + ListingView/ContactView/Favorite/SearchLog + realtime; gap is reply tracking — instrument poll.
 - [mkt-08-pricing-bundle](tickets/mkt-08-pricing-bundle.md): 5-pack ₦1000 Most Popular, ladder 5/10/20, Gig Wallet 1 Pass = ₦200.
@@ -25,7 +25,7 @@ Hand-off spec for reframing Trend Tribe as the Verified Campus Shop Network — 
 - [mkt-13-seo-og](tickets/mkt-13-seo-og.md): Title `Verified Campus Shop` + OG `Your campus. Your shop. Verified.`
 
 ## Not yet specified
-- [mkt-04-hero-copy](tickets/mkt-04-hero-copy.md) — RE-OPENED (frontier): dual hero for Two-track landing
+<!-- all tickets closed — way clear, ready to hand off spec -->
 
 ## Out of scope
 - Building the features/change deployment itself — map produces spec to hand off
