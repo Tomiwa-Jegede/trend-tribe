@@ -9,6 +9,7 @@ Hand-off spec + fixes for remaining frontend risk: token storage (XSS/httpOnly),
 - Mode: Plan + fix in place allowed (small frontend patches)
 
 ## Decisions so far
+- [frontend-02-optimistic-loops](tickets/frontend-02-optimistic-loops.md): pendingRef + lastEvRef dedup clean
 - [frontend-01-token-storage](tickets/frontend-01-token-storage.md): localStorage + x-new-token 7d, keep vs httpOnly decision pending
 - [frontend-03-retry-polling](tickets/frontend-03-retry-polling.md): realtime dedup 300ms, polling 10s, axios no retry loop
 - [frontend-04-pwa-loops](tickets/frontend-04-pwa-loops.md): PWA loops bounded, 10m dedup admin-excluded
@@ -18,7 +19,7 @@ Hand-off spec + fixes for remaining frontend risk: token storage (XSS/httpOnly),
 - (graduated) Token storage review → [frontend-01-token-storage](tickets/frontend-01-token-storage.md)
 - (graduated) Retry/polling loops → [frontend-03-retry-polling](tickets/frontend-03-retry-polling.md)
 - (graduated) PWA/install loops → [frontend-04-pwa-loops](tickets/frontend-04-pwa-loops.md)
-- Optimistic UI loops — `FavoritesContext.jsx` toggleFavorite optimistic revert, `ListingCard.jsx`, `MarketplacePage.jsx` realtime `favorite` dedup
+- (graduated) Optimistic UI loops → [frontend-02-optimistic-loops](tickets/frontend-02-optimistic-loops.md)
 - Notification lib follow-through — `lib/notifications.js` centralization gap for desktop More dropdown
 - Chat/Inbox loops — `ChatThread.jsx`, `InboxPage.jsx` already have `chat-two-scroll-zones` etc. maps, but stale fetch still?
 
