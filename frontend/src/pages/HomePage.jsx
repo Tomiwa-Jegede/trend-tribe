@@ -309,7 +309,6 @@ const HomePage = () => {
                 className="text-base lg:text-lg text-white/75 leading-relaxed mb-5"
               >
                 Every seller verified by matric. 3 shop slots free — 1 Showcase Pass (₦200) opens your 4th + 24h spotlight. Meet on campus, inspect before you pay.
-                <span className="block text-white/60 text-sm mt-1">Track 2: Post a task — escrow held, 80% to claimer when you confirm.</span>
               </motion.p>
 
               {/* Live stats — same fadeIn + ping like Now open */}
