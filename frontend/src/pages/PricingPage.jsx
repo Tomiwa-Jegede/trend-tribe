@@ -79,7 +79,7 @@ const PricingPage = () => {
         <h2 className="text-gray-900 text-center">Buy Showcase Passes</h2>
         {err && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mt-4 text-sm text-center">{err}</div>}
         {isAuthenticated && gigBalance !== null && (
-          <p className="text-sm text-center mt-4 text-gray-600">TrendTribe Wallet: <span className="font-bold text-indigo-700">₦{(gigBalance/100).toLocaleString()}</span> · 1 Showcase Pass = ₦200 — pay directly with TrendTribe Wallet balance, no card.</p>
+          <p className="text-sm text-center mt-4 text-gray-600">TrendTribe Wallet: <span className="font-bold text-indigo-700">₦{(gigBalance/100).toLocaleString()}</span> · 1 Showcase Pass = ₦200 — you can pay with card or TrendTribe Wallet.</p>
         )}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mt-6">
           {PACKAGES.map((p) => {
