@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { FiCopy, FiSend, FiArrowDownCircle, FiChevronRight, FiPlusCircle, FiCheck, FiX, FiClock } from "react-icons/fi";
 import InfoModal from "../components/ui/InfoModal";
 import api from "../api/axios";
+import useRealtime from "../hooks/useRealtime";
 
 const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
 
@@ -109,6 +110,7 @@ export default function GigWalletPage() {
           WITHDRAW: "Withdrawal",
           WITHDRAW_REFUND: "Withdrawal refund",
           TOKEN_BUY: "Buy tokens",
+          ADMIN_REFUND: "Admin credit",
         };
         const label = labelMap[tx.type] || tx.type.replaceAll("_"," ");
         return {
@@ -141,6 +143,16 @@ export default function GigWalletPage() {
     finally { setLoading(false); }
   };
   useEffect(() => { fetchAll(); }, []);
+  // Live: focus/visibility + realtime notification → recent transactions update without hard refresh
+  useEffect(() => {
+    const onFocus = () => fetchAll();
+    const onVis = () => { if (document.visibilityState === "visible") fetchAll(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+    return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
+  useRealtime("notification", fetchAll, { enabled: true });
+  useRealtime("notification:unread", fetchAll, { enabled: true });
   // persist withdraw form so refresh continues where stopped (do not persist pin)
   useEffect(() => { try { const { pin, ...safe } = withdrawForm; localStorage.setItem("tt_gig_withdraw_form_v1", JSON.stringify(safe)); } catch {} }, [withdrawForm]);
   useEffect(() => { try { localStorage.setItem("tt_gig_withdraw_bankQuery_v1", bankQuery); } catch {} }, [bankQuery]);
