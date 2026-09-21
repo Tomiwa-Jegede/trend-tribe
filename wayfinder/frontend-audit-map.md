@@ -9,6 +9,7 @@ Hand-off spec + fixes for remaining frontend risk: token storage (XSS/httpOnly),
 - Mode: Plan + fix in place allowed (small frontend patches)
 
 ## Decisions so far
+- [frontend-05-notif-desktop](tickets/frontend-05-notif-desktop.md): Notifications added to desktop More with badge
 - [frontend-02-optimistic-loops](tickets/frontend-02-optimistic-loops.md): pendingRef + lastEvRef dedup clean
 - [frontend-01-token-storage](tickets/frontend-01-token-storage.md): localStorage + x-new-token 7d, keep vs httpOnly decision pending
 - [frontend-03-retry-polling](tickets/frontend-03-retry-polling.md): realtime dedup 300ms, polling 10s, axios no retry loop
@@ -20,7 +21,7 @@ Hand-off spec + fixes for remaining frontend risk: token storage (XSS/httpOnly),
 - (graduated) Retry/polling loops → [frontend-03-retry-polling](tickets/frontend-03-retry-polling.md)
 - (graduated) PWA/install loops → [frontend-04-pwa-loops](tickets/frontend-04-pwa-loops.md)
 - (graduated) Optimistic UI loops → [frontend-02-optimistic-loops](tickets/frontend-02-optimistic-loops.md)
-- Notification lib follow-through — `lib/notifications.js` centralization gap for desktop More dropdown
+- (graduated) Notification desktop → [frontend-05-notif-desktop](tickets/frontend-05-notif-desktop.md)
 - Chat/Inbox loops — `ChatThread.jsx`, `InboxPage.jsx` already have `chat-two-scroll-zones` etc. maps, but stale fetch still?
 
 ## Out of scope

@@ -445,6 +445,7 @@ const Navbar = () => {
                       className="absolute top-8 right-0 bg-white border border-sage-100 rounded-xl shadow-lg py-2 w-56 z-50"
                     >
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Activity</p>
+                      <Link to="/notifications" onClick={() => setShowMore(false)} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><span>Notifications</span>{notifUnread > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{notifUnread > 99 ? "99+" : notifUnread}</span>}</Link>
                       <Link to="/saved" onClick={() => setShowMore(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Favorites</Link>
                       <div className="border-t border-gray-100 my-1" />
                       <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Explore</p>
