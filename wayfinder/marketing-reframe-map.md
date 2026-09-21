@@ -19,22 +19,13 @@ Hand-off spec for reframing Trend Tribe as the Verified Campus Shop Network — 
 - [mkt-06-funnel-event](tickets/mkt-06-funnel-event.md): Funnel readable via /api/stats (admin-excluded) + ListingView/ContactView/Favorite/SearchLog + realtime; gap is reply tracking — instrument poll.
 
 ## Not yet specified
-- Pricing bundle architecture after Showcase Pass rename (which pack is default, anchor price for 5 vs 1, Gig Wallet interplay)
-- Physical poster & meetup ritual spec (design, QR per faculty, ambassador comp)
-- Founder story content scripts (first 10 TikTok hooks + filming constraints)
-- Empty-state & post-listing ritual copy (peak-end, referral cue)
-- Referral incentive tied to Showcase Pass (Invite course mates → free pass)
-- SEO/OG copy alignment after reframe (`frontend/index.html:24`, `HomePage.jsx:160-173`)
-
-## Not yet specified
-- Pricing bundle architecture after Showcase Pass rename (which pack is default, anchor price for 5 vs 1, Gig Wallet interplay)
-- Physical poster & meetup ritual spec (design, QR per faculty, ambassador comp)
-- Founder story content scripts (first 10 TikTok hooks + filming constraints)
-- Empty-state & post-listing ritual copy (peak-end, referral cue)
-- Measurement & funnel truth (stats endpoints exclude admin, what we can actually read from `ListingView`/`ContactView`/`SearchLog`)
-- Referral incentive tied to Showcase Pass (Invite course mates → free pass)
-- Gigs/Services separation vs homepage promise — what new user sees first (marketplace-only vs multi-product)
-- SEO/OG copy alignment after reframe (`frontend/index.html:24`, `HomePage.jsx:160-173`)
+<!-- graduated to tickets mkt-08..13 — remaining fog below, add new tickets as frontier advances -->
+- (graduated) Pricing bundle architecture → [mkt-08-pricing-bundle](tickets/mkt-08-pricing-bundle.md)
+- (graduated) Physical poster & meetup ritual → [mkt-09-poster-ritual](tickets/mkt-09-poster-ritual.md)
+- (graduated) Founder story scripts → [mkt-10-founder-scripts](tickets/mkt-10-founder-scripts.md)
+- (graduated) Empty-state & post-listing ritual → [mkt-11-empty-ritual](tickets/mkt-11-empty-ritual.md)
+- (graduated) Referral incentive → [mkt-12-referral-incentive](tickets/mkt-12-referral-incentive.md)
+- (graduated) SEO/OG alignment → [mkt-13-seo-og](tickets/mkt-13-seo-og.md)
 
 ## Out of scope
 - Building the features/change deployment itself — map produces spec to hand off
