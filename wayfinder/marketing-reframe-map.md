@@ -11,6 +11,20 @@ Hand-off spec for reframing Trend Tribe as the Verified Campus Shop Network — 
 
 ## Decisions so far
 - [mkt-01-category-enemy](tickets/mkt-01-category-enemy.md): Locked **Verified Campus Shop** — hybrid Passport+Storefront. Positioning `Your campus. Your shop. Verified.` Category: Verified Campus Shop Network, Enemy: Strangers/Status/Jiji, Promise: Be seen, sell to verifiables, meet on campus.
+- [mkt-02-offer-clarity](tickets/mkt-02-offer-clarity.md): Marketplace-only hero (Verified Shop primary), Gigs/Services secondary — draft, pending confirm (you answered Unanswered → defaulted to Recommended).
+- [mkt-07-pricing-signal](tickets/mkt-07-pricing-signal.md): Token → Showcase Pass, kill 1-pack, reword PricingPage hero to shop slots + 24h spotlight.
+- [mkt-03-trust-badge](tickets/mkt-03-trust-badge.md): ID-card pill ✓ Verified UNILAG · ...4567 on ListingCard/ListingDetail/Profile + hero stats.
+- [mkt-04-hero-copy](tickets/mkt-04-hero-copy.md): Hero `Don't Sell on Status. Open Your Verified Shop.` CTA `Open My Shop Free →` with B/C variants for A/B.
+- [mkt-05-channel-plan](tickets/mkt-05-channel-plan.md): 70 TikTok / 20 WA+Posters (yellow QR + Meetup Spot) / 10 Ambassadors via Showcase Pass + ReferralCommission.
+- [mkt-06-funnel-event](tickets/mkt-06-funnel-event.md): Funnel readable via /api/stats (admin-excluded) + ListingView/ContactView/Favorite/SearchLog + realtime; gap is reply tracking — instrument poll.
+
+## Not yet specified
+- Pricing bundle architecture after Showcase Pass rename (which pack is default, anchor price for 5 vs 1, Gig Wallet interplay)
+- Physical poster & meetup ritual spec (design, QR per faculty, ambassador comp)
+- Founder story content scripts (first 10 TikTok hooks + filming constraints)
+- Empty-state & post-listing ritual copy (peak-end, referral cue)
+- Referral incentive tied to Showcase Pass (Invite course mates → free pass)
+- SEO/OG copy alignment after reframe (`frontend/index.html:24`, `HomePage.jsx:160-173`)
 
 ## Not yet specified
 - Pricing bundle architecture after Showcase Pass rename (which pack is default, anchor price for 5 vs 1, Gig Wallet interplay)
