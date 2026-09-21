@@ -1,10 +1,7 @@
-# mkt-04-hero-copy — CLOSED
+# mkt-04-hero-copy — RE-OPENED (Two-track)
 
 ## Question
-Which hero copy do we ship: headline/sub/CTA/trust cue/social proof line variants for the winning category (e.g. `Don't Sell on Status. Open Your Verified Shop.` `frontend/src/pages/HomePage.jsx:288-309`)? Produce 2-3 testable variants with CTA `Open My Shop Free` vs `Browse`.
-
-## Resolution
-**Don't Sell on Status locked** — Headline: `Don't Sell on Status. Open Your Verified Shop.` Sub: `Every seller verified by matric. Meet on campus, inspect before you pay. 3 slots free, 1 Showcase Pass opens the 4th.` CTA: `Open My Shop Free →` Trust: `✓ Verified by matric · ✓ Meet at Library · ✓ 632 verified students` Social: `Amaka's thrift got 11 chats today.` Variant B/C kept for A/B. Saved locally.
+Re-spec hero for Two-track landing `mkt-02`: dual hero copy — Shop track vs Tasks track — headline/sub/dual CTA/trust cue/social proof for `frontend/src/pages/HomePage.jsx:288-309`, with A/B variants.
 
 ## Type
 wayfinder:prototype
