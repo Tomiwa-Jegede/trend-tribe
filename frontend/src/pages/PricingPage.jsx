@@ -6,8 +6,8 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
 const PACKAGES = [
-  { qty: 5, label: "5 Showcase Passes", price: 1000, popular: true },
-  { qty: 10, label: "10 Showcase Passes", price: 2000, popular: false },
+  { qty: 5, label: "5 Showcase Passes", price: 1000, popular: false },
+  { qty: 10, label: "10 Showcase Passes", price: 2000, popular: true },
   { qty: 20, label: "20 Showcase Passes", price: 4000, popular: false },
 ];
 
