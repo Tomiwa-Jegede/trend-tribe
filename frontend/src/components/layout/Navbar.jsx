@@ -109,6 +109,12 @@ const Navbar = () => {
   const accountMenuRef = useRef(null);
   const [hasActiveService, setHasActiveService] = useState(false);
 
+  // ── Cascading badge derived totals ───────────────────────────
+  const inboxBadge = (inboxUnread || 0) + (systemInboxUnread || 0);
+  const servicesBadge = (availableGigsCount || 0) + (pendingBookingsCount || 0);
+  const activityBadge = inboxBadge + (supportUnread || 0);
+  const hamburgerBadge = activityBadge + servicesBadge + (adminBadgeCount || 0);
+
   const fetchInbox = useCallback(async () => {
     if (!isAuthenticated || !token) { setInboxUnread(0); return; }
     try { const { data } = await api.get("/messages/unread-count"); setInboxUnread(data.unreadCount); } catch (err) { if (import.meta.env.DEV) console.warn("[Navbar inbox unread]", err?.response?.data || err.message); }
@@ -382,14 +388,9 @@ const Navbar = () => {
                   }`}
                 >
                   Services
-                  {availableGigsCount > 0 && (
-                    <span className="ml-0.5 bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
-                      {availableGigsCount > 99 ? "99+" : availableGigsCount}
-                    </span>
-                  )}
-                  {pendingBookingsCount > 0 && (
-                    <span className="absolute -top-2 -right-4 bg-red-500 text-white text-[10px] font-bold rounded-full w-[18px] h-[18px] flex items-center justify-center leading-none">
-                      {pendingBookingsCount > 99 ? "99+" : pendingBookingsCount}
+                  {servicesBadge > 0 && (
+                    <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">
+                      {servicesBadge > 99 ? "99+" : servicesBadge}
                     </span>
                   )}
                   <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showGigsMenu ? "rotate-180" : ""}`} />
@@ -561,9 +562,9 @@ const Navbar = () => {
                 ) : (
                   <FiMenu className="w-5 h-5" />
                 )}
-                {availableGigsCount > 0 && !menuOpen && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-accent-400 text-navy-900 text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 leading-none">
-                    {availableGigsCount > 99 ? "99+" : availableGigsCount}
+                {hamburgerBadge > 0 && !menuOpen && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 leading-none">
+                    {hamburgerBadge > 99 ? "99+" : hamburgerBadge}
                   </span>
                 )}
 
@@ -593,7 +594,7 @@ const Navbar = () => {
                     onClick={() => setShowActivityMobile((v) => !v)}
                     className="flex items-center justify-between w-full text-sm font-medium py-1 text-gray-600 hover:text-primary-600"
                   >
-                    <span className="flex items-center gap-1.5">Activity</span>
+                    <span className="flex items-center gap-1.5">Activity{activityBadge > 0 && <span className="bg-primary-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{activityBadge > 99 ? "99+" : activityBadge}</span>}</span>
                     <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${showActivityMobile ? "rotate-180" : ""}`} />
                   </button>
                 </motion.div>
@@ -622,9 +623,9 @@ const Navbar = () => {
                   >
                     <span className="flex items-center gap-1.5">
                       Services
-                      {availableGigsCount > 0 && (
-                        <span className="bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
-                          {availableGigsCount > 99 ? "99+" : availableGigsCount}
+                      {servicesBadge > 0 && (
+                        <span className="bg-accent-400 text-navy-900 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                          {servicesBadge > 99 ? "99+" : servicesBadge}
                         </span>
                       )}
                     </span>
@@ -648,9 +649,16 @@ const Navbar = () => {
                       <MobileNavLink path="/gigs/wallet" label="Wallet" index={2} />
                       <div className="border-t border-gray-100 my-1" />
                       <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Bookings</p>
-                       <MobileNavLink path="/bookings/mine" label="My Bookings" index={2} />
-                      {pendingBookingsCount > 0 && <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingBookingsCount}</span>}
-                      {hasActiveService && <MobileNavLink path="/bookings/provider" label="As Provider" index={2} />}
+                       <div className="flex items-center gap-2">
+                        <MobileNavLink path="/bookings/mine" label="My Bookings" index={2} />
+                        {pendingBookingsCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{pendingBookingsCount > 99 ? "99+" : pendingBookingsCount}</span>}
+                      </div>
+                      {hasActiveService && (
+                        <div className="flex items-center gap-2">
+                          <MobileNavLink path="/bookings/provider" label="As Provider" index={2} />
+                          {pendingBookingsCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{pendingBookingsCount > 99 ? "99+" : pendingBookingsCount}</span>}
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
