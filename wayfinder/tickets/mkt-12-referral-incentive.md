@@ -1,4 +1,4 @@
-# mkt-12-referral-incentive
+# mkt-12-referral-incentive — CLOSED
 
 ## Question
 What is the referral incentive tied to Showcase Pass: `referralCode:76` `ReferralCommission:481` rate, reward `Invite 3 course mates → 1 Showcase Pass free` vs `Both get 1 Pass`, and copy `Invite Your Course Mates` on `ReferralPage.jsx`?
@@ -14,3 +14,7 @@ wayfinder:grilling
 
 ## Blocking
 - Blocks: none (terminal)
+
+
+## Resolution
+**Both get 1 Pass locked** — Both get 1 Showcase Pass via `referralCode:76` + `ReferralCommission:481`, copy `Invite Your Course Mates — you both get a Pass` on `ReferralPage.jsx`. Saved locally, not pushed.

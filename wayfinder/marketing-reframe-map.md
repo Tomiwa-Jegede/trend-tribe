@@ -17,15 +17,15 @@ Hand-off spec for reframing Trend Tribe as the Verified Campus Shop Network — 
 - [mkt-04-hero-copy](tickets/mkt-04-hero-copy.md): Hero `Don't Sell on Status. Open Your Verified Shop.` CTA `Open My Shop Free →` with B/C variants for A/B.
 - [mkt-05-channel-plan](tickets/mkt-05-channel-plan.md): 70 TikTok / 20 WA+Posters (yellow QR + Meetup Spot) / 10 Ambassadors via Showcase Pass + ReferralCommission.
 - [mkt-06-funnel-event](tickets/mkt-06-funnel-event.md): Funnel readable via /api/stats (admin-excluded) + ListingView/ContactView/Favorite/SearchLog + realtime; gap is reply tracking — instrument poll.
+- [mkt-08-pricing-bundle](tickets/mkt-08-pricing-bundle.md): 5-pack ₦1000 Most Popular, ladder 5/10/20, Gig Wallet 1 Pass = ₦200.
+- [mkt-09-poster-ritual](tickets/mkt-09-poster-ritual.md): Poster `Don't Buy From Strangers. Buy From Your Classmate.` yellow QR/tent, ambassador Pass + commission.
+- [mkt-10-founder-scripts](tickets/mkt-10-founder-scripts.md): Lead hook perfume friend invisible + 9 scripts, iPhone hostel, 2 boosted.
+- [mkt-11-empty-ritual](tickets/mkt-11-empty-ritual.md): Empty `Be first 48h free` + post-listing `Your Shop is Live! Share to Status`.
+- [mkt-12-referral-incentive](tickets/mkt-12-referral-incentive.md): Both get 1 Showcase Pass via ReferralCommission.
+- [mkt-13-seo-og](tickets/mkt-13-seo-og.md): Title `Verified Campus Shop` + OG `Your campus. Your shop. Verified.`
 
 ## Not yet specified
-<!-- graduated to tickets mkt-08..13 — remaining fog below, add new tickets as frontier advances -->
-- (graduated) Pricing bundle architecture → [mkt-08-pricing-bundle](tickets/mkt-08-pricing-bundle.md)
-- (graduated) Physical poster & meetup ritual → [mkt-09-poster-ritual](tickets/mkt-09-poster-ritual.md)
-- (graduated) Founder story scripts → [mkt-10-founder-scripts](tickets/mkt-10-founder-scripts.md)
-- (graduated) Empty-state & post-listing ritual → [mkt-11-empty-ritual](tickets/mkt-11-empty-ritual.md)
-- (graduated) Referral incentive → [mkt-12-referral-incentive](tickets/mkt-12-referral-incentive.md)
-- (graduated) SEO/OG alignment → [mkt-13-seo-og](tickets/mkt-13-seo-og.md)
+<!-- all tickets closed — way clear, ready to hand off spec -->
 
 ## Out of scope
 - Building the features/change deployment itself — map produces spec to hand off
