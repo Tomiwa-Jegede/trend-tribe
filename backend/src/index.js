@@ -123,6 +123,11 @@ app.use("/api/services", serviceBookingRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/support", supportUserRouter);
 app.use("/api/admin/support", supportAdminRouter);
+// Legacy messages stub — frontend Navbar still polls /api/messages/* (no Message table) → return empty to avoid 404 spam
+app.use("/api/messages", (req, res) => {
+  if (req.method === "GET" && req.path.includes("unread-count")) return res.json({ unreadCount: 0 });
+  return res.json({ messages: [], unreadCount: 0 });
+});
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((req, res) => {

@@ -780,6 +780,7 @@ const getWalletHistory = async (req, res) => {
     norm.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     const totalCount = norm.length;
+    const skip = (pageNum - 1) * limitNum;
     const sliced = norm.slice(skip, skip + limitNum);
 
     return res.json({ transactions: sliced, pagination: { totalCount, totalPages: Math.ceil(totalCount / limitNum), currentPage: pageNum, limit: limitNum } });
