@@ -123,10 +123,34 @@ app.use("/api/services", serviceBookingRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/support", supportUserRouter);
 app.use("/api/admin/support", supportAdminRouter);
-// Legacy messages stub — frontend Navbar still polls /api/messages/* (no Message table) → return empty to avoid 404 spam
-app.use("/api/messages", (req, res) => {
-  if (req.method === "GET" && req.path.includes("unread-count")) return res.json({ unreadCount: 0 });
-  return res.json({ messages: [], unreadCount: 0 });
+// Legacy messages → map to notifications type MESSAGE (no Message table) — inbox fallback
+const { protect: protectMessages } = require("./middleware/auth.middleware");
+app.get("/api/messages/unread-count", protectMessages, async (req, res) => {
+  try {
+    const count = await prisma.notification.count({ where: { userId: req.user.id, type: "MESSAGE", read: false } });
+    return res.json({ unreadCount: count });
+  } catch (e) { return res.status(500).json({ error: "Could not load" }); }
+});
+app.get("/api/messages", protectMessages, async (req, res) => {
+  try {
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const notifs = await prisma.notification.findMany({ where: { userId: req.user.id, type: "MESSAGE" }, orderBy: { createdAt: "desc" }, take: limit, include: { listing: { select: { id: true, title: true, images: true, category: true } } } });
+    const actorIds = [...new Set(notifs.map(n=>n.actorId).filter(Boolean))];
+    const actors = actorIds.length ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id:true, username:true, fullName:true, role:true } }) : [];
+    const am = Object.fromEntries(actors.map(a=>[a.id,a]));
+    const messages = notifs.map(n=>({
+      id: n.id,
+      body: n.meta?.body || "You have a message on Trend Tribe",
+      subject: n.meta?.subject || null,
+      createdAt: n.createdAt,
+      sender: n.actorId ? (am[n.actorId]||{id:n.actorId}) : { username:"Trend Tribe", role:"ADMIN" },
+      listingId: n.listingId,
+      read: n.read,
+      notificationId: n.id,
+    }));
+    const totalCount = await prisma.notification.count({ where: { userId: req.user.id, type: "MESSAGE" } });
+    return res.json({ messages, unreadCount: messages.filter(m=>!m.read).length, pagination: { totalCount } });
+  } catch (e) { return res.status(500).json({ error: "Could not load messages" }); }
 });
 
 // ─── 404 Handler ──────────────────────────────────────────────
