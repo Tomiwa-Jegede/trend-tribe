@@ -148,8 +148,11 @@ app.get("/api/messages", protectMessages, async (req, res) => {
       read: n.read,
       notificationId: n.id,
     }));
-    const totalCount = await prisma.notification.count({ where: { userId: req.user.id, type: "MESSAGE" } });
-    return res.json({ messages, unreadCount: messages.filter(m=>!m.read).length, pagination: { totalCount } });
+    const [totalCount, totalUnread] = await Promise.all([
+      prisma.notification.count({ where: { userId: req.user.id, type: "MESSAGE" } }),
+      prisma.notification.count({ where: { userId: req.user.id, type: "MESSAGE", read: false } }),
+    ]);
+    return res.json({ messages, unreadCount: totalUnread, pagination: { totalCount } });
   } catch (e) { return res.status(500).json({ error: "Could not load messages" }); }
 });
 
