@@ -21,6 +21,7 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
   };
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const ref = useRef(null);
@@ -47,6 +48,7 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
 
   const fetchList = useCallback(async () => {
     if (!isAuthenticated || !token) return;
+    setLoading(true);
     try {
       const { data } = await api.get("/notifications", { params: { limit: 20 } });
       let notifs = data.notifications;
@@ -56,6 +58,8 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
       if (typeof externalUnread !== "number" && pendingReadsRef.current.size === 0 && pendingDeletesRef.current.size === 0) setUnreadSafe(data.unreadCount);
     } catch (err) {
       if (import.meta.env.DEV) console.warn("[NotificationBell fetchList]", err?.response?.data || err.message);
+    } finally {
+      setLoading(false);
     }
   }, [isAuthenticated, token, externalUnread]);
 
@@ -275,7 +279,12 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
           </div>
 
           <div className="max-h-96 overflow-auto">
-            {items.length === 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center py-8">
+                <div className="w-6 h-6 border-3 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-gray-500 mt-2">Loading notifications…</p>
+              </div>
+            ) : items.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-8">No notification yet</p>
             ) : (
               items.map((n) => {
