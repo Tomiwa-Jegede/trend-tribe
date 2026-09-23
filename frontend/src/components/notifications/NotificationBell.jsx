@@ -280,9 +280,8 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
 
           <div className="max-h-96 overflow-auto">
             {loading ? (
-              <div className="flex flex-col items-center py-8">
+              <div className="flex justify-center py-8">
                 <div className="w-6 h-6 border-3 border-primary-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs text-gray-500 mt-2">Loading notifications…</p>
               </div>
             ) : items.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-8">No notification yet</p>

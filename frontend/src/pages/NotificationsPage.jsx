@@ -68,9 +68,8 @@ const NotificationsPage = () => {
 
   if (loading) {
     return (
-      <div className="container-app py-16 flex flex-col items-center">
+      <div className="container-app py-16 flex justify-center">
         <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-gray-500 mt-3">Loading notifications…</p>
       </div>
     );
   }
