@@ -18,6 +18,7 @@ import OfflineBanner from "./components/pwa/OfflineBanner";
 import HomePage from "./pages/HomePage";
 import MarketplacePage from "./pages/MarketplacePage";
 import ListingDetailPage from "./pages/ListingDetailPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -315,7 +316,7 @@ const App = () => {
                 }
               />
               <Route path="/contact" element={<Navigate to="/support" replace />} />
-              <Route path="/notifications" element={<ComingSoonPage />} />
+              <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
               <Route
                 path="/my-listings"
                 element={
