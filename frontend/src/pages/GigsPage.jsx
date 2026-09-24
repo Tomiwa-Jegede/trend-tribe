@@ -7,12 +7,27 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { FiClock, FiCheck, FiX, FiRefreshCw, FiCopy, FiPlus } from "react-icons/fi";
 import InfoModal from "../components/ui/InfoModal";
+import api from "../api/axios";
 
 const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
 
 export default function GigsPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { toast } = useToast();
+  const [muteTaskPush, setMuteTaskPush] = useState(!!user?.muteTaskPush);
+  useEffect(() => { setMuteTaskPush(!!user?.muteTaskPush); }, [user?.muteTaskPush]);
+  const toggleMute = async () => {
+    const next = !muteTaskPush;
+    setMuteTaskPush(next);
+    try {
+      const { data } = await api.patch("/auth/mute-task-push", { mute: next });
+      if (setUser) setUser((prev) => prev ? { ...prev, muteTaskPush: data.muteTaskPush } : prev);
+      toast.success(next ? "Muted new task alerts" : "Unmuted new task alerts");
+    } catch (e) {
+      setMuteTaskPush(!next);
+      toast.error(e.response?.data?.error || "Could not update");
+    }
+  };
   const [searchParams] = useSearchParams();
   const viewParam = searchParams.get("view");
   const [gigs, setGigs] = useState([]);
@@ -99,6 +114,12 @@ export default function GigsPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Tasks</h1>
+            {user && (
+              <label className="ml-3 flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer select-none">
+                <input type="checkbox" checked={muteTaskPush} onChange={toggleMute} className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                Mute new task alerts
+              </label>
+            )}
             <InfoModal title="How Tasks work">
               <p>Post a task, someone claims it, you confirm when done.</p>
               <ul className="list-disc ml-5">

@@ -287,8 +287,12 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
               <p className="text-sm text-gray-500 text-center py-8">No notification yet</p>
             ) : (
               items.map((n) => {
-                const isMessage = n.type === "MESSAGE";
                 let to = "/my-listings";
+                if (n.type === "NEW_TASK") {
+                  const gid = n.meta?.gigId || n.gigId;
+                  to = gid ? `/gigs?view=feed&gigId=${gid}` : "/gigs?view=feed";
+                } else {
+                const isMessage = n.type === "MESSAGE";
                 if (isMessage) {
                   if (n.listing?.id && n.actor?.id) to = `/chat?thread=${n.listing.id}-${n.actor.id}`;
                   else if (n.listing?.id) to = "/chat";
@@ -304,6 +308,7 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
                 else if (n.type === "ADMIN_WITHDRAW_PENDING") to = "/admin/withdrawals";
                 else if (n.type === "NEW_USER") to = "/admin/users";
                 else if (n.listing) to = `/listings/${n.listing.slug || n.listing.id}`;
+                }
                 const isSelected = selected.has(n.id);
                 return (
                   <div key={n.id} className={`flex items-start gap-2 px-2 py-1 hover:bg-gray-50 border-b border-gray-50 last:border-0 ${!n.read ? "bg-primary-50/50" : ""}`}>
@@ -340,6 +345,11 @@ const NotificationBell = ({ externalUnread, onExternalUnreadChange }) => {
                           <>
                             New listing: <span className="font-semibold">{n.listing?.title || "Item"}</span> by{" "}
                             <span className="font-semibold">{n.actor?.username || "someone"}</span>
+                          </>
+                        )}
+                        {n.type === "NEW_TASK" && (
+                          <>
+                            <span className="font-semibold">New task posted</span> — {n.meta?.description?.slice(0,40) || "Task"} · ₦{n.meta?.amount ? (n.meta.amount/100).toLocaleString() : ""} <span className="block text-xs text-gray-500 mt-1">Tap to view task</span>
                           </>
                         )}
                         {n.type === "MESSAGE" && (

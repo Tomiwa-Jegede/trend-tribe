@@ -53,6 +53,7 @@ model User {
   serviceTrialEndsAt         DateTime?
   marketingOptIn             Boolean                @default(true)
   unsubscribeToken           String                 @unique @default(cuid())
+  muteTaskPush               Boolean                @default(false)
   tokenPurchases             TokenPurchase[]
   gigPurchases               GigTokenPurchase[]
   gigsPosted                 Gig[]                  @relation("GigPoster")

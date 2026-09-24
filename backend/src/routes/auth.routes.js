@@ -15,7 +15,7 @@ const {
   requestSellerUpgrade,
   verifySellerUpgrade,
   unsubscribe,
-
+  toggleMuteTaskPush,
 } = require("../controllers/auth.controller");
 const {
   registerRules,
@@ -49,6 +49,7 @@ router.patch("/profile", protect, uploadAvatar.single("avatar"), updateProfile);
 router.patch("/add-matric", protect, addMatricNumber);
 router.post("/upgrade-to-seller", otpLimiter, protect, requestSellerUpgrade);
 router.post("/upgrade-to-seller/verify", otpLimiter, protect, verifySellerUpgrade);
+router.patch("/mute-task-push", protect, toggleMuteTaskPush);
 
 
 module.exports = router;

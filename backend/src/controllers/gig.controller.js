@@ -35,24 +35,28 @@ const createGig = async (req, res) => {
       await recordWalletMovement({ userId: req.user.id, direction: "DEBIT", amount: amountKobo, fee: 0, type: "GIG_CREATE", title: "Task posted — escrow held", body: `Debit: ₦${(amountKobo/100).toLocaleString()} held for task #${g.id} "${g.description.slice(0,40)}" — escrow from TrendTribe Wallet.`, meta: { gigId: g.id }, tx });
       return g;
     });
-    // realtime badge + push to all users when gig goes live
+    // notify every user when a task is posted — inbox + push (respects muteTaskPush)
     try {
-      const { emitGig } = require("../realtime");
+      const { emitGig, emitNotification } = require("../realtime");
       if (emitGig) emitGig("created", gig);
-      // push notification to all subscribed users
-      const { sendPushToUser } = require("../utils/push");
-      const subs = await prisma.pushSubscription.findMany({ select: { userId: true } });
-      const userIds = [...new Set(subs.map(s=>s.userId).filter(Boolean))];
-      for (const uid of userIds) {
-        if (uid === req.user.id) continue;
-        sendPushToUser(prisma, uid, {
-          title: "Trend Tribe — New task posted",
-          body: `${gig.description.slice(0,60)} · ₦${(gig.amount/100).toLocaleString()}`,
-          url: "/gigs?view=feed",
-          icon: "/icon-192.png",
-          badge: "/icon-192.png",
-          tag: `gig-${gig.id}`,
-        }).catch(()=>{});
+      const others = await prisma.user.findMany({ where: { id: { not: req.user.id } }, select: { id: true, muteTaskPush: true } });
+      if (others.length) {
+        await prisma.notification.createMany({
+          data: others.map((u) => ({ userId: u.id, actorId: req.user.id, type: "NEW_TASK", meta: { gigId: gig.id, amount: gig.amount, description: gig.description.slice(0,80) } })),
+        });
+        others.forEach((u) => { try { emitNotification(u.id, { type: "NEW_TASK", gigId: gig.id }); } catch {} });
+        const { sendPushToUser } = require("../utils/push");
+        const pushable = others.filter((u) => !u.muteTaskPush);
+        for (const u of pushable) {
+          sendPushToUser(prisma, u.id, {
+            title: "Trend Tribe — New task posted",
+            body: `${gig.description.slice(0,60)} · ₦${(gig.amount/100).toLocaleString()}`,
+            url: `/gigs?view=feed&gigId=${gig.id}`,
+            icon: "/icon-192.png",
+            badge: "/icon-192.png",
+            tag: `gig-${gig.id}`,
+          }).catch(()=>{});
+        }
       }
       // also emit via generic push trigger if available
       try { const { trigger } = require("../utils/push"); trigger("gig", "gig:created", { id: gig.id }); } catch {}

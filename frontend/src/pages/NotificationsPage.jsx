@@ -54,6 +54,10 @@ const NotificationsPage = () => {
   };
 
   const getLink = (n) => {
+    if (n.type === "NEW_TASK") {
+      const gid = n.meta?.gigId || n.gigId;
+      return gid ? `/gigs?view=feed&gigId=${gid}` : "/gigs?view=feed";
+    }
     if (n.type === "MESSAGE") {
       if (n.listing?.id && n.actor?.id) return `/chat?thread=${n.listing.id}-${n.actor.id}`;
       if (n.listing?.id) return "/chat";

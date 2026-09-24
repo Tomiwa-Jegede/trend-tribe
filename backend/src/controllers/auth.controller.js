@@ -472,6 +472,7 @@ const getMe = async (req, res) => {
         tokenBalance: true,
         gigBalance: true,
         referralCode: true,
+        muteTaskPush: true,
         aiUsesRemaining: true,
         numberViewsRemaining: true,
         createdAt: true,
@@ -1047,6 +1048,16 @@ const unsubscribe = async (req, res) => {
   }
 };
 
+const toggleMuteTaskPush = async (req, res) => {
+  try {
+    const { mute } = req.body;
+    const user = await prisma.user.update({ where: { id: req.user.id }, data: { muteTaskPush: !!mute } });
+    return res.json({ muteTaskPush: user.muteTaskPush });
+  } catch (e) {
+    return res.status(500).json({ error: "Could not update preference" });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -1063,4 +1074,5 @@ module.exports = {
   requestSellerUpgrade,
   verifySellerUpgrade,
   unsubscribe,
+  toggleMuteTaskPush,
 };
