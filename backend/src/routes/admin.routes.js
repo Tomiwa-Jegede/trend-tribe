@@ -503,30 +503,31 @@ router.post("/messages/broadcast", protect, requireAdmin, async (req, res) => {
     const text = (body || bodyText || "").trim();
     if (!text) return res.status(400).json({ error: "Message body is required" });
     if (text.length > 5000) return res.status(400).json({ error: "Message too long (max 5000)" });
-    const users = await prisma.user.findMany({ select: { id: true } });
+    const users = await prisma.user.findMany({ where: { role: { not: "ADMIN" } }, select: { id: true } });
     const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
     if (recipientIds.length === 0) return res.status(200).json({ sent: 0 });
     // notifications with preview (first 80 chars) + full body in meta so inbox can show it
     const preview = text.slice(0, 80) + (text.length > 80 ? "…" : "");
     const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: null, meta: { body: text, subject: subject?.trim() || null, preview } }));
     for (let i = 0; i < notifs.length; i += 800) await prisma.notification.createMany({ data: notifs.slice(i, i + 800) });
-    // realtime: bell + phone push (even when app closed)
+    // realtime: bell + phone push (even when app closed) — chunked, batch unread counts to avoid N+1
     try {
       const { emitNotification } = require("../realtime");
       const { sendPushToUser } = require("../utils/push");
+      // batch unread counts in one query instead of N individual counts
+      const unreadGroups = await prisma.notification.groupBy({ by: ["userId"], where: { userId: { in: recipientIds }, read: false }, _count: { _all: true } });
+      const unreadMap = Object.fromEntries(unreadGroups.map((g) => [g.userId, g._count._all]));
       for (const rid of recipientIds) {
         emitNotification(rid, { type: "MESSAGE", actorId: req.user.id });
-        // phone push (service worker) — badge count included
-        prisma.notification.count({ where: { userId: rid, read: false } }).then((unread) => {
-          sendPushToUser(prisma, rid, {
-            title: subject?.trim() || "Trend Tribe — New message",
-            body: text.slice(0, 120),
-            url: "/inbox",
-            icon: "/icon-192.png",
-            badge: "/icon-192.png",
-            badgeCount: unread,
-            tag: `msg-${rid}-${Date.now()}`,
-          }).catch(() => {});
+        const unread = unreadMap[rid] || 0;
+        sendPushToUser(prisma, rid, {
+          title: subject?.trim() || "Trend Tribe — New message",
+          body: text.slice(0, 120),
+          url: "/inbox",
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          badgeCount: unread,
+          tag: `msg-${rid}-${Date.now()}`,
         }).catch(() => {});
       }
     } catch {}
@@ -549,7 +550,7 @@ router.post("/messages/notify-email", protect, requireAdmin, async (req, res) =>
     if (!text) return res.status(400).json({ error: "Message body is required" });
     res.status(202).json({ message: "Email notify started in background" });
     // background send without blocking response
-    const users = await prisma.user.findMany({ where: { isVerified: true }, select: { email: true, fullName: true } });
+    const users = await prisma.user.findMany({ where: { isVerified: true, role: { not: "ADMIN" } }, select: { id: true, email: true, fullName: true } });
     let sent = 0, failed = 0;
     for (const u of users) {
       if (u.id === req.user.id) continue;
@@ -577,14 +578,36 @@ router.post("/listings/:id/share", protect, requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid listing ID" });
-    const listing = await prisma.listing.findUnique({ where: { id }, select: { id: true, title: true } });
+    const listing = await prisma.listing.findUnique({ where: { id }, select: { id: true, title: true, seller: { select: { role: true } } } });
     if (!listing) return res.status(404).json({ error: "Listing not found" });
+    // skip ADMIN test listings — they pollute inbox when admin tests
+    if (listing.seller?.role === "ADMIN") return res.status(400).json({ error: "Cannot share ADMIN test listings" });
     const custom = (req.body.body || "").trim();
     const body = custom || `Check this on Trend Tribe: ${listing.title} — tap to view`;
-    const users = await prisma.user.findMany({ select: { id: true } });
+    const users = await prisma.user.findMany({ where: { role: { not: "ADMIN" } }, select: { id: true } });
     const recipientIds = users.filter((u) => u.id !== req.user.id).map((u) => u.id);
     const notifs = recipientIds.map((uid) => ({ userId: uid, actorId: req.user.id, type: "MESSAGE", listingId: id, meta: { body, preview: body.slice(0, 80) } }));
     for (let i = 0; i < notifs.length; i += 800) await prisma.notification.createMany({ data: notifs.slice(i, i + 800) });
+    // realtime + push chunked
+    try {
+      const { emitNotification } = require("../realtime");
+      const { sendPushToUser } = require("../utils/push");
+      const unreadGroups = await prisma.notification.groupBy({ by: ["userId"], where: { userId: { in: recipientIds }, read: false }, _count: { _all: true } });
+      const unreadMap = Object.fromEntries(unreadGroups.map((g) => [g.userId, g._count._all]));
+      for (const rid of recipientIds) {
+        emitNotification(rid, { type: "MESSAGE", listingId: id });
+        const unread = unreadMap[rid] || 0;
+        sendPushToUser(prisma, rid, {
+          title: listing.title.slice(0, 60),
+          body: body.slice(0, 120),
+          url: `/listings/${id}`,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          badgeCount: unread,
+          tag: `share-${id}-${rid}`,
+        }).catch(() => {});
+      }
+    } catch {}
     return res.status(200).json({ sent: recipientIds.length });
   } catch (err) {
     console.error("[ADMIN SHARE ERROR]", err);

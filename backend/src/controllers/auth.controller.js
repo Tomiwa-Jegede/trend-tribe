@@ -754,7 +754,12 @@ const addMatricNumber = async (req, res) => {
     const { matricNumber, schoolEmail } = req.body;
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user) return res.status(404).json({ error: "User not found" });
-    if (!user.isFresher || user.matricNumber) {
+    if (user.matricNumber) {
+      return res.status(400).json({ error: "Matric number already set for this account" });
+    }
+    const isFresherFlow = !!user.isFresher;
+    const isLegacySellerFlow = !user.isFresher && user.role === "SELLER" && !user.matricNumber;
+    if (!isFresherFlow && !isLegacySellerFlow) {
       return res.status(400).json({ error: "Matric number update is not available for this account" });
     }
     // 3-month window check (if expired, still allow upgrade but block selling until done)
@@ -786,7 +791,7 @@ const addMatricNumber = async (req, res) => {
       where: { id: user.id },
       data: {
         matricNumber: matric,
-        email, // upgrade to school email
+        email, // upgrade to school email (fresher + legacy seller)
         isFresher: false,
         fresherExpiresAt: null,
         otpCode: null,
@@ -795,7 +800,7 @@ const addMatricNumber = async (req, res) => {
         pendingSellerMatric: null,
       },
     });
-    return res.status(200).json({ message: "Matric number added — you are now a verified seller", user: sanitizeUser(updated) });
+    return res.status(200).json({ message: isFresherFlow ? "Matric number added — you are now a verified seller" : "Matric number added — seller verified", user: sanitizeUser(updated) });
   } catch (err) {
     console.error("[ADD MATRIC NUMBER ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -862,12 +867,20 @@ const requestSellerUpgrade = async (req, res) => {
         if (jambErr.status === 400) return res.status(400).json({ error: jambErr.message });
         return res.status(503).json({ error: "Can't confirm Jamb Registration now try again later" });
       }
+      // Fresher upgrade now also requires matric (not optional)
+      const fresherMatric = req.body.matricNumber ? String(req.body.matricNumber).trim() : "";
+      if (!fresherMatric) return res.status(400).json({ error: "Matric number is required" });
+      const existingMatricFresher = await prisma.user.findUnique({ where: { matricNumber: fresherMatric } });
+      if (existingMatricFresher) return res.status(409).json({ error: "This matric number is already registered" });
       const targetEmail = (runEmail && runEmail.trim()) ? runEmail.trim() : user.email;
+      if (targetEmail && !targetEmail.endsWith("@run.edu.ng") && targetEmail !== user.email) {
+        return res.status(400).json({ error: "Must be a valid RUN school email (@run.edu.ng)" });
+      }
       const otpCode = generateOTP();
       const otpExpiresAt = getOTPExpiry();
       await prisma.user.update({
         where: { id: user.id },
-        data: { otpCode, otpExpiresAt, pendingSellerEmail: targetEmail, pendingSellerIsFresher: true, pendingSellerJambRegNumber: reg, pendingSellerJambExamYear: year, pendingSellerMatric: null },
+        data: { otpCode, otpExpiresAt, pendingSellerEmail: targetEmail, pendingSellerIsFresher: true, pendingSellerJambRegNumber: reg, pendingSellerJambExamYear: year, pendingSellerMatric: fresherMatric },
       });
       await sendOTPEmail(targetEmail, user.fullName, otpCode);
       return res.status(200).json({ message: "A verification code has been sent to your email.", runEmail: targetEmail });
@@ -879,10 +892,13 @@ const requestSellerUpgrade = async (req, res) => {
     if (!runEmail.endsWith("@run.edu.ng")) {
       return res.status(400).json({ error: "Must be a valid RUN school email (@run.edu.ng)" });
     }
+    const pendingMatric = req.body.matricNumber ? String(req.body.matricNumber).trim() : "";
+    if (!pendingMatric) return res.status(400).json({ error: "Matric number is required" });
+    const existingMatricPending = await prisma.user.findUnique({ where: { matricNumber: pendingMatric } });
+    if (existingMatricPending) return res.status(409).json({ error: "This matric number is already registered" });
 
     const otpCode = generateOTP();
     const otpExpiresAt = getOTPExpiry();
-    const pendingMatric = req.body.matricNumber ? req.body.matricNumber.trim() : null;
 
     await prisma.user.update({
       where: { id: user.id },
@@ -937,6 +953,11 @@ const verifySellerUpgrade = async (req, res) => {
       if (!reg || !year) return res.status(400).json({ error: "JAMB details missing, please request again" });
       const existingJamb = await prisma.user.findFirst({ where: { jambRegNumber: reg, jambExamYear: year } });
       if (existingJamb && existingJamb.id !== user.id) return res.status(409).json({ error: "This JAMB registration number is already registered for that year" });
+      // matric is now required even for fresher upgrade
+      const fresherMatricFinal = (matricNumber ? String(matricNumber).trim() : user.pendingSellerMatric || "").trim();
+      if (!fresherMatricFinal) return res.status(400).json({ error: "Matric number is required" });
+      const existingFresherMatric = await prisma.user.findUnique({ where: { matricNumber: fresherMatricFinal } });
+      if (existingFresherMatric && existingFresherMatric.id !== user.id) return res.status(409).json({ error: "This matric number is already registered" });
       const fresherExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
@@ -946,7 +967,7 @@ const verifySellerUpgrade = async (req, res) => {
           jambRegNumber: reg,
           jambExamYear: year,
           fresherExpiresAt,
-          matricNumber: null,
+          matricNumber: fresherMatricFinal,
           otpCode: null,
           otpExpiresAt: null,
           pendingSellerEmail: null,
@@ -963,12 +984,11 @@ const verifySellerUpgrade = async (req, res) => {
     if (!user.pendingSellerEmail || runEmail.trim() !== user.pendingSellerEmail) {
       return res.status(400).json({ error: "RUN email does not match the one that received the code" });
     }
-    const finalMatric = matricNumber ? matricNumber.trim() : user.pendingSellerMatric || user.matricNumber;
-    if (finalMatric) {
-      const existingMatric = await prisma.user.findUnique({ where: { matricNumber: finalMatric } });
-      if (existingMatric && existingMatric.id !== user.id) {
-        return res.status(409).json({ error: "This matric number is already registered" });
-      }
+    const finalMatric = matricNumber ? String(matricNumber).trim() : (user.pendingSellerMatric || "").trim();
+    if (!finalMatric) return res.status(400).json({ error: "Matric number is required" });
+    const existingMatric = await prisma.user.findUnique({ where: { matricNumber: finalMatric } });
+    if (existingMatric && existingMatric.id !== user.id) {
+      return res.status(409).json({ error: "This matric number is already registered" });
     }
 
     const updatedUser = await prisma.user.update({
@@ -976,7 +996,7 @@ const verifySellerUpgrade = async (req, res) => {
       data: {
         role: "SELLER",
         email: user.pendingSellerEmail,
-        matricNumber: finalMatric || user.matricNumber,
+        matricNumber: finalMatric,
         isFresher: false,
         fresherExpiresAt: null,
         otpCode: null,

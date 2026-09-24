@@ -4,6 +4,20 @@ const prisma = require("../db");
 const { askGeminiVision } = require("../utils/gemini");
 const cloudinary = require("../config/cloudinary");
 const { generateUniqueSlug, resolveListingWhere } = require("../utils/slug");
+const { getAcademicStatus } = require("../utils/studentStatus");
+
+const enrichSellerStatus = (listing) => {
+  if (!listing?.seller) return listing;
+  const { matricNumber, isFresher, ...restSeller } = listing.seller;
+  // compute but do not expose raw matricNumber
+  let academicStatus = null;
+  try {
+    academicStatus = getAcademicStatus({ matricNumber, isFresher });
+  } catch {}
+  listing.seller = { ...restSeller, academicStatus };
+  return listing;
+};
+const enrichListings = (listings) => listings.map(enrichSellerStatus);
 
 // ─── Helper: format listing for API response ──────────────────
 const formatListing = (listing) => ({
@@ -284,7 +298,9 @@ const getAllListings = async (req, res) => {
                 fullName: true,
                 avatar: true,
                 school: true,
-                isVerified: true,
+                matricNumber: true,
+                isFresher: true,
+                role: true,
               },
             },
             _count: { select: { favorites: true } },
@@ -293,6 +309,7 @@ const getAllListings = async (req, res) => {
         const map = new Map(fetched.map((l) => [l.id, l]));
         listings = pagedIds.map((id) => map.get(id)).filter(Boolean).map((l) => ({ ...l, favoriteCount: l._count?.favorites ?? 0 }));
       }
+      listings = enrichListings(listings);
       // Cold start fake views for old listings (deterministic, boost-aware, within totalUsers)
       const totalUsersForFake = await prisma.user.count();
       listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsersForFake) }));
@@ -374,7 +391,9 @@ const getAllListings = async (req, res) => {
               fullName: true,
               avatar: true,
               school: true,
-              isVerified: true,
+              matricNumber: true,
+              isFresher: true,
+                  role: true,
             },
           },
           _count: { select: { favorites: true } },
@@ -383,6 +402,7 @@ const getAllListings = async (req, res) => {
       prisma.listing.count({ where }),
     ]);
     let listings = rawListings.map((l) => ({ ...l, favoriteCount: l._count?.favorites ?? 0 }));
+    listings = enrichListings(listings);
     // Cold start fake views also for non-random sorts (same gradual boost as random)
     {
       const totalUsersForFake = await prisma.user.count();
@@ -502,7 +522,9 @@ const getListingById = async (req, res) => {
           fullName: true,
           avatar: true,
           school: true,
-          isVerified: true,
+          matricNumber: true,
+          isFresher: true,
+                  role: true,
           bio: true,
           whatsapp: true,
           createdAt: true,
@@ -512,6 +534,7 @@ const getListingById = async (req, res) => {
     });
 
     if (!listing) return res.status(404).json({ error: "Listing not found" });
+    enrichSellerStatus(listing);
 
     // ── Detail view count: 1 per authenticated non-owner per day — realtime
     const viewerId = req.user?.id;
@@ -578,9 +601,13 @@ const createListing = async (req, res) => {
     } = req.body;
 
     // ── Fresher 3-month window: block selling if expired and not yet upgraded
-    const meForFresher = await prisma.user.findUnique({ where: { id: req.user.id }, select: { isFresher: true, fresherExpiresAt: true } });
+    const meForFresher = await prisma.user.findUnique({ where: { id: req.user.id }, select: { isFresher: true, fresherExpiresAt: true, matricNumber: true, role: true } });
     if (meForFresher?.isFresher && meForFresher.fresherExpiresAt && new Date() > new Date(meForFresher.fresherExpiresAt)) {
       return res.status(403).json({ error: "Fresher selling period ended — add your matric number and school email to continue" });
+    }
+    // ── Legacy SELLER without matric: require matric before selling (fresher already covered)
+    if (meForFresher?.role === "SELLER" && !meForFresher.matricNumber && !meForFresher.isFresher) {
+      return res.status(403).json({ error: "Matric number required — add your matric number in profile before selling", code: "MATRIC_REQUIRED" });
     }
     // ── Enforce free-slot limit, then fall back to token spend ──
     // SERVICES: 14d trial from first service covers all, then 1 free slot + 1 token per extra
@@ -682,7 +709,9 @@ const createListing = async (req, res) => {
           fullName: true,
           avatar: true,
           school: true,
-          isVerified: true,
+          matricNumber: true,
+          isFresher: true,
+                  role: true,
           whatsapp: true,
         },
       },
@@ -730,6 +759,7 @@ const createListing = async (req, res) => {
         });
     }
 
+    enrichSellerStatus(listing);
     // Admin bell: new listing (in-app pull)
     try {
       const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
@@ -920,14 +950,16 @@ const {
             data: { tokenBalance: { decrement: totalUpdateCost } },
           });
           if (updatedSeller.count === 0) throw new Error("TOKEN_BALANCE_RACE");
-          return tx.listing.update({
+          const created = await tx.listing.update({
             where: { id: listing.id },
             data: updateData,
             include: {
               seller: { select: { id: true,
-              slug: true, username: true, fullName: true, avatar: true, school: true, isVerified: true, whatsapp: true } },
+              slug: true, username: true, fullName: true, avatar: true, school: true, matricNumber: true, isFresher: true, role: true, whatsapp: true } },
             },
           });
+          enrichSellerStatus(created);
+          return created;
         });
       } catch (e) {
         if (e.message === "TOKEN_BALANCE_RACE") {
@@ -948,12 +980,15 @@ const {
               fullName: true,
               avatar: true,
               school: true,
-              isVerified: true,
+              matricNumber: true,
+              isFresher: true,
+              role: true,
             whatsapp: true,
             },
           },
         },
       });
+      enrichSellerStatus(updated);
     }
 
     // now safe to delete old images from Cloudinary (DB succeeded)
@@ -1153,26 +1188,26 @@ const getListingsByUser = async (req, res) => {
 
     let user = await prisma.user.findUnique({
       where: { slug: identifier },
-      select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true },
+      select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true, matricNumber: true, isFresher: true, jambRegNumber: true, jambExamYear: true, fresherExpiresAt: true },
     });
     if (!user) {
       const asInt = parseInt(identifier, 10);
       if (!isNaN(asInt) && String(asInt) === String(identifier).trim()) {
         user = await prisma.user.findUnique({
           where: { id: asInt },
-          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true },
+          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true, matricNumber: true, isFresher: true, jambRegNumber: true, jambExamYear: true, fresherExpiresAt: true },
         });
         // fallback prefix for old slugs without hash
         if (!user) {
           user = await prisma.user.findFirst({
             where: { slug: { startsWith: identifier } },
-            select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true },
+            select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true, matricNumber: true, isFresher: true, jambRegNumber: true, jambExamYear: true, fresherExpiresAt: true },
           });
         }
       } else {
         user = await prisma.user.findFirst({
           where: { slug: { startsWith: identifier } },
-          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true },
+          select: { id: true, slug: true, username: true, fullName: true, avatar: true, school: true, bio: true, role: true, whatsapp: true, matricNumber: true, isFresher: true, jambRegNumber: true, jambExamYear: true, fresherExpiresAt: true },
         });
       }
     }
@@ -1214,8 +1249,17 @@ const getListingsByUser = async (req, res) => {
     // Match Marketplace display so profile === marketplace
     listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsers) }));
 
+    // academicStatus for profile badge + privacy: strip raw matric for public visitors
+    const sellerForResponse = { ...user, academicStatus: getAcademicStatus({ matricNumber: user.matricNumber, isFresher: user.isFresher }) };
+    if (req.user?.id !== user.id) {
+      delete sellerForResponse.matricNumber;
+      delete sellerForResponse.jambRegNumber;
+      delete sellerForResponse.jambExamYear;
+      sellerForResponse.hasMatric = !!user.matricNumber;
+    }
+
     return res.status(200).json({
-      seller: user,
+      seller: sellerForResponse,
       listings,
       pagination: {
         totalCount,
@@ -1498,7 +1542,9 @@ const getMyFavorites = async (req, res) => {
                   fullName: true,
                   avatar: true,
                   school: true,
-                  isVerified: true,
+                  matricNumber: true,
+                  isFresher: true,
+                  role: true,
                 },
               },
             },
@@ -1510,7 +1556,10 @@ const getMyFavorites = async (req, res) => {
 
     const listings = favorites
       .filter((f) => f.listing)
-      .map((f) => formatListing(f.listing));
+      .map((f) => {
+        if (f.listing?.seller) enrichSellerStatus(f.listing);
+        return formatListing(f.listing);
+      });
 
     const totalPages = Math.ceil(totalCount / limitNum);
 

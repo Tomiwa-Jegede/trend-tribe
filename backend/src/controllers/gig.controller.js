@@ -20,9 +20,12 @@ const createGig = async (req, res) => {
     if (totalMins < 15 || totalMins > 168 * 60) return res.status(400).json({ error: "Timer must be 15 mins to 168 hours" });
     const hours = Math.ceil(totalMins / 60);
 
-    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, isFresher: true, fresherExpiresAt: true } });
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { gigBalance: true, isFresher: true, fresherExpiresAt: true, matricNumber: true, role: true } });
     if (user?.isFresher && user.fresherExpiresAt && new Date() > new Date(user.fresherExpiresAt)) {
       return res.status(403).json({ error: "Fresher selling period ended — add your matric number and school email to continue" });
+    }
+    if (user?.role === "SELLER" && !user.matricNumber && !user.isFresher) {
+      return res.status(403).json({ error: "Matric number required — add your matric number in profile before posting tasks", code: "MATRIC_REQUIRED" });
     }
     if (!user || user.gigBalance < amountKobo) return res.status(402).json({ error: `Need ₦${(amountKobo/100).toLocaleString()} in TrendTribe Wallet. You have ₦${((user?.gigBalance||0)/100).toLocaleString()}.`, needsGigBalance: true, gigBalance: user?.gigBalance || 0, required: amountKobo });
 
@@ -39,7 +42,7 @@ const createGig = async (req, res) => {
     try {
       const { emitGig, emitNotification } = require("../realtime");
       if (emitGig) emitGig("created", gig);
-      const others = await prisma.user.findMany({ where: { id: { not: req.user.id } }, select: { id: true, muteTaskPush: true } });
+      const others = await prisma.user.findMany({ where: { id: { not: req.user.id }, role: { not: "ADMIN" } }, select: { id: true, muteTaskPush: true } });
       if (others.length) {
         await prisma.notification.createMany({
           data: others.map((u) => ({ userId: u.id, actorId: req.user.id, type: "NEW_TASK", meta: { gigId: gig.id, amount: gig.amount, description: gig.description.slice(0,80) } })),
