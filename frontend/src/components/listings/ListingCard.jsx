@@ -294,9 +294,11 @@ const ListingCard = ({ listing }) => {
             <span className="text-xs text-gray-500 truncate flex-1">
               {seller?.fullName || seller?.username}
             </span>
-            <span className="inline-flex items-center gap-1 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" title={`Verified ${seller?.school || 'Student'}`}>
-              ✓ Verified {seller?.school ? seller.school.split(' ')[0] : 'Student'}
-            </span>
+            {seller?.isVerified && (
+              <span className="inline-flex items-center gap-1 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0" title={`Verified ${seller?.school || 'Student'}`}>
+                ✓ Verified {seller?.school ? seller.school.split(' ')[0] : 'Student'}
+              </span>
+            )}
           </div>
         </div>
       </Link>
