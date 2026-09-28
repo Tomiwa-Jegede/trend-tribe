@@ -82,10 +82,16 @@ app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.get("/api/health", async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
+    let redisStatus = "disabled";
+    try {
+      const cache = require("./utils/cache");
+      redisStatus = cache.getRedisStatus();
+    } catch {}
     res.status(200).json({
       status: "OK",
       message: "Trend Tribe API is running 🚀",
       database: "Connected ✅",
+      redis: redisStatus,
       environment: config.nodeEnv,
       timestamp: new Date().toISOString(),
     });

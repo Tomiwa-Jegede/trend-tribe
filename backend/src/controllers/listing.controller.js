@@ -5,6 +5,45 @@ const { askGeminiVision } = require("../utils/gemini");
 const cloudinary = require("../config/cloudinary");
 const { generateUniqueSlug, resolveListingWhere } = require("../utils/slug");
 const { getAcademicStatus } = require("../utils/studentStatus");
+const cache = require("../utils/cache");
+const crypto = require("crypto");
+
+// --- feed version cache (10s in-memory) to avoid 1 Redis cmd per request ---
+let feedVersionMem = { value: null, expiresAt: 0 };
+async function getFeedVersion() {
+  if (Date.now() < feedVersionMem.expiresAt && feedVersionMem.value !== null) return feedVersionMem.value;
+  const v = await cache.get("tt:feed:version");
+  const version = v != null ? String(v) : "1";
+  // if no version yet, seed it
+  if (v == null) {
+    // fire-and-forget seed without blocking
+    cache.set("tt:feed:version", version, 60 * 60 * 24 * 30).catch(() => {});
+  }
+  feedVersionMem = { value: version, expiresAt: Date.now() + 10_000 };
+  return version;
+}
+async function bumpFeedVersion() {
+  feedVersionMem = { value: null, expiresAt: 0 };
+  try {
+    await cache.incr("tt:feed:version");
+  } catch {}
+}
+function feedHashFromQuery(q) {
+  const key = {
+    search: (q.search || "").trim().toLowerCase().slice(0, 100) || null,
+    category: q.category ? String(q.category).toUpperCase() : null,
+    subcategory: q.subcategory ? String(q.subcategory).toUpperCase() : null,
+    condition: q.condition ? String(q.condition).toUpperCase() : null,
+    minPrice: q.minPrice || null,
+    maxPrice: q.maxPrice || null,
+    page: String(q.page || 1),
+    limit: String(q.limit || 12),
+    sort: String(q.sort || "newest"),
+    boosted: q.boosted || null,
+    picks: q.picks || q.isPicks || null,
+  };
+  return crypto.createHash("sha256").update(JSON.stringify(key)).digest("hex").slice(0, 16);
+}
 
 const enrichSellerStatus = (listing) => {
   if (!listing?.seller) return listing;
@@ -258,6 +297,23 @@ const getAllListings = async (req, res) => {
       if (maxPrice) where.price.lte = parseFloat(maxPrice);
     }
 
+    // --- feed cache: 90s, versioned, bypass random/user-dependent ---
+    const shouldBypassFeed = sort === "random" || !!req.user;
+    let feedCacheKey = null;
+    if (!shouldBypassFeed) {
+      const version = await getFeedVersion();
+      const hash = feedHashFromQuery(req.query);
+      feedCacheKey = `tt:feed:v${version}:${hash}`;
+      const cached = await cache.get(feedCacheKey);
+      if (cached) {
+        res.setHeader("X-Cache", "HIT");
+        return res.status(200).json(cached);
+      }
+      res.setHeader("X-Cache", "MISS");
+    } else {
+      res.setHeader("X-Cache", "BYPASS");
+    }
+
     // Random sort — shuffle across result set (capped to 2k to avoid OOM, DB RANDOM would be slower)
     if (sort === "random") {
       const totalCount = await prisma.listing.count({ where });
@@ -311,7 +367,7 @@ const getAllListings = async (req, res) => {
       }
       listings = enrichListings(listings);
       // Cold start fake views for old listings (deterministic, boost-aware, within totalUsers)
-      const totalUsersForFake = await prisma.user.count();
+      const totalUsersForFake = await cache.memWrap("totalUsers", 5 * 60 * 1000, () => prisma.user.count());
       listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsersForFake) }));
       const effectiveTotal = Math.min(totalCount, cap);
       const totalPages = Math.ceil(effectiveTotal / limitNum);
@@ -405,7 +461,7 @@ const getAllListings = async (req, res) => {
     listings = enrichListings(listings);
     // Cold start fake views also for non-random sorts (same gradual boost as random)
     {
-      const totalUsersForFake = await prisma.user.count();
+      const totalUsersForFake = await cache.memWrap("totalUsers", 5 * 60 * 1000, () => prisma.user.count());
       listings = listings.map((l) => ({ ...l, views: getDisplayViews(l, totalUsersForFake) }));
     }
 
@@ -423,7 +479,7 @@ const getAllListings = async (req, res) => {
       }).catch(() => {});
     }
 
-    return res.status(200).json({
+    const responseBody = {
       listings: listings.map((l) => formatListing(stripAdminFields(l))),
       pagination: {
         totalCount,
@@ -442,7 +498,11 @@ const getAllListings = async (req, res) => {
           maxPrice: maxPrice || null,
           sort,
         },
-    });
+    };
+    if (feedCacheKey) {
+      cache.set(feedCacheKey, responseBody, 90).catch(() => {});
+    }
+    return res.status(200).json(responseBody);
   } catch (err) {
     console.error("[GET ALL LISTINGS ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -513,6 +573,15 @@ const getListingById = async (req, res) => {
     const identifier = req.params.id || req.params.slug;
     if (!identifier) return res.status(400).json({ error: "Invalid listing identifier" });
 
+    // single listing cache 60s, per-user fields (views increment) are fire-and-forget and not in cached blob
+    const listingCacheKey = `tt:listing:${String(identifier).toLowerCase()}`;
+    const cachedListing = await cache.get(listingCacheKey);
+    if (cachedListing) {
+      res.setHeader("X-Cache", "HIT");
+      return res.status(200).json(cachedListing);
+    }
+    res.setHeader("X-Cache", "MISS");
+
     const listing = await findListingByIdentifier(identifier, {
       seller: {
         select: {
@@ -561,19 +630,21 @@ const getListingById = async (req, res) => {
     const { listings: sellerListings, ...sellerFields } = listing.seller;
     // Match Marketplace display so owner sees same views as buyers (getDisplayViews)
     const [totalUsers, favCount] = await Promise.all([
-      prisma.user.count(),
+      cache.memWrap("totalUsers", 5 * 60 * 1000, () => prisma.user.count()),
       prisma.favorite.count({ where: { listingId: listing.id } }),
     ]);
     const withDisplay = { ...listing, favoriteCount: favCount, views: getDisplayViews({ ...listing, favoriteCount: favCount }, totalUsers) };
     const cleaned = stripAdminFields(withDisplay);
     cleaned.seller = undefined;
 
-    return res.status(200).json({
+    const responseBody = {
       listing: {
         ...formatListing(cleaned),
         seller: { ...sellerFields, activeListings: sellerListings.length },
       },
-    });
+    };
+    cache.set(listingCacheKey, responseBody, 60).catch(() => {});
+    return res.status(200).json(responseBody);
   } catch (err) {
     console.error("[GET LISTING BY ID ERROR]", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -760,6 +831,7 @@ const createListing = async (req, res) => {
     }
 
     enrichSellerStatus(listing);
+    await bumpFeedVersion().catch(() => {});
     // Admin bell: new listing (in-app pull)
     try {
       const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
@@ -991,6 +1063,14 @@ const {
       enrichSellerStatus(updated);
     }
 
+    // invalidate caches: feed + single
+    await bumpFeedVersion().catch(() => {});
+    await cache.del(`tt:listing:${listing.id}`).catch(() => {});
+    if (listing.slug) await cache.del(`tt:listing:${listing.slug}`).catch(() => {});
+    await cache.del(`tt:listing:${String(identifier).toLowerCase()}`).catch(() => {});
+    if (updated?.id) await cache.del(`tt:listing:${updated.id}`).catch(() => {});
+    if (updated?.slug) await cache.del(`tt:listing:${updated.slug}`).catch(() => {});
+
     // now safe to delete old images from Cloudinary (DB succeeded)
     if (removedPublicIds.length > 0) {
       deleteFromCloudinary(removedPublicIds).catch(() => {});
@@ -1018,6 +1098,10 @@ const deleteListing = async (req, res) => {
     if (error) return res.status(status).json({ error });
 
     await prisma.listing.delete({ where: { id: listing.id } });
+    await bumpFeedVersion().catch(() => {});
+    await cache.del(`tt:listing:${listing.id}`).catch(() => {});
+    if (listing.slug) await cache.del(`tt:listing:${listing.slug}`).catch(() => {});
+    await cache.del(`tt:listing:${String(identifier).toLowerCase()}`).catch(() => {});
     // fire-and-forget Cloudinary after DB success — prevents orphan delete on DB fail
     deleteFromCloudinary(listing.imagePublicIds).catch(() => {});
     try { const { emitListing } = require("../realtime"); emitListing("deleted", { id: listing.id, sellerId: listing.sellerId }); } catch {}
@@ -1112,7 +1196,11 @@ const archiveGhostListings = async () => {
       where: { id: { in: ghostIds } },
       data: { isAvailable: false, archivedAt: new Date() },
     });
-    if (result.count > 0) console.log(`🧹 Ghost prune archived ${result.count} stale listing(s)`);
+    if (result.count > 0) {
+      console.log(`🧹 Ghost prune archived ${result.count} stale listing(s)`);
+      await bumpFeedVersion().catch(() => {});
+      // ghost hides affect feed, no single del needed
+    }
     return result.count;
   } catch (err) {
     console.error("[GHOST PRUNE ERROR]", err.message);
@@ -1168,6 +1256,11 @@ const boostListing = async (req, res) => {
       });
     }
     try { const { emitListing } = require("../realtime"); emitListing("boosted", updated); } catch {}
+    await bumpFeedVersion().catch(() => {});
+    await cache.del(`tt:listing:${listing.id}`).catch(() => {});
+    if (listing.slug) await cache.del(`tt:listing:${listing.slug}`).catch(() => {});
+    await cache.del(`tt:listing:${String(identifier).toLowerCase()}`).catch(() => {});
+    if (updated?.id) await cache.del(`tt:listing:${updated.id}`).catch(() => {});
     const dur = `${days} day${days>1?"s":""}`;
     const msg = tier === 2 ? `Listing boosted to Picks for ${dur} ✅` : `Listing boosted for ${dur} ✅`;
     return res.status(200).json({ message: msg, listing: formatListing(updated) });

@@ -297,17 +297,17 @@ const ListingCard = ({ listing }) => {
               </span>
             </div>
             {seller?.academicStatus === "STUDENT" && (
-              <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap self-start" title={`Student · ${seller?.school || 'RUN'}`}>
+              <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap self-start flex-shrink-0" title={`Student · ${seller?.school || 'RUN'}`}>
                 Student
               </span>
             )}
             {seller?.academicStatus === "ALUMNI" && (
-              <span className="inline-flex items-center gap-1 bg-zinc-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap self-start" title={`Alumni · ${seller?.school || 'RUN'}`}>
+              <span className="inline-flex items-center gap-1 bg-zinc-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap self-start flex-shrink-0" title={`Alumni · ${seller?.school || 'RUN'}`}>
                 Alumni
               </span>
             )}
             {seller?.academicStatus === "FRESHER" && (
-              <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap self-start" title={`Fresher · ${seller?.school || 'RUN'}`}>
+              <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap self-start flex-shrink-0" title={`Fresher · ${seller?.school || 'RUN'}`}>
                 Fresher
               </span>
             )}

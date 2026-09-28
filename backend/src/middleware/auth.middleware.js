@@ -2,6 +2,7 @@
 
 const { verifyToken, signToken } = require("../utils/jwt");
 const prisma = require("../db");
+const { memWrap } = require("../utils/cache");
 
 const protect = async (req, res, next) => {
   try {
@@ -45,24 +46,27 @@ const protect = async (req, res, next) => {
 
     // 5. Confirm user still exists in the database
     //    (catches cases where account was deleted after token was issued)
-const user = await prisma.user.findUnique({
-  where: { id: decoded.id },
-  select: {
-    id: true,
-    slug: true,
-    email: true,
-    username: true,
-    fullName: true,
-    school: true,
-    bio: true,
-    avatar: true,
-    isVerified: true,
-    role: true,
-    tokenBalance: true,
-    createdAt: true,
-    updatedAt: true,
-  },
-});
+    // in-memory only (60s), NOT Redis — zero commands, hot tiny lookup
+    const user = await memWrap(`auth:user:${decoded.id}`, 60_000, () =>
+      prisma.user.findUnique({
+        where: { id: decoded.id },
+        select: {
+          id: true,
+          slug: true,
+          email: true,
+          username: true,
+          fullName: true,
+          school: true,
+          bio: true,
+          avatar: true,
+          isVerified: true,
+          role: true,
+          tokenBalance: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+    );
 
     if (!user) {
       return res.status(401).json({
