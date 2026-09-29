@@ -1,13 +1,13 @@
 // src/pages/GigsPage.jsx — Post gig + feed only. Wallet (money) lives at /gigs/wallet
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getGigs, createGig, claimGig, confirmGig, cancelGig, renewGig, refundExpiredGig, disputeGig, getMyGigs, getGigAccount } from "../services/gigService";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { FiClock, FiCheck, FiX, FiRefreshCw, FiCopy, FiPlus } from "react-icons/fi";
 import InfoModal from "../components/ui/InfoModal";
-import Alert from "../components/ui/Alert";
+import MatricGate from "../components/ui/MatricGate";
 import api from "../api/axios";
 
 const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
@@ -154,19 +154,13 @@ export default function GigsPage() {
       </div>
 
       {needsMatric && (
-        <div className="card p-4 mb-6 border-red-200 bg-red-50">
-          <Alert type="error" message="Matric number required — add it in your profile before you can post tasks." />
-          <Link to={`/profile/${user.slug || user.id}`} className="text-primary-600 font-semibold mt-3 inline-block">
-            Add matric now →
-          </Link>
+        <div className="mb-6">
+          <MatricGate />
         </div>
       )}
       {isFresherExpired && (
-        <div className="card p-4 mb-6 border-amber-200 bg-amber-50">
-          <Alert type="error" message="Fresher period ended — add your matric number in profile to continue posting tasks." />
-          <Link to={`/profile/${user.slug || user.id}`} className="text-primary-600 font-semibold mt-3 inline-block">
-            Add matric now →
-          </Link>
+        <div className="mb-6">
+          <MatricGate isFresher />
         </div>
       )}
 

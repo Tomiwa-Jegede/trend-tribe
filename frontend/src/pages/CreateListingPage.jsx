@@ -7,6 +7,7 @@ import ListingForm from "../components/listings/ListingForm";
 import { createListing } from "../services/listingService";
 import Alert from "../components/ui/Alert";
 import BuyTokens from "../components/ui/BuyTokens";
+import MatricGate from "../components/ui/MatricGate";
 const CreateListingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -56,30 +57,20 @@ const [pendingListing, setPendingListing] = useState(null); // { formData, token
     );
   }
 
-  // ── Block sellers without matric (legacy SELLER null) ────
+  // ── Block sellers without matric (legacy SELLER null) — fresher is the exception ────
   if (user && user.role === "SELLER" && !user.matricNumber && !user.isFresher) {
     return (
       <div className="container-app py-10 max-w-2xl">
-        <div className="card p-8 text-center">
-          <Alert type="error" message="Matric number required — add it in your profile before you can post." />
-          <Link to={`/profile/${user.slug || user.id}`} className="text-primary-600 font-semibold mt-4 inline-block">
-            Add matric now →
-          </Link>
-        </div>
+        <MatricGate />
       </div>
     );
   }
 
-  // ── Block fresher expired ────
+  // ── Block fresher expired — same inline fallback, with school email ────
   if (user && user.isFresher && user.fresherExpiresAt && new Date(user.fresherExpiresAt) < new Date()) {
     return (
       <div className="container-app py-10 max-w-2xl">
-        <div className="card p-8 text-center">
-          <Alert type="error" message="Fresher period ended — add your matric number in profile to continue selling." />
-          <Link to={`/profile/${user.slug || user.id}`} className="text-primary-600 font-semibold mt-4 inline-block">
-            Add matric now →
-          </Link>
-        </div>
+        <MatricGate isFresher />
       </div>
     );
   }

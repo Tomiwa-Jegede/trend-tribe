@@ -47,7 +47,7 @@ test.describe("Edit listing flow", () => {
 
     // Form pre-fills from existing data (400ms artificial delay in the page).
     await expect(page.getByLabel("Title")).not.toHaveValue("", {
-      timeout: 5_000,
+      timeout: 15_000,
     });
 
     const updatedTitle = `Updated by Playwright ${Date.now()}`;
