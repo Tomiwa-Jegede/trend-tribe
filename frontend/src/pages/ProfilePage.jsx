@@ -120,6 +120,27 @@ const ProfilePage = () => {
       setFresherError(err.response?.data?.error || "Verification failed");
     } finally { setFresherLoading(false); }
   };
+  const handleLegacyMatric = async () => {
+    setFresherError("");
+    if (!fresherData.matricNumber.trim()) { setFresherError("Matric number is required"); return; }
+    setFresherLoading(true);
+    try {
+      const res = await api.patch("/users/me/matric", { matricNumber: fresherData.matricNumber.trim() });
+      // backend for legacy seller with RUN email already does direct verify, no OTP
+      if (res.data.needOtp) {
+        setFresherStep("otp");
+        return;
+      }
+      if (setUser) setUser(res.data.user);
+      setSeller((prev) => ({ ...prev, matricNumber: res.data.user.matricNumber }));
+      toast.success("Matric added — seller verified");
+      setFresherData({ matricNumber: "", schoolEmail: "", otp: "" });
+      setFresherError("");
+      setFresherStep("form");
+    } catch (err) {
+      setFresherError(err.response?.data?.error || "Failed to save matric");
+    } finally { setFresherLoading(false); }
+  };
 
   const isOwnProfile = currentUser?.slug ? currentUser.slug === id : currentUser?.id === parseInt(id, 10) || currentUser?.username === id;
 
@@ -476,33 +497,21 @@ const ProfilePage = () => {
             })()}
           </div>
         )}
-        {/* Legacy SELLER without matric — required */}
+        {/* Legacy SELLER without matric — required, matric only (email already verified) */}
         {isOwnProfile && seller?.role === "SELLER" && !seller?.matricNumber && !seller?.isFresher && (
           <div className="mt-6 pt-6 border-t border-red-200 bg-red-50 rounded-xl p-4">
             <p className="text-sm font-bold text-red-700">Matric number required — add it to continue selling</p>
             <p className="text-xs text-red-600 mt-1">
-              You are a seller but your matric number is missing. Listings and tasks are blocked until you add it. Your badge will show Student/Alumni from your matric year.
+              You are a seller but your matric number is missing. Listings and tasks are blocked until you add it. Your school email is already verified ({seller.email}), so only matric is needed. Your badge will show Student/Alumni from your matric year.
             </p>
-            {fresherStep === "form" ? (
-              <div className="flex flex-col gap-3 max-w-md mt-3">
-                {fresherError && <p className="text-xs text-red-500">{fresherError}</p>}
-                <input type="text" placeholder="Matric number e.g. RUN/CMP/24/17209" value={fresherData.matricNumber} onChange={(e) => setFresherData((p) => ({ ...p, matricNumber: e.target.value }))} className="input" />
-                <input type="email" placeholder="you@run.edu.ng" value={fresherData.schoolEmail} onChange={(e) => setFresherData((p) => ({ ...p, schoolEmail: e.target.value }))} className="input" />
-                <button type="button" onClick={handleFresherRequest} disabled={fresherLoading} className="btn-primary">
-                  {fresherLoading ? "Sending..." : "Send OTP to school email"}
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 max-w-md mt-3">
-                <p className="text-xs text-gray-600">OTP sent to {fresherData.schoolEmail}</p>
-                {fresherError && <p className="text-xs text-red-500">{fresherError}</p>}
-                <input type="text" placeholder="6-digit OTP" maxLength={6} value={fresherData.otp} onChange={(e) => setFresherData((p) => ({ ...p, otp: e.target.value }))} className="input" />
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => { setFresherStep("form"); setFresherError(""); }} className="btn-secondary flex-1">Back</button>
-                  <button type="button" onClick={handleFresherVerify} disabled={fresherLoading} className="btn-primary flex-1">{fresherLoading ? "Verifying..." : "Verify & Save"}</button>
-                </div>
-              </div>
-            )}
+            <div className="flex flex-col gap-3 max-w-md mt-3">
+              {fresherError && <p className="text-xs text-red-500">{fresherError}</p>}
+              <input type="text" placeholder="Matric number e.g. RUN/CMP/24/17209" value={fresherData.matricNumber} onChange={(e) => setFresherData((p) => ({ ...p, matricNumber: e.target.value }))} className="input" />
+              <button type="button" onClick={handleLegacyMatric} disabled={fresherLoading} className="btn-primary">
+                {fresherLoading ? "Saving..." : "Save matric"}
+              </button>
+              <p className="text-[11px] text-gray-500">Upgrading from buyer? Use “Become a Seller” above — that one needs matric + RUN email.</p>
+            </div>
           </div>
         )}
 

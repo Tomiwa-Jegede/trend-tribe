@@ -765,15 +765,37 @@ const addMatricNumber = async (req, res) => {
     // 3-month window check (if expired, still allow upgrade but block selling until done)
     // We allow the update even after expiry — it re-enables selling
     const matric = String(matricNumber || "").trim();
-    const email = String(schoolEmail || "").trim().toLowerCase();
     if (!matric) return res.status(400).json({ error: "Matric number is required" });
-    if (!email || !email.endsWith("@run.edu.ng")) return res.status(400).json({ error: "Valid RUN school email (@run.edu.ng) is required" });
     const existingMatric = await prisma.user.findUnique({ where: { matricNumber: matric } });
     if (existingMatric) return res.status(409).json({ error: "This matric number is already registered" });
+
+    // Legacy SELLER with null matric and already has RUN email -> matric only, no school email needed
+    const isLegacyNoEmailNeeded = isLegacySellerFlow && user.email.endsWith("@run.edu.ng") && !schoolEmail;
+    let email = "";
+    if (isLegacyNoEmailNeeded) {
+      email = user.email.toLowerCase();
+      // No OTP needed — directly verify matric (email already verified)
+      const updated = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          matricNumber: matric,
+          isFresher: false,
+          fresherExpiresAt: null,
+          otpCode: null,
+          otpExpiresAt: null,
+          pendingSellerEmail: null,
+          pendingSellerMatric: null,
+        },
+      });
+      return res.status(200).json({ message: "Matric number added — seller verified", user: sanitizeUser(updated) });
+    }
+
+    email = String(schoolEmail || "").trim().toLowerCase();
+    if (!email || !email.endsWith("@run.edu.ng")) return res.status(400).json({ error: "Valid RUN school email (@run.edu.ng) is required" });
     const existingEmail = await prisma.user.findUnique({ where: { email } });
     if (existingEmail && existingEmail.id !== user.id) return res.status(409).json({ error: "This school email is already registered" });
 
-    // Verify school email via OTP — reuse same OTP flow as upgrade
+    // Verify school email via OTP — reuse same OTP flow as upgrade (buyer->seller and fresher)
     // If OTP not provided yet, send OTP to school email
     if (!req.body.otp) {
       const otpCode = generateOTP();
@@ -791,7 +813,7 @@ const addMatricNumber = async (req, res) => {
       where: { id: user.id },
       data: {
         matricNumber: matric,
-        email, // upgrade to school email (fresher + legacy seller)
+        email, // upgrade to school email (fresher + legacy seller with new email)
         isFresher: false,
         fresherExpiresAt: null,
         otpCode: null,
