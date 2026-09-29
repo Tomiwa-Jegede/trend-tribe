@@ -1,12 +1,13 @@
 // src/pages/GigsPage.jsx — Post gig + feed only. Wallet (money) lives at /gigs/wallet
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getGigs, createGig, claimGig, confirmGig, cancelGig, renewGig, refundExpiredGig, disputeGig, getMyGigs, getGigAccount } from "../services/gigService";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { FiClock, FiCheck, FiX, FiRefreshCw, FiCopy, FiPlus } from "react-icons/fi";
 import InfoModal from "../components/ui/InfoModal";
+import Alert from "../components/ui/Alert";
 import api from "../api/axios";
 
 const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
@@ -14,6 +15,7 @@ const formatNaira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
 export default function GigsPage() {
   const { user, setUser } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [muteTaskPush, setMuteTaskPush] = useState(!!user?.muteTaskPush);
   useEffect(() => { setMuteTaskPush(!!user?.muteTaskPush); }, [user?.muteTaskPush]);
   const toggleMute = async () => {
@@ -55,8 +57,21 @@ export default function GigsPage() {
   useEffect(() => { if (user?.whatsapp) setForm(f=>({...f, whatsapp: user.whatsapp})); }, [user]);
   useEffect(() => { if (viewParam === "post") setShowPost(true); if (viewParam === "feed") setTimeout(()=>document.querySelector("[data-gigs-feed]")?.scrollIntoView({behavior:"smooth"}), 300); }, [viewParam]);
 
+  const needsMatric = user && user.role === "SELLER" && !user.matricNumber && !user.isFresher;
+  const isFresherExpired = user && user.isFresher && user.fresherExpiresAt && new Date(user.fresherExpiresAt) < new Date();
+
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (needsMatric) {
+      toast.error("Matric number required — add it in your profile before posting tasks");
+      navigate(`/profile/${user.slug || user.id}`);
+      return;
+    }
+    if (isFresherExpired) {
+      toast.error("Fresher period ended — add your matric number in profile");
+      navigate(`/profile/${user.slug || user.id}`);
+      return;
+    }
     if (!form.description.trim() || form.description.trim().length < 10) return toast.error("Description at least 10 chars");
     const hrs = Math.max(0, Math.min(168, parseInt(form.timerHours,10)||0));
     const mins = Math.max(0, Math.min(59, parseInt(form.timerMins,10)||0));
@@ -135,12 +150,27 @@ export default function GigsPage() {
           </div>
           {my && <p className="text-xs text-gray-500 mt-1">Posted {my.posted?.length||0} · Claimed {my.claimed?.length||0}</p>}
         </div>
-        <button onClick={()=>setShowPost(v=>!v)} className="btn-primary px-6 py-3 rounded-2xl text-sm font-bold">Post Task</button>
+        <button onClick={()=>setShowPost(v=>!v)} disabled={needsMatric || isFresherExpired} className="btn-primary px-6 py-3 rounded-2xl text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed">Post Task</button>
       </div>
 
+      {needsMatric && (
+        <div className="card p-4 mb-6 border-red-200 bg-red-50">
+          <Alert type="error" message="Matric number required — add it in your profile before you can post tasks." />
+          <Link to={`/profile/${user.slug || user.id}`} className="text-primary-600 font-semibold mt-3 inline-block">
+            Add matric now →
+          </Link>
+        </div>
+      )}
+      {isFresherExpired && (
+        <div className="card p-4 mb-6 border-amber-200 bg-amber-50">
+          <Alert type="error" message="Fresher period ended — add your matric number in profile to continue posting tasks." />
+          <Link to={`/profile/${user.slug || user.id}`} className="text-primary-600 font-semibold mt-3 inline-block">
+            Add matric now →
+          </Link>
+        </div>
+      )}
 
-
-      {showPost && (
+      {showPost && !needsMatric && !isFresherExpired && (
         <form onSubmit={handleCreate} className="card p-5 sm:p-6 mb-6 space-y-4">
           <div className="flex items-center gap-2 pb-1">
             <div className="w-9 h-9 rounded-full bg-primary-50 flex items-center justify-center">

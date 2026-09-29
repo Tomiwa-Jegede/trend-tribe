@@ -56,6 +56,34 @@ const [pendingListing, setPendingListing] = useState(null); // { formData, token
     );
   }
 
+  // ── Block sellers without matric (legacy SELLER null) ────
+  if (user && user.role === "SELLER" && !user.matricNumber && !user.isFresher) {
+    return (
+      <div className="container-app py-10 max-w-2xl">
+        <div className="card p-8 text-center">
+          <Alert type="error" message="Matric number required — add it in your profile before you can post." />
+          <Link to={`/profile/${user.slug || user.id}`} className="text-primary-600 font-semibold mt-4 inline-block">
+            Add matric now →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Block fresher expired ────
+  if (user && user.isFresher && user.fresherExpiresAt && new Date(user.fresherExpiresAt) < new Date()) {
+    return (
+      <div className="container-app py-10 max-w-2xl">
+        <div className="card p-8 text-center">
+          <Alert type="error" message="Fresher period ended — add your matric number in profile to continue selling." />
+          <Link to={`/profile/${user.slug || user.id}`} className="text-primary-600 font-semibold mt-4 inline-block">
+            Add matric now →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = async (formData) => {
     const result = await createListing(formData);
 
