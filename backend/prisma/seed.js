@@ -32,7 +32,8 @@ async function main() {
         bio: "Seeded test account",
         role: "ADMIN",
         isVerified: true,
-        matricNumber: `RUN/CMP/24/17209-${Date.now().toString(36)}`,
+        // 4th segment must be digits-only (parseMatric enforces RUN/<DEPT>/<YY>/<NUM>)
+        matricNumber: `RUN/CMP/24/${10000 + (Date.now() % 89999)}`,
         whatsapp: "2349166635320",
         tokenBalance: 10,
       },

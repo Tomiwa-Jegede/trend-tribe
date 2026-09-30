@@ -39,21 +39,21 @@ function parseMatric(matric) {
   const m = matric.trim();
   if (!m) return null;
   if (m.toLowerCase() === "alumni") return { entryYear: null, dept: null, alumniLiteral: true };
-  const parts = m.split("/").map((s) => s.trim()).filter(Boolean);
-  if (parts.length < 3) return null;
-  // RUN/<DEPT>/<YY>/...  -> dept = parts[1], yy = parts[2]
-  // Tolerate extra / spaces and case
-  let dept = null;
-  let yearSeg = null;
-  if (parts.length >= 3) {
-    // first part is RUN-like, second is dept, third is year
-    dept = parts[1] ? parts[1].toUpperCase() : null;
-    yearSeg = parts[2];
-  }
+  // Exactly 4 segments: RUN/<DEPT>/<YY>/<NUM>. No filtering of empty
+  // segments — "RUN/CMP/24/" and "RUN//24/12345" must be rejected, not
+  // silently collapsed into a shorter-but-valid split.
+  const parts = m.split("/").map((s) => s.trim());
+  if (parts.length !== 4) return null;
+  if (parts[0].toUpperCase() !== "RUN") return null;
+  const dept = parts[1];
+  if (!dept) return null;
+  const yearSeg = parts[2];
+  if (!/^\d{2}$/.test(yearSeg)) return null;
+  // 4th segment is the student's unique number — digits only
+  if (!/^\d+$/.test(parts[3])) return null;
   const yy = parseInt(yearSeg, 10);
-  if (Number.isNaN(yy) || yearSeg.length !== 2) return null;
   const yyyy = yy < 50 ? 2000 + yy : 1900 + yy;
-  return { entryYear: yyyy, dept, yearSeg };
+  return { entryYear: yyyy, dept: dept.toUpperCase(), yearSeg };
 }
 
 function getDurationYears(dept) {
