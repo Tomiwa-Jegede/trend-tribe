@@ -31,6 +31,11 @@ export default defineConfig({
       url: "http://localhost:5050/api/health",
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
+      // See backend/src/middleware/rateLimit.js — otpLimiter is 5 req/10 min
+      // keyed by IP and shared across all six OTP routes, so a reused dev server
+      // carries one window across every test run and any OTP-route test would
+      // 429 the next run. The backend hard-refuses this when NODE_ENV=production.
+      env: { DISABLE_RATE_LIMIT: "1" },
     },
     {
       command: "npm run dev",

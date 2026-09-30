@@ -11,6 +11,19 @@ const config = require("../config/env");
 const { normalizeWhatsapp } = require("../utils/phone");
 const { generateUniqueUserSlug } = require("../utils/slug");
 const { verifyJamb } = require("../utils/jamb");
+const { parseMatric } = require("../utils/studentStatus");
+
+// ─── Helper: matric format gate ──────────────────────────────
+// Every write of user.matricNumber goes through this. Format is RUN/<DEPT>/<YY>/<NUM>
+// (or the literal "alumni"); parseMatric is the same parser that derives Student/Alumni.
+// Without it anyone could save "abc123" and satisfy the !user.matricNumber selling gate.
+const INVALID_MATRIC_MSG = "Enter a valid matric number, e.g. RUN/CMP/24/17209";
+const isValidMatricFormat = (matric) => {
+  const m = String(matric || "").trim();
+  if (!m) return false;
+  return m.toLowerCase() === "alumni" || !!parseMatric(m);
+};
+
 // ─── Helper: generate unique 10-digit gig account number (809...) ──
 const generateGigAccountNumber = async () => {
   for (let i = 0; i < 10; i++) {
@@ -92,6 +105,15 @@ const register = async (req, res) => {
         if (!matricNumber || !matricNumber.trim()) {
           return res.status(400).json({ error: "Matric number is required for seller accounts" });
         }
+      }
+    }
+
+    // Format gate for anyone who supplies a matric. Sellers must supply one
+    // (checked above); buyers may omit it, but if given it is stored on the
+    // user and is what unlocks selling later, so it must be real.
+    if (!isFresher && matricNumber && matricNumber.trim()) {
+      if (!isValidMatricFormat(matricNumber)) {
+        return res.status(400).json({ error: INVALID_MATRIC_MSG });
       }
     }
 
@@ -766,6 +788,9 @@ const addMatricNumber = async (req, res) => {
     // We allow the update even after expiry — it re-enables selling
     const matric = String(matricNumber || "").trim();
     if (!matric) return res.status(400).json({ error: "Matric number is required" });
+    if (!isValidMatricFormat(matric)) {
+      return res.status(400).json({ error: INVALID_MATRIC_MSG });
+    }
     const existingMatric = await prisma.user.findUnique({ where: { matricNumber: matric } });
     if (existingMatric) return res.status(409).json({ error: "This matric number is already registered" });
 
@@ -892,6 +917,7 @@ const requestSellerUpgrade = async (req, res) => {
       // Fresher upgrade now also requires matric (not optional)
       const fresherMatric = req.body.matricNumber ? String(req.body.matricNumber).trim() : "";
       if (!fresherMatric) return res.status(400).json({ error: "Matric number is required" });
+      if (!isValidMatricFormat(fresherMatric)) return res.status(400).json({ error: INVALID_MATRIC_MSG });
       const existingMatricFresher = await prisma.user.findUnique({ where: { matricNumber: fresherMatric } });
       if (existingMatricFresher) return res.status(409).json({ error: "This matric number is already registered" });
       const targetEmail = (runEmail && runEmail.trim()) ? runEmail.trim() : user.email;
@@ -916,6 +942,7 @@ const requestSellerUpgrade = async (req, res) => {
     }
     const pendingMatric = req.body.matricNumber ? String(req.body.matricNumber).trim() : "";
     if (!pendingMatric) return res.status(400).json({ error: "Matric number is required" });
+    if (!isValidMatricFormat(pendingMatric)) return res.status(400).json({ error: INVALID_MATRIC_MSG });
     const existingMatricPending = await prisma.user.findUnique({ where: { matricNumber: pendingMatric } });
     if (existingMatricPending) return res.status(409).json({ error: "This matric number is already registered" });
 
@@ -978,6 +1005,7 @@ const verifySellerUpgrade = async (req, res) => {
       // matric is now required even for fresher upgrade
       const fresherMatricFinal = (matricNumber ? String(matricNumber).trim() : user.pendingSellerMatric || "").trim();
       if (!fresherMatricFinal) return res.status(400).json({ error: "Matric number is required" });
+      if (!isValidMatricFormat(fresherMatricFinal)) return res.status(400).json({ error: INVALID_MATRIC_MSG });
       const existingFresherMatric = await prisma.user.findUnique({ where: { matricNumber: fresherMatricFinal } });
       if (existingFresherMatric && existingFresherMatric.id !== user.id) return res.status(409).json({ error: "This matric number is already registered" });
       const fresherExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
@@ -1008,6 +1036,7 @@ const verifySellerUpgrade = async (req, res) => {
     }
     const finalMatric = matricNumber ? String(matricNumber).trim() : (user.pendingSellerMatric || "").trim();
     if (!finalMatric) return res.status(400).json({ error: "Matric number is required" });
+    if (!isValidMatricFormat(finalMatric)) return res.status(400).json({ error: INVALID_MATRIC_MSG });
     const existingMatric = await prisma.user.findUnique({ where: { matricNumber: finalMatric } });
     if (existingMatric && existingMatric.id !== user.id) {
       return res.status(409).json({ error: "This matric number is already registered" });

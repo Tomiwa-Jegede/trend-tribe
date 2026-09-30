@@ -16,7 +16,9 @@ const prisma = new PrismaClient();
 
 const EMAIL = "matricgate.test@run.edu.ng";
 const FRESHER_EMAIL = "fresher.gate.test@run.edu.ng";
-const PASSWORD = "T 23 65 89a@";
+const UPGRADE_EMAIL = "upgrade.gate.test@run.edu.ng";
+// never used to sign in — these tests mint JWTs directly — just a valid hash
+const PASSWORD = `pw-${Math.random().toString(36).slice(2)}`;
 const API = "http://localhost:5050/api";
 
 const MATRIC_FIELD = 'input[placeholder="Matric number e.g. RUN/CMP/24/17209"]';
@@ -51,6 +53,12 @@ test.beforeAll(async () => {
       jambExamYear: 2024,
     },
   });
+  // BUYER used for the upgrade-to-seller format gate
+  await prisma.user.upsert({
+    where: { email: UPGRADE_EMAIL },
+    update: { ...base, role: "BUYER", isFresher: false, email: UPGRADE_EMAIL, matricNumber: null, pendingSellerEmail: null, pendingSellerMatric: null, pendingSellerIsFresher: false, otpCode: null, otpExpiresAt: null },
+    create: { ...base, role: "BUYER", slug: "upgrade-gate-test", username: "upgrade_gate_test", email: UPGRADE_EMAIL, isFresher: false },
+  });
 });
 
 // The gate only exists while the account has no matric — reset before every test.
@@ -60,6 +68,10 @@ test.beforeEach(async () => {
   expect.configure({ timeout: 15_000 });
   await prisma.user.update({ where: { email: EMAIL }, data: { matricNumber: null, isFresher: false } });
   await prisma.user.update({ where: { email: FRESHER_EMAIL }, data: { matricNumber: null, isFresher: true } });
+  await prisma.user.update({
+    where: { email: UPGRADE_EMAIL },
+    data: { role: "BUYER", isFresher: false, matricNumber: null, otpCode: null, otpExpiresAt: null, pendingSellerEmail: null, pendingSellerMatric: null, pendingSellerIsFresher: false },
+  });
 });
 
 test.afterAll(async () => {
@@ -169,6 +181,134 @@ test.describe("matric gate", () => {
     });
     expect(res.status()).toBe(403);
     expect((await res.json()).code).toBe("MATRIC_REQUIRED");
+  });
+
+  test("backend rejects a garbage matric without saving it", async ({ page, request }) => {
+    const { token } = await authAs(page, request, EMAIL);
+
+    const res = await request.patch(`${API}/users/me/matric`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { matricNumber: "abc123" },
+    });
+
+    expect(res.status()).toBe(400);
+    expect((await res.json()).error).toBe("Enter a valid matric number, e.g. RUN/CMP/24/17209");
+    // must not have unlocked the seller
+    const record = await prisma.user.findUnique({ where: { email: EMAIL }, select: { matricNumber: true } });
+    expect(record.matricNumber).toBeNull();
+  });
+
+  test("backend accepts a well-formed matric and the alumni literal", async ({ page, request }) => {
+    const { token } = await authAs(page, request, EMAIL);
+    const patch = (matricNumber) =>
+      request.patch(`${API}/users/me/matric`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { matricNumber },
+      });
+
+    const good = await patch(`RUN/CMP/24/${Math.floor(Math.random() * 90000) + 10000}`);
+    expect(good.status()).toBe(200);
+    expect((await prisma.user.findUnique({ where: { email: EMAIL } })).matricNumber).toMatch(/^RUN\/CMP\/24\/\d+$/);
+
+    await prisma.user.update({ where: { email: EMAIL }, data: { matricNumber: null } });
+
+    const alumni = await patch("alumni");
+    expect(alumni.status()).toBe(200);
+    expect((await prisma.user.findUnique({ where: { email: EMAIL } })).matricNumber).toBe("alumni");
+  });
+
+  // ── every other write of user.matricNumber needs the same gate ─────────────
+  // Selling unlocks on "has a matric", so a garbage value slipping through any
+  // write path is the same bypass. These hit otpLimiter routes, which is why
+  // playwright.config.js sets DISABLE_RATE_LIMIT for the webServer.
+
+  const MATRIC_MSG = "Enter a valid matric number, e.g. RUN/CMP/24/17209";
+
+  test("register rejects a garbage matric for a seller", async ({ request }) => {
+    const email = `reg.garbage.${Date.now().toString(36)}@run.edu.ng`;
+    const res = await request.post(`${API}/auth/register`, {
+      data: {
+        email,
+        username: `reg_garbage_${Date.now().toString(36).slice(-6)}`,
+        password: PASSWORD,
+        fullName: "Garbage Seller",
+        school: "Redeemer's University",
+        role: "SELLER",
+        whatsapp: "+2348012345678",
+        matricNumber: "abc123",
+      },
+    });
+
+    expect(res.status()).toBe(400);
+    expect((await res.json()).error).toBe(MATRIC_MSG);
+    // never staged for verification
+    const pending = await prisma.pendingRegistration.findFirst({ where: { email } });
+    expect(pending).toBeNull();
+  });
+
+  test("upgrade-to-seller rejects a garbage matric before sending an OTP", async ({ page, request }) => {
+    const { token } = await authAs(page, request, UPGRADE_EMAIL);
+
+    const res = await request.post(`${API}/auth/upgrade-to-seller`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { runEmail: "upgrade.gate.test@run.edu.ng", matricNumber: "abc123" },
+    });
+
+    expect(res.status()).toBe(400);
+    expect((await res.json()).error).toBe(MATRIC_MSG);
+    const record = await prisma.user.findUnique({ where: { email: UPGRADE_EMAIL } });
+    expect(record.otpCode).toBeNull();
+    expect(record.pendingSellerMatric).toBeNull();
+  });
+
+  test("upgrade-to-seller/verify rejects a swapped garbage matric without saving it", async ({ page, request }) => {
+    const { token } = await authAs(page, request, UPGRADE_EMAIL);
+    // stage a valid pending upgrade, then swap in a different matric at verify
+    // time — the request-time gate cannot catch that
+    await prisma.user.update({
+      where: { email: UPGRADE_EMAIL },
+      data: {
+        otpCode: "123456",
+        otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        pendingSellerEmail: "upgrade.gate.test@run.edu.ng",
+        pendingSellerMatric: `RUN/CMP/24/${Math.floor(Math.random() * 90000) + 10000}`,
+      },
+    });
+
+    const res = await request.post(`${API}/auth/upgrade-to-seller/verify`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { runEmail: "upgrade.gate.test@run.edu.ng", otp: "123456", matricNumber: "abc123" },
+    });
+
+    expect(res.status()).toBe(400);
+    expect((await res.json()).error).toBe(MATRIC_MSG);
+    const record = await prisma.user.findUnique({ where: { email: UPGRADE_EMAIL } });
+    expect(record.role).toBe("BUYER");
+    expect(record.matricNumber).toBeNull();
+  });
+
+  test("upgrade-to-seller/verify still upgrades on a well-formed matric", async ({ page, request }) => {
+    const { token } = await authAs(page, request, UPGRADE_EMAIL);
+    const good = `RUN/CMP/24/${Math.floor(Math.random() * 90000) + 10000}`;
+    await prisma.user.update({
+      where: { email: UPGRADE_EMAIL },
+      data: {
+        otpCode: "123456",
+        otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        pendingSellerEmail: "upgrade.gate.test@run.edu.ng",
+        pendingSellerMatric: good,
+      },
+    });
+
+    const res = await request.post(`${API}/auth/upgrade-to-seller/verify`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { runEmail: "upgrade.gate.test@run.edu.ng", otp: "123456" },
+    });
+
+    expect(res.status()).toBe(200);
+    const record = await prisma.user.findUnique({ where: { email: UPGRADE_EMAIL } });
+    expect(record.role).toBe("SELLER");
+    expect(record.matricNumber).toBe(good);
   });
 
   // ── Profile page reuses the same fallback (no more dead-end prompt) ─────────
